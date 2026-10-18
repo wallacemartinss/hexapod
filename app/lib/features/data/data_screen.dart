@@ -311,7 +311,10 @@ class _EnvironmentTab extends StatelessWidget {
         ],
       ),
     );
-    final gas = Part.gas.presentIn(t) ? _GasCard(t) : const _Absent(Part.gas);
+    // A firmware older than the MQ-2 never sets its fault bit: all-zero
+    // readings mean "not there" (a real ADC never reads exactly 0).
+    final gasRead = t.gasLevelPct > 0 || t.gasWarming || t.gasAlarm;
+    final gas = Part.gas.presentIn(t) && gasRead ? _GasCard(t) : const _Absent(Part.gas);
     if (!Part.environment.presentIn(t) || t.pressureHpa == 0) {
       return _Grid([const _Absent(Part.environment), gas, esp]);
     }
