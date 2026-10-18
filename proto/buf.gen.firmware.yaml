@@ -1,0 +1,6 @@
+# nanopb only: used by firmware/scripts/pre_build.py (no Go/Dart tools needed).
+version: v2
+plugins:
+  - local: protoc-gen-nanopb
+    out: ../firmware/lib/proto
+    opt: --options-path=.

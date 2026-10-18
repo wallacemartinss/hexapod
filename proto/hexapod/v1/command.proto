@@ -28,6 +28,20 @@ message Command {
 
   // Cuts servo power at once (PCA9685 OE high). Never ignored, whatever the seq.
   bool estop = 12;
+
+  // MODE_FRONT_LEGS only.
+  FrontLegs front_legs = 13;
+  // A gesture plays once when this changes from UNSPECIFIED to a value; send
+  // UNSPECIFIED again before repeating it.
+  Gesture gesture = 14;
+}
+
+// Raised front feet, normalized: 0 = the raised rest pose of each foot.
+message FrontLegs {
+  float left_reach = 1; // -1 (towards the body) .. 1 (forward)
+  float left_lift = 2; // -1 (lower) .. 1 (higher)
+  float right_reach = 3;
+  float right_lift = 4;
 }
 
 // Sent by hexd. The ESP32 only applies it while sitting or relaxed.

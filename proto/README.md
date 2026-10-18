@@ -48,7 +48,10 @@ Requer `buf`, `protoc-gen-go` (`go install`) e `protoc-gen-nanopb` (`pipx instal
 ```bash
 cd proto
 buf lint
-buf generate        # Go → pi/hexd/gen, C → firmware/lib/proto
+buf generate        # tudo: Go, C (nanopb) e Dart
+buf generate --template buf.gen.firmware.yaml   # só nanopb (o build do firmware faz isso sozinho)
+buf generate --template buf.gen.pi.yaml         # só Go
+buf generate --template buf.gen.app.yaml        # só Dart (dart pub global activate protoc_plugin)
 buf breaking --against '../.git#branch=main,subdir=proto'   # antes de mudar algo
 ```
 
@@ -56,7 +59,7 @@ buf breaking --against '../.git#branch=main,subdir=proto'   # antes de mudar alg
 |---|---|---|
 | Go | `pi/hexd/gen/hexapod/v1` | Pacote `github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1` |
 | C (nanopb) | `firmware/lib/proto/hexapod/v1` | Sem alocação dinâmica: limites nos `.options` |
-| Dart | `app/lib/gen` | Habilitar no `buf.gen.yaml` na fase 6 |
+| Dart | `app/lib/gen` | `protoc_plugin` (pub global) |
 
 ## Limites do nanopb (`*.options`)
 

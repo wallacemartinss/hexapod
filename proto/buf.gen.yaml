@@ -1,4 +1,4 @@
-# Run from proto/: `buf generate`
+# Run from proto/: `buf generate` (everything). Per target: buf.gen.{firmware,pi,app}.yaml
 version: v2
 managed:
   enabled: true
@@ -14,6 +14,6 @@ plugins:
   - local: protoc-gen-nanopb
     out: ../firmware/lib/proto
     opt: --options-path=.
-  # Dart (app): enabled in phase 6.
-  # - local: protoc-gen-dart
-  #   out: ../app/lib/gen
+  # Dart (app). `dart pub global activate protoc_plugin`.
+  - local: protoc-gen-dart
+    out: ../app/lib/gen
