@@ -15,8 +15,8 @@ firmware/include/secrets.h
 # --- Firmware (PlatformIO) ---
 firmware/.pio/
 firmware/.vscode/
-firmware/lib/proto/*.pb.c
-firmware/lib/proto/*.pb.h
+firmware/lib/proto/**/*.pb.c
+firmware/lib/proto/**/*.pb.h
 
 # --- Go ---
 pi/hexd/gen/

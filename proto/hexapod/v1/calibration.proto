@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+import "hexapod/v1/common.proto";
+
+enum CalibrationAction {
+  CALIBRATION_ACTION_UNSPECIFIED = 0;
+  CALIBRATION_ACTION_GET = 1; // report the current values, change nothing
+  CALIBRATION_ACTION_MOVE = 2; // move to target_deg (interpolated, clamped to min/max)
+  CALIBRATION_ACTION_SET_OFFSET = 3;
+  CALIBRATION_ACTION_SET_LIMITS = 4;
+  CALIBRATION_ACTION_SET_INVERTED = 5;
+  CALIBRATION_ACTION_SAVE = 6; // persist this servo to NVS
+}
+
+// One servo at a time. Only accepted in MODE_CALIBRATE.
+// The ESP32 never moves a servo beyond its stored limits, not even here.
+message CalibrationCommand {
+  uint32 leg = 1; // 0..5, order defined in config.h
+  Joint joint = 2;
+  CalibrationAction action = 3;
+
+  float target_deg = 4; // MOVE
+  float offset_deg = 5; // SET_OFFSET
+  float min_deg = 6; // SET_LIMITS
+  float max_deg = 7; // SET_LIMITS
+  bool inverted = 8; // SET_INVERTED
+}
+
+enum CalibrationResult {
+  CALIBRATION_RESULT_UNSPECIFIED = 0;
+  CALIBRATION_RESULT_OK = 1;
+  CALIBRATION_RESULT_NOT_IN_CALIBRATE_MODE = 2;
+  CALIBRATION_RESULT_INVALID_SERVO = 3;
+  CALIBRATION_RESULT_OUT_OF_LIMITS = 4; // MOVE was clamped
+  CALIBRATION_RESULT_INVALID_LIMITS = 5; // min >= max, or outside the servo range
+  CALIBRATION_RESULT_NVS_ERROR = 6;
+}
+
+// Answer to every CalibrationCommand.
+message CalibrationReport {
+  uint32 leg = 1;
+  Joint joint = 2;
+  CalibrationResult result = 3;
+
+  uint32 pca9685_address = 4; // 0x40 or 0x41
+  uint32 channel = 5; // 0..15
+
+  float offset_deg = 6;
+  float min_deg = 7;
+  float max_deg = 8;
+  bool inverted = 9;
+  float current_deg = 10;
+  bool saved = 11; // values in RAM match NVS
+}

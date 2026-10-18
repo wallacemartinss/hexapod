@@ -1,0 +1,3 @@
+# nanopb: fixed-size arrays, always fully sent.
+hexapod.v1.Telemetry.distances_mm     max_count:4  fixed_count:true
+hexapod.v1.Telemetry.joint_angles_deg max_count:18 fixed_count:true

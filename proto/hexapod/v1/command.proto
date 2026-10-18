@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+import "hexapod/v1/common.proto";
+
+// Pilot command. The app sends it at 20 Hz even when the sticks are idle (dead man's switch);
+// hexd stamps seq and forwards it to the ESP32.
+//
+// All motion fields are normalized: the ESP32 scales them by the limits in config.h,
+// so the app never needs physical dimensions.
+message Command {
+  // Strictly increasing. The ESP32 discards any command with seq <= last accepted.
+  uint32 seq = 1;
+  uint32 timestamp_ms = 2; // hexd monotonic clock when forwarded
+
+  float vx = 3; // forward(+)/backward(-), -1..1
+  float vy = 4; // left(+)/right(-), -1..1
+  float yaw_rate = 5; // counter-clockwise(+), -1..1
+
+  float body_height = 6; // 0 = lowest allowed, 1 = highest allowed
+  float body_roll = 7; // -1..1 of the max roll in config.h
+  float body_pitch = 8; // -1..1 of the max pitch in config.h
+  float body_yaw = 9; // -1..1 of the max yaw in config.h
+
+  Gait gait = 10;
+  Mode mode = 11;
+
+  // Cuts servo power at once (PCA9685 OE high). Never ignored, whatever the seq.
+  bool estop = 12;
+}
+
+// Sent by hexd. The ESP32 only applies it while sitting or relaxed.
+message LinkConfig {
+  LinkProfile profile = 1;
+}

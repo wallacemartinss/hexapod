@@ -1,0 +1,4 @@
+# nanopb: fixed-size buffers (sizes include the NUL terminator).
+hexapod.v1.Hello.firmware_version max_size:32
+hexapod.v1.Hello.hexd_version     max_size:32
+hexapod.v1.Hello.git_hash         max_size:41
