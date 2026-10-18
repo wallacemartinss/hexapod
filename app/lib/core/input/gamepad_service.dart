@@ -142,7 +142,17 @@ final gamepadServiceProvider = Provider<GamepadInterpreter>((ref) {
     updateLight();
   });
 
-  final timer = Timer.periodic(commandRate, (_) => interpreter.tick(commandRate));
+  final hold = ref.read(standHoldProvider.notifier);
+  var padHold = 0.0;
+  final timer = Timer.periodic(commandRate, (_) {
+    interpreter.tick(commandRate);
+    // d-pad hold, shown mid-screen; only on change, so the pad does not
+    // overwrite a hold on the screen button
+    if (interpreter.standProgress != padHold) {
+      padHold = interpreter.standProgress;
+      hold.set(padHold);
+    }
+  });
   ref.onDispose(() {
     timer.cancel();
     motion?.cancel();

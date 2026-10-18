@@ -95,9 +95,13 @@ class HoldButton extends StatefulWidget {
     this.haptics = true,
     this.highlight = false,
     this.color = const Color(0xFF3DDC97),
+    this.onProgress,
   });
 
   final VoidCallback onConfirmed;
+
+  /// Hold progress 0..1, for feedback away from the finger.
+  final ValueChanged<double>? onProgress;
   final String label;
   final IconData icon;
   final Duration hold;
@@ -113,6 +117,7 @@ class HoldButton extends StatefulWidget {
 
 class _HoldButtonState extends State<HoldButton> with TickerProviderStateMixin {
   late final AnimationController _progress = AnimationController(vsync: this, duration: widget.hold)
+    ..addListener(() => widget.onProgress?.call(_progress.value))
     ..addStatusListener((s) {
       if (s == AnimationStatus.completed) {
         if (widget.haptics) HapticFeedback.heavyImpact();
@@ -144,6 +149,10 @@ class _HoldButtonState extends State<HoldButton> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    if (_progress.value > 0) {
+      final report = widget.onProgress;
+      Future.microtask(() => report?.call(0)); // gone mid-hold: no stuck feedback
+    }
     _progress.dispose();
     _pulse.dispose();
     super.dispose();

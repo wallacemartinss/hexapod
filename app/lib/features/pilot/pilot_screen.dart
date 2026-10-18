@@ -12,6 +12,7 @@ import '../../core/providers.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
+import 'widgets/center_feedback.dart';
 import 'widgets/controls.dart';
 import 'widgets/floating_joystick.dart';
 import 'widgets/hud.dart';
@@ -245,6 +246,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                               _GestureRow(
                                 enabled: canMove,
                                 haptics: settings.haptics,
+                                active: ref.watch(gestureFeedbackProvider),
                                 onGesture: controller.gesture,
                               ),
                               const SizedBox(height: 8),
@@ -256,6 +258,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                               haptics: settings.haptics,
                               onSit: controller.sit,
                               onStand: controller.stand,
+                              onStandProgress: ref.read(standHoldProvider.notifier).set,
                               onScheme: controller.setScheme,
                             ),
                           ],
@@ -266,6 +269,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                 ),
               ),
             ),
+            const CenterFeedback(), // over the camera, never over the alerts below
             if (lost) _ConnectionOverlay(host: settings.host, status: link),
             if (!settings.onboarded)
               _Onboarding(
@@ -337,6 +341,7 @@ class _ModeRail extends StatelessWidget {
     required this.haptics,
     required this.onSit,
     required this.onStand,
+    required this.onStandProgress,
     required this.onScheme,
   });
 
@@ -346,6 +351,7 @@ class _ModeRail extends StatelessWidget {
   final bool haptics;
   final VoidCallback onSit;
   final VoidCallback onStand;
+  final ValueChanged<double> onStandProgress;
   final ValueChanged<Scheme> onScheme;
 
   @override
@@ -389,6 +395,7 @@ class _ModeRail extends StatelessWidget {
             haptics: haptics,
             highlight: needsStand,
             onConfirmed: onStand,
+            onProgress: onStandProgress,
           ),
           const SizedBox(width: 6),
           RailButton(
@@ -424,51 +431,65 @@ class _ModeRail extends StatelessWidget {
 }
 
 class _GestureRow extends StatelessWidget {
-  const _GestureRow({required this.enabled, required this.haptics, required this.onGesture});
+  const _GestureRow({
+    required this.enabled,
+    required this.haptics,
+    required this.active,
+    required this.onGesture,
+  });
 
   final bool enabled;
   final bool haptics;
+
+  /// The gesture just sent, highlighted for a moment.
+  final pb.Gesture? active;
   final ValueChanged<pb.Gesture> onGesture;
 
   @override
   Widget build(BuildContext context) {
-    Widget item(String label, IconData icon, pb.Gesture g) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: GestureDetector(
-        onTap: enabled
-            ? () {
-                if (haptics) HapticFeedback.mediumImpact();
-                onGesture(g);
-              }
-            : null,
-        child: Opacity(
-          opacity: enabled ? 1 : 0.4,
-          child: Glass(
-            radius: 14,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: Colors.white, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+    Widget item(pb.Gesture g) {
+      final (label, icon) = gestureTexts[g]!;
+      final on = g == active;
+      final color = on ? gestureColor : Colors.white;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: GestureDetector(
+          onTap: enabled
+              ? () {
+                  if (haptics) HapticFeedback.mediumImpact();
+                  onGesture(g);
+                }
+              : null,
+          child: Opacity(
+            opacity: enabled ? 1 : 0.4,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: on ? gestureColor : Colors.transparent, width: 2),
+              ),
+              child: Glass(
+                radius: 12,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, color: color, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        item('Acenar', Icons.waving_hand_rounded, pb.Gesture.GESTURE_WAVE),
-        item('Guarda', Icons.shield_rounded, pb.Gesture.GESTURE_GUARD),
-        item('Golpe', Icons.flash_on_rounded, pb.Gesture.GESTURE_STRIKE),
-      ],
-    );
+      );
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: [for (final g in gestureTexts.keys) item(g)]);
   }
 }
 

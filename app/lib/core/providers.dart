@@ -63,7 +63,12 @@ final linkStatusProvider = StreamProvider<LinkStatus>((ref) {
 
 final telemetryProvider = StreamProvider<Telemetry>((ref) => ref.watch(linkProvider).telemetry);
 
-final helloProvider = StreamProvider<Hello>((ref) => ref.watch(linkProvider).hello);
+final helloProvider = StreamProvider<Hello>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastHello;
+  if (last != null) yield last;
+  yield* link.hello;
+});
 
 final controlProvider = NotifierProvider<ControlNotifier, ControlState>(ControlNotifier.new);
 
@@ -118,6 +123,42 @@ class ControlNotifier extends Notifier<ControlState> {
     _gestureTimer = Timer(gesturePulse, () {
       state = state.copyWith(gesture: Gesture.GESTURE_UNSPECIFIED);
     });
+  }
+}
+
+/// Progress (0..1) of a hold-to-stand in course, on the screen or on the
+/// gamepad: the finger covers the button, so the screen center shows it.
+final standHoldProvider = NotifierProvider<StandHold, double>(StandHold.new);
+
+class StandHold extends Notifier<double> {
+  @override
+  double build() => 0;
+
+  void set(double progress) {
+    if (progress != state) state = progress;
+  }
+}
+
+/// How long the screen shows which gesture was sent.
+const gestureShown = Duration(milliseconds: 1500);
+
+/// The gesture just sent (from the screen or the gamepad), for [gestureShown];
+/// null otherwise.
+final gestureFeedbackProvider = NotifierProvider<GestureFeedback, Gesture?>(GestureFeedback.new);
+
+class GestureFeedback extends Notifier<Gesture?> {
+  Timer? _timer;
+
+  @override
+  Gesture? build() {
+    ref.onDispose(() => _timer?.cancel());
+    ref.listen(controlProvider.select((c) => c.gesture), (_, g) {
+      if (g == Gesture.GESTURE_UNSPECIFIED) return;
+      state = g;
+      _timer?.cancel();
+      _timer = Timer(gestureShown, () => state = null);
+    });
+    return null;
   }
 }
 
