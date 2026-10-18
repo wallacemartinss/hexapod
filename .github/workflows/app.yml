@@ -3,7 +3,7 @@ name: app
 
 on:
   push:
-    branches: [main, "phase-*"]
+    branches: [main, "phase-**"]  # ** also matches the slash in phase-N/name
     paths: ["app/**", "proto/**", "pi/**", ".github/workflows/app.yml"]
   pull_request:
     paths: ["app/**", "proto/**", "pi/**", ".github/workflows/app.yml"]
