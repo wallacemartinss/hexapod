@@ -72,6 +72,13 @@ func New(cfg Config, dev *device.Device, log *slog.Logger) *Server {
 	return &Server{cfg: cfg, dev: dev, log: log, profile: pb.LinkProfile_LINK_PROFILE_WIFI}
 }
 
+// Clients is the number of apps connected over the WebSocket.
+func (s *Server) Clients() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.clients
+}
+
 // Handler returns the HTTP routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()

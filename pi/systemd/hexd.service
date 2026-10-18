@@ -10,7 +10,7 @@ StartLimitIntervalSec=0
 [Service]
 User=hexapod
 Group=hexapod
-SupplementaryGroups=dialout
+SupplementaryGroups=dialout i2c
 WorkingDirectory=/opt/hexapod/current
 ExecStart=/opt/hexapod/current/bin/hexd -config /opt/hexapod/shared/config/hexd.yaml
 Restart=always

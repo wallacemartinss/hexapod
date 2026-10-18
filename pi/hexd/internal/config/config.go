@@ -32,6 +32,14 @@ type Config struct {
 		WirelessPath      string `yaml:"wireless_path"`
 		WifiInterface     string `yaml:"wifi_interface"`
 	} `yaml:"metrics"`
+	Display struct {
+		Enabled  bool          `yaml:"enabled"`
+		Bus      string        `yaml:"bus"`
+		Address  int           `yaml:"address"`
+		PageTime time.Duration `yaml:"page_time"`
+		Wired    string        `yaml:"wired_interface"`
+		Tailnet  string        `yaml:"tailnet_interface"`
+	} `yaml:"display"`
 	Shutdown struct {
 		Enabled bool          `yaml:"enabled"`
 		Delay   time.Duration `yaml:"delay"`
@@ -53,6 +61,12 @@ func Default() Config {
 	c.Metrics.PiTemperaturePath = "/sys/class/thermal/thermal_zone0/temp"
 	c.Metrics.WirelessPath = "/proc/net/wireless"
 	c.Metrics.WifiInterface = "wlan0"
+	c.Display.Enabled = true // a missing panel is only logged
+	c.Display.Bus = "/dev/i2c-1"
+	c.Display.Address = 0x3C
+	c.Display.PageTime = 5 * time.Second
+	c.Display.Wired = "eth0"
+	c.Display.Tailnet = "tailscale0"
 	c.Shutdown.Enabled = true
 	c.Shutdown.Delay = 10 * time.Second
 	c.Shutdown.Command = []string{"systemctl", "poweroff"}
@@ -86,6 +100,10 @@ func (c Config) validate() error {
 		return fmt.Errorf("deadman timeouts must be positive")
 	case c.Shutdown.Enabled && len(c.Shutdown.Command) == 0:
 		return fmt.Errorf("shutdown.command is empty")
+	case c.Display.Enabled && c.Display.PageTime <= 0:
+		return fmt.Errorf("display.page_time must be positive")
+	case c.Display.Enabled && (c.Display.Address < 0x03 || c.Display.Address > 0x77):
+		return fmt.Errorf("display.address 0x%02x is not a 7-bit I2C address", c.Display.Address)
 	}
 	return nil
 }

@@ -167,13 +167,16 @@ func TestAppDrivesTheBoardThroughHexd(t *testing.T) {
 	a.waitState(pb.State_STATE_NORMAL) // still fine while the app talks
 
 	// App goes silent: hexd sends ONE zero command, then the ESP32 escalates.
+	// Counted inside hexd: telemetry lags up to 100 ms behind 20 Hz commands,
+	// which made a seq comparison flaky on a busy machine.
 	close(stop)
-	before := r.dev.Snapshot().Telemetry.LastCommandSeq
+	time.Sleep(100 * time.Millisecond) // commands already on the wire land
+	forwarded := func() uint64 { r.srv.mu.Lock(); defer r.srv.mu.Unlock(); return r.srv.commands }
+	before := forwarded()
 	a.waitState(pb.State_STATE_STOPPING)
 	a.waitState(pb.State_STATE_SAFE_SIT)
-	after := r.dev.Snapshot().Telemetry.LastCommandSeq
-	if after-before > 2 { // the deadman command, maybe one in-flight app command
-		t.Fatalf("hexd kept forwarding after the app went silent: seq %d -> %d", before, after)
+	if after := forwarded(); after != before {
+		t.Fatalf("hexd kept forwarding app commands after the app went silent: %d -> %d", before, after)
 	}
 	r.srv.mu.Lock()
 	trips := r.srv.deadmanTrips

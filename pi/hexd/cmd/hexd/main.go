@@ -17,6 +17,7 @@ import (
 
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/config"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/display"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
 )
@@ -78,6 +79,17 @@ func main() {
 			log.With("component", "shutdown"))
 	}
 
+	// The screen draws "hexd parado" on the way out: main waits for it.
+	displayDone := make(chan struct{})
+	if cfg.Display.Enabled {
+		go func() {
+			defer close(displayDone)
+			runDisplay(ctx, cfg, dev, srv, log.With("component", "display"))
+		}()
+	} else {
+		close(displayDone)
+	}
+
 	httpServer := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		<-ctx.Done()
@@ -89,5 +101,38 @@ func main() {
 		log.Error("http", "err", err)
 		os.Exit(1)
 	}
+	select {
+	case <-displayDone:
+	case <-time.After(time.Second):
+	}
 	log.Info("hexd stopped")
+}
+
+// runDisplay keeps the OLED status screen up to date. The network is looked
+// up every 10 s (it shells out to iw), the rest every refresh.
+func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server, log *slog.Logger) {
+	var label, ip, ts string
+	var netAt time.Time
+	status := func() display.Status {
+		if now := time.Now(); now.Sub(netAt) > 10*time.Second {
+			label, ip, ts = display.Network(cfg.Metrics.WifiInterface, cfg.Display.Wired, cfg.Display.Tailnet)
+			netAt = now
+		}
+		snap := dev.Snapshot()
+		return display.Status{
+			ESP32:     snap.Connected && time.Since(snap.LastRx) < cfg.HealthMaxAge,
+			Telemetry: snap.Telemetry,
+			Apps:      srv.Clients(),
+			Network:   label,
+			IP:        ip,
+			Tailscale: ts,
+			Version:   version,
+		}
+	}
+	display.Run(ctx, display.Options{
+		Bus:      cfg.Display.Bus,
+		Address:  cfg.Display.Address,
+		PageTime: cfg.Display.PageTime,
+		Retry:    30 * time.Second,
+	}, display.Open, status, log)
 }
