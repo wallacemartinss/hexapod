@@ -2,6 +2,8 @@
 Description=USB microphone to MediaMTX (Opus over RTSP)
 Requires=mediamtx.service
 After=mediamtx.service sound.target
+# Never give up restarting (the default stops after 5 starts in 10 s).
+StartLimitIntervalSec=0
 
 [Service]
 User=hexapod
@@ -16,7 +18,6 @@ ExecStart=/usr/bin/ffmpeg -nostdin -hide_banner -loglevel warning \
 # Keep retrying: the microphone may be plugged in later.
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=0
 
 [Install]
 WantedBy=multi-user.target
