@@ -21,6 +21,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 | IMU | BNO085 | Usar *game rotation vector* (sem magnetômetro) por padrão |
 | Distância | 4x VL53L0X (GY-VL53L0XV2) | Todos com 0x29 de fábrica: trocar no boot via XSHUT para 0x30–0x33 |
 | Ambiente | BME280 (0x76) | |
+| Gás e fumaça | MQ-2 (módulo com LM393) | Saída analógica pelo divisor 10k/15k (AO vai a 5 V). Leitura relativa, alarme só informativo. Ver `firmware/PINOUT.md` |
 | Bateria | INA226 (0x40) | **Ver o aviso sobre o shunt na seção 9** |
 | Câmera | OV5647, grande-angular 120° | Porta CSI, H.264 por hardware |
 | Áudio | Mini microfone USB | Plugado direto no Pi |
@@ -29,13 +30,14 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 | Energia da lógica | Mini560 Pro 5 V / 5 A | Pi pelo GPIO (pinos 2/6), ESP32 e sensores |
 | Bateria | LiPo 3S 2200 mAh, XT60 | Fusível de 20 A + chave anti-spark |
 
-**Fora do projeto:** GPS, MQ-2, JSN-SR04T, VL53L1X.
+**Fora do projeto:** GPS, JSN-SR04T, VL53L1X. (O MQ-2 entrou em 18/10/2026.)
 
 ### Barramentos
 
 - **I2C 0 (servos, 400 kHz):** PCA9685 0x40 e 0x41.
 - **I2C 1 (sensores):** VL53L0X 0x30–0x33, BNO085 0x4A, BME280 0x76, INA226 0x40.
 - **USB:** ESP32 ↔ Pi (protocolo + gravação do firmware).
+- **ADC do ESP32:** saída analógica do MQ-2 (pelo divisor).
 - **GPIO do ESP32:** 4x XSHUT, OE das PCA9685 (ligado ao das duas placas: corte de emergência), dados dos WS2812, interrupção do BNO085 (opcional) e UART para o ESP32 dos olhos (futuro).
 - **Mapa de pinos: definido (v1)** em `firmware/include/pins.h` e documentado em `firmware/PINOUT.md`, para o S3 e para a placa de bancada. Pads do SuperMini ainda a conferir quando a placa chegar.
 

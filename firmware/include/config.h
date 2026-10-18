@@ -127,6 +127,21 @@ constexpr float kSettledDeg = 0.5f;  // deg
 // Joint speed limit: every target is approached at most this fast.
 constexpr float kMaxJointSpeedDegS = 180.0f;  // deg/s
 
+// --- MQ-2 smoke/gas sensor (informative: never moves the robot) ---
+// Not fitted yet: telemetry reports FAULT_GAS_SENSOR until this is true.
+constexpr bool kGasSensorFitted = false;
+// The heater needs a few minutes after power-up (24-48 h the very first time)
+// before readings settle; until then the level is not trusted.
+constexpr uint32_t kGasWarmupMs = 180000;  // ms
+// Clean-air baseline: slow average of the level while there is no alarm.
+constexpr float kGasBaselineAlpha = 0.01f;  // per sample (10 Hz: ~10 s)
+// Alarm when the level rises this far above the baseline; clears below
+// kGasAlarmRisePct - kGasAlarmHysteresisPct.
+constexpr float kGasAlarmRisePct = 15.0f;       // percentage points
+constexpr float kGasAlarmHysteresisPct = 5.0f;  // percentage points
+// AO swings up to 5 V: a 10k/15k divider brings it to ~3.0 V at the ADC.
+constexpr float kGasAdcFullScale = 4095.0f;  // counts (12-bit)
+
 // --- FreeRTOS tasks ---
 constexpr uint32_t kMotionPeriodMs = 20;     // ms (50 Hz)
 constexpr uint32_t kMotionTaskStack = 4096;  // bytes

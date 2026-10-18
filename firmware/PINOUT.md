@@ -33,10 +33,11 @@ Mapa de cada pino do ESP32 e sua função, para as duas placas. A fonte para o c
 | 7 | `SENSOR_SCL` | |
 | 8 | `XSHUT0` | VL53L0X **frente** → 0x30 |
 | 9 | `XSHUT1` | VL53L0X **direita** → 0x31 |
-| 10 | `XSHUT2` | VL53L0X **trás** → 0x32 |
+| 14 | `XSHUT2` | VL53L0X **trás** → 0x32 (saiu do GPIO10 para liberar um pino do ADC1) |
 | 11 | `XSHUT3` | VL53L0X **esquerda** → 0x33 |
 | 12 | `IMU_INT` | |
 | 13 | `IMU_RST` | |
+| 10 | `GAS_AO` | MQ-2, saída analógica, **pelo divisor 10 kΩ/15 kΩ** (ver abaixo). ADC1 |
 | 43 | `EYES_TX` | Também recebe o log da ROM no boot; o protocolo dos olhos precisa ignorar lixo |
 | 44 | `EYES_RX` | |
 | 48 | LED RGB da placa | Estado do firmware |
@@ -62,12 +63,31 @@ Mapa de cada pino do ESP32 e sua função, para as duas placas. A fonte para o c
 | 14 | `XSHUT3` | VL53L0X **esquerda** → 0x33. Oscila no boot (inofensivo: só reinicia o sensor) |
 | 34 | `IMU_INT` | Pino só de entrada, ideal para INT |
 | 25 | `IMU_RST` | |
+| 35 | `GAS_AO` | MQ-2, saída analógica, **pelo divisor 10 kΩ/15 kΩ**. ADC1, só entrada |
 | 17 | `EYES_TX` | UART2 |
 | 16 | `EYES_RX` | UART2 |
 | 1, 3 | USB (CP2102) | UART0 = link com o Pi. **Não usar** |
 | 6–11 | — | Memória flash, **proibidos** (SD0–SD3, CMD, CLK na placa) |
 | 0, 2, 5, 12, 15 | — | *Strapping*: afetam o boot, evitados |
-| 4, 26, 35, 36 (VP), 39 (VN) | livres | 35/36/39 são só entrada |
+| 4, 26, 36 (VP), 39 (VN) | livres | 36/39 são só entrada |
+
+## MQ-2 (gás e fumaça)
+
+O módulo é alimentado em **5 V** (Mini560) e o aquecedor consome **~150 mA**. A saída analógica `AO` vai de 0 a **5 V**, mas o pino do ESP32 aguenta no máximo 3,3 V. Por isso, **nunca ligue `AO` direto**:
+
+```
+AO ──[10 kΩ]──┬── GAS_AO (GPIO10 no S3, GPIO35 na bancada)
+              │
+           [15 kΩ]
+              │
+             GND
+```
+
+Com 5 V em `AO`, o pino recebe 3,0 V. A saída digital `DO` (comparador do módulo, também em 5 V) não é usada: o alarme é feito no firmware, comparando com o ar limpo.
+
+- **Aquecimento:** alguns minutos a cada partida (o firmware ignora o alarme nos 3 primeiros) e **24–48 h** ligado na primeira vez, para o sensor estabilizar.
+- **Leitura relativa:** o nível é a porcentagem da escala do ADC, não ppm. O alarme dispara quando o nível sobe bem acima da linha de base do ar limpo (`config.h`, bloco MQ-2).
+- Enquanto `config::kGasSensorFitted` for `false`, o firmware nem lê o pino e informa `FAULT_GAS_SENSOR`.
 
 ## Servos: canal de cada junta
 

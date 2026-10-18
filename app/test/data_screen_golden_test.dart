@@ -52,6 +52,7 @@ pb.Telemetry _full(int seq) => pb.Telemetry()
   ..humidityPct = 58
   ..pressureHpa = 1013
   ..esp32TemperatureC = 41.3
+  ..gasLevelPct = 21
   ..loopTimeUs = 330 + (seq % 7) * 20
   ..jointAnglesDeg.addAll([
     for (var i = 0; i < 18; i++) (i % 3 == 0 ? 2.5 * (i - 8) : (i % 3 == 1 ? 35.2 : -106.8)),

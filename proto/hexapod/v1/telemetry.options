@@ -1,3 +1,7 @@
 # nanopb: fixed-size arrays, always fully sent.
 hexapod.v1.Telemetry.distances_mm     max_count:4  fixed_count:true
 hexapod.v1.Telemetry.joint_angles_deg max_count:18 fixed_count:true
+# Narrower C types for fields that never use 32 bits (the wire stays varint):
+# keeps the worst-case Envelope within one COBS block (firmware/src/link/frame.h).
+hexapod.v1.Telemetry.distances_mm     int_size:IS_16
+hexapod.v1.Telemetry.blocked_mask     int_size:IS_8

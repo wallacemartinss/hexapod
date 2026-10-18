@@ -8,7 +8,8 @@ enum Part {
   imu('Orientação', 'BNO085', 4),
   distance('Distância', '4x VL53L0X', 8),
   environment('Ambiente', 'BME280', 16),
-  power('Bateria', 'INA226', 32);
+  power('Bateria', 'INA226', 32),
+  gas('Gás e fumaça', 'MQ-2', 2048);
 
   const Part(this.label, this.chip, this.fault);
 
@@ -33,6 +34,7 @@ const faultTexts = <(int, String)>[
   (256, 'Bateria crítica: desligamento pedido'),
   (512, 'Laço de controle atrasado (50 Hz)'),
   (1024, 'Calibração dos servos não carregada'),
+  (2048, 'Sensor de gás (MQ-2) ausente'),
 ];
 
 /// Health checks for the system tab: (fault bit, what is checked). A clear
@@ -49,6 +51,7 @@ const faultChecks = <(int, String)>[
   (256, 'Bateria acima de 3,3 V por célula'),
   (512, 'Laço de 50 Hz no prazo'),
   (1024, 'Calibração dos servos carregada'),
+  (2048, 'Gás e fumaça (MQ-2)'),
 ];
 
 /// Recent Telemetry received by the app: rate, losses and series for the

@@ -266,8 +266,11 @@ func (s *Sim) telemetry() *pb.Envelope {
 		}
 		angles[leg*3+1], angles[leg*3+2] = float32(femur), float32(tibia)
 	}
+	// MQ-2: the heater warms up for 3 min (as config.h kGasWarmupMs), then
+	// clean air around 18 % of full scale.
+	up := s.opt.Now().Sub(s.booted)
 	return &pb.Envelope{Payload: &pb.Envelope_Telemetry{Telemetry: &pb.Telemetry{
-		Seq: s.telSeq, UptimeMs: uint32(s.opt.Now().Sub(s.booted).Milliseconds()),
+		Seq: s.telSeq, UptimeMs: uint32(up.Milliseconds()),
 		State: s.fs.State, FaultFlags: s.faults, LastCommandSeq: s.fs.LastSeq(),
 		Mode: s.mode, Gait: pb.Gait_GAIT_TRIPOD,
 		BatteryVoltageV: float32(s.loadedVoltage()), BatteryCurrentA: float32(s.current()),
@@ -276,6 +279,7 @@ func (s *Sim) telemetry() *pb.Envelope {
 		DistancesMm: dist, BlockedMask: s.fs.BlockedMask(),
 		TemperatureC: 24.5, HumidityPct: 52, PressureHpa: 1013.2, Esp32TemperatureC: 46,
 		LoopTimeUs: 300 + uint32(s.rng.IntN(40)), JointAnglesDeg: angles,
+		GasLevelPct: float32(18 + s.rng.Float64()), GasWarming: up < 3*time.Minute,
 	}}}
 }
 

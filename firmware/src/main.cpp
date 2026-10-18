@@ -8,7 +8,8 @@
 //   LinkConfig, sends Telemetry at 10 Hz. estop also cuts OE right here.
 // - motion task (core 1, 50 Hz): failsafe -> gait -> IK -> joint speed limit.
 //   The 18 joint angles go out in Telemetry; no servo is driven yet and
-//   sensors are not read yet (reported as faults).
+//   the I2C sensors are not read yet (reported as faults). The MQ-2 is read
+//   by the link task when config::kGasSensorFitted.
 // - Both tasks are under the task watchdog: a hang resets the chip.
 #include <Arduino.h>
 #include <driver/gpio.h>
@@ -22,6 +23,7 @@
 #include "motion/controller.h"
 #include "pins.h"
 #include "safety/failsafe.h"
+#include "sensors/gas.h"
 
 #ifndef HEXAPOD_FW_VERSION
 #define HEXAPOD_FW_VERSION "unknown"
@@ -57,6 +59,8 @@ struct LinkEvent {
   hexapod_v1_LinkProfile profile;
 };
 QueueHandle_t g_events;
+
+sensors::GasMonitor g_gas;  // link task only
 
 // motion -> link (telemetry), guarded by g_status_lock.
 struct Status {
@@ -167,7 +171,8 @@ void SendTelemetry() {
   t.seq = ++g_telemetry_seq;
   t.uptime_ms = millis();
   t.state = status.state;
-  t.fault_flags = status.fault_flags;
+  // Milestone 3.4 reads the I2C sensors; until then the BME280 reads as absent.
+  t.fault_flags = status.fault_flags | hexapod_v1_Fault_FAULT_ENV_SENSOR;
   t.blocked_mask = status.blocked_mask;
   t.last_command_seq = status.last_command_seq;
   t.loop_time_us = status.loop_time_us;
@@ -177,7 +182,15 @@ void SendTelemetry() {
     t.joint_angles_deg[i] = status.joint_angles_deg[i];
   }
   t.esp32_temperature_c = temperatureRead();
-  // Sensor fields are filled in milestone 3.4 (zeros until then).
+  if (config::kGasSensorFitted) {
+    const sensors::GasReading gas = g_gas.Update(analogRead(pins::kGasAdc), millis());
+    t.gas_level_pct = gas.level_pct;
+    t.gas_warming = gas.warming;
+    t.gas_alarm = gas.alarm;
+  } else {
+    t.fault_flags |= hexapod_v1_Fault_FAULT_GAS_SENSOR;
+  }
+  // The other sensor fields are filled in milestone 3.4 (zeros until then).
   Send(g_tx);
 }
 

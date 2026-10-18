@@ -74,6 +74,7 @@ List<String> describeFaults(int flags) => [
   if (flags & 256 != 0) 'Bateria crítica: desligando',
   if (flags & 512 != 0) 'Laço de controle atrasado',
   if (flags & 1024 != 0) 'Calibração não carregada',
+  if (flags & 2048 != 0) 'Sensor de gás ausente',
 ];
 
 Color severityColor(Severity s) => switch (s) {

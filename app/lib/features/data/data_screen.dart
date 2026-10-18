@@ -140,6 +140,7 @@ class _SummaryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = describeState(t.state);
     final faults = [
+      if (t.gasAlarm && Part.gas.presentIn(t)) 'GÁS OU FUMAÇA DETECTADO',
       for (final (bit, text) in faultTexts)
         if (t.faultFlags & bit != 0) text,
     ];
@@ -310,8 +311,9 @@ class _EnvironmentTab extends StatelessWidget {
         ],
       ),
     );
+    final gas = Part.gas.presentIn(t) ? _GasCard(t) : const _Absent(Part.gas);
     if (!Part.environment.presentIn(t) || t.pressureHpa == 0) {
-      return _Grid([const _Absent(Part.environment), esp]);
+      return _Grid([const _Absent(Part.environment), gas, esp]);
     }
     return _Grid([
       _Card(
@@ -329,6 +331,7 @@ class _EnvironmentTab extends StatelessWidget {
         title: 'Pressão',
         child: _Big(t.pressureHpa.toStringAsFixed(0), 'hPa'),
       ),
+      gas,
       esp,
     ]);
   }
@@ -473,11 +476,14 @@ class _SystemTab extends StatelessWidget {
 
 // ------------------------------------------------------------- widgets ---
 
-/// Cards side by side on a landscape phone, stacked when narrow.
+/// Cards in rows: side by side on a landscape phone, stacked when narrow.
+/// Every card in a row takes the height of the tallest, so edges line up.
 class _Grid extends StatelessWidget {
   const _Grid(this.cards);
 
   final List<Widget> cards;
+
+  static bool _isWide(Widget c) => (c is _Card && c.wide) || (c is _Absent && c.wide);
 
   @override
   Widget build(BuildContext context) {
@@ -485,18 +491,35 @@ class _Grid extends StatelessWidget {
       builder: (context, box) {
         final columns = box.maxWidth > 900 ? 3 : (box.maxWidth > 560 ? 2 : 1);
         const gap = 12.0;
-        final width = (box.maxWidth - 32 - gap * (columns - 1)) / columns;
+        // Wide cards get a row of their own; the rest fill rows of [columns].
+        final rows = <List<Widget>>[];
+        for (final c in cards) {
+          if (_isWide(c)) {
+            rows.add([c]);
+          } else if (rows.isEmpty || _isWide(rows.last.first) || rows.last.length == columns) {
+            rows.add([c]);
+          } else {
+            rows.last.add(c);
+          }
+        }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Wrap(
-            spacing: gap,
-            runSpacing: gap,
+          child: Column(
             children: [
-              for (final c in cards)
-                SizedBox(
-                  width: (c is _Card && c.wide) || (c is _Absent && c.wide) ? box.maxWidth - 32 : width,
-                  child: c,
+              for (final (i, row) in rows.indexed) ...[
+                if (i > 0) const SizedBox(height: gap),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var k = 0; k < (_isWide(row.first) ? 1 : columns); k++) ...[
+                        if (k > 0) const SizedBox(width: gap),
+                        Expanded(child: k < row.length ? row[k] : const SizedBox()),
+                      ],
+                    ],
+                  ),
                 ),
+              ],
             ],
           ),
         );
@@ -659,6 +682,57 @@ class _StateChip extends StatelessWidget {
       child: Text(
         s.label,
         style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13),
+      ),
+    );
+  }
+}
+
+/// MQ-2: relative level (not ppm), warm-up and the alarm.
+class _GasCard extends StatelessWidget {
+  const _GasCard(this.t);
+
+  final pb.Telemetry t;
+
+  @override
+  Widget build(BuildContext context) {
+    const danger = Color(0xFFFF5A5F);
+    final color = t.gasAlarm
+        ? danger
+        : t.gasWarming
+        ? Colors.white38
+        : const Color(0xFF3DDC97);
+    return _Card(
+      icon: Icons.local_fire_department_rounded,
+      title: 'Gás e fumaça',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Big(t.gasLevelPct.toStringAsFixed(0), '% do sensor'),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: (t.gasLevelPct / 100).clamp(0.0, 1.0),
+              minHeight: 8,
+              color: color,
+              backgroundColor: Colors.white10,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (t.gasAlarm)
+            const Text(
+              'GÁS OU FUMAÇA DETECTADO',
+              style: TextStyle(color: danger, fontSize: 13, fontWeight: FontWeight.w800),
+            )
+          else if (t.gasWarming)
+            const Text(
+              'Aquecendo o sensor: leituras confiáveis em alguns minutos',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            )
+          else
+            const Text('Ar normal', style: TextStyle(color: Color(0xFF3DDC97), fontSize: 12)),
+          const _Note('Nível relativo ao ar limpo, não em ppm.'),
+        ],
       ),
     );
   }

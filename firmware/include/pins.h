@@ -26,10 +26,12 @@ constexpr uint8_t kServoScl = 5;
 // I2C1: VL53L0X, BNO085, BME280, INA226.
 constexpr uint8_t kSensorSda = 6;
 constexpr uint8_t kSensorScl = 7;
-// VL53L0X XSHUT: front, right, rear, left.
-constexpr uint8_t kXshut[4] = {8, 9, 10, 11};
+// VL53L0X XSHUT: front, right, rear, left. (GPIO14 keeps GPIO10, on ADC1,
+// free for the MQ-2.)
+constexpr uint8_t kXshut[4] = {8, 9, 14, 11};
 constexpr uint8_t kImuInt = 12;    // BNO085 INT (active low)
 constexpr uint8_t kImuReset = 13;  // BNO085 RST (active low)
+constexpr uint8_t kGasAdc = 10;    // MQ-2 AO through a 10k/15k divider (ADC1)
 // UART to the eyes ESP32 (future). The ROM boot log also appears on TX.
 constexpr uint8_t kEyesTx = 43;
 constexpr uint8_t kEyesRx = 44;
@@ -53,6 +55,7 @@ constexpr uint8_t kSensorScl = 33;
 constexpr uint8_t kXshut[4] = {18, 19, 13, 14};
 constexpr uint8_t kImuInt = 34;    // BNO085 INT (active low), input-only pin
 constexpr uint8_t kImuReset = 25;  // BNO085 RST (active low)
+constexpr uint8_t kGasAdc = 35;    // MQ-2 AO through a 10k/15k divider (ADC1, input-only)
 // UART2 to the eyes ESP32 (future).
 constexpr uint8_t kEyesTx = 17;
 constexpr uint8_t kEyesRx = 16;
