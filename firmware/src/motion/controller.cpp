@@ -1,5 +1,7 @@
 #include "motion/controller.h"
 
+#include <math.h>
+
 #include "config.h"
 
 namespace hexapod {
@@ -62,7 +64,20 @@ void MotionController::Update(const MotionInput& in,
   const bool want_sit = failsafe.posture == safety::Posture::kSit ||
                         mode_ == hexapod_v1_Mode_MODE_SIT ||
                         mode_ == hexapod_v1_Mode_MODE_CALIBRATE;
+  const bool want_legs =
+      mode_ == hexapod_v1_Mode_MODE_FRONT_LEGS && !want_sit && !sitting_;
   Vec3 feet[kLegCount];
+
+  // Front legs mode owns the feet from the first body shift until the body
+  // is back, including on the way out to sitting. It starts from a still
+  // stance: until the gait has settled, the branch below stops it.
+  if (legs_.active() || (want_legs && gait_.idle())) {
+    legs_.Update(want_legs, in.paws, in.gesture, settled_, height, dt_s, feet);
+    if (legs_.active()) {
+      Track(feet, dt_s);
+      return;
+    }
+  }
 
   if (want_sit) {
     // Finish the steps in progress with all feet down, then lower the body.
@@ -103,10 +118,22 @@ void MotionController::Update(const MotionInput& in,
     }
   }
 
+  Track(feet, dt_s);
+}
+
+void MotionController::Track(const Vec3 feet[kLegCount], float dt_s) {
   SetTargetsFromFeet(feet);
   const float max_step = config::kMaxJointSpeedDegS * dt_s;
+  settled_ = true;
   for (int i = 0; i < kLegCount; ++i) {
     joints_[i] = RateLimit(joints_[i], targets_[i], max_step);
+    const JointAngles& j = joints_[i];
+    const JointAngles& t = targets_[i];
+    if (fabsf(j.coxa_deg - t.coxa_deg) > config::kSettledDeg ||
+        fabsf(j.femur_deg - t.femur_deg) > config::kSettledDeg ||
+        fabsf(j.tibia_deg - t.tibia_deg) > config::kSettledDeg) {
+      settled_ = false;
+    }
   }
 }
 

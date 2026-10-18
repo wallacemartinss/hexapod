@@ -1,5 +1,5 @@
-// Hexapod firmware, milestone 3.3: link + failsafe + gait "on paper", servos
-// always off.
+// Hexapod firmware: link + failsafe + gait and front legs "on paper";
+// servos always off.
 //
 // - PCA9685 OE is driven HIGH before anything else. While
 //   config::kServoOutputsAllowed is false it is never released, whatever the
@@ -209,6 +209,11 @@ void HandleFrame(const uint8_t* payload, size_t len) {
       event.motion.body_roll = c.body_roll;
       event.motion.body_pitch = c.body_pitch;
       event.motion.body_yaw = c.body_yaw;
+      event.motion.paws.left_reach = c.front_legs.left_reach;
+      event.motion.paws.left_lift = c.front_legs.left_lift;
+      event.motion.paws.right_reach = c.front_legs.right_reach;
+      event.motion.paws.right_lift = c.front_legs.right_lift;
+      event.motion.gesture = c.gesture;
       QueueEvent(event);
       break;
     }

@@ -37,6 +37,9 @@ type Sim struct {
 	booted   time.Time
 	mode     pb.Mode
 	vx, vy   float32
+	paws     *pb.FrontLegs
+	gesture  pb.Gesture
+	gestureT float64 // s left in the current gesture
 	battery  float64 // V, open circuit
 	tilt     float64 // deg, injected
 	dist     [4]uint32
@@ -172,6 +175,11 @@ func (s *Sim) handle(env *pb.Envelope) *pb.Envelope {
 				s.mode = m.Command.Mode
 			}
 			s.vx, s.vy = m.Command.Vx, m.Command.Vy
+			s.paws = m.Command.FrontLegs
+			if g := m.Command.Gesture; g != s.gesture && g != pb.Gesture_GESTURE_UNSPECIFIED && s.mode == pb.Mode_MODE_FRONT_LEGS {
+				s.gestureT = 2.0 // roughly the firmware gesture lengths
+			}
+			s.gesture = m.Command.Gesture
 		}
 		s.mu.Unlock()
 	case *pb.Envelope_LinkConfig:
@@ -190,6 +198,9 @@ func (s *Sim) step(dt float64) {
 	s.faults = s.fs.Update(Inputs{TiltDeg: s.tilt, BatteryV: s.loadedVoltage(), DistancesMm: s.dist}, s.opt.Now())
 	if s.walking() {
 		s.walkTime += dt
+	}
+	if s.gestureT > 0 {
+		s.gestureT -= dt
 	}
 }
 
@@ -236,6 +247,22 @@ func (s *Sim) telemetry() *pb.Envelope {
 		if s.walking() {
 			ph := 2*math.Pi*s.walkTime + float64(leg%2)*math.Pi
 			femur += 10 * math.Max(0, math.Sin(ph))
+		}
+		// Front legs mode: paws 0 and 3 raised forward, moved by the sticks.
+		if s.mode == pb.Mode_MODE_FRONT_LEGS && s.fs.Posture == postFollow && (leg == 0 || leg == 3) {
+			reach, lift := float64(0), float64(0)
+			if s.paws != nil {
+				if leg == 0 {
+					reach, lift = float64(s.paws.LeftReach), float64(s.paws.LeftLift)
+				} else {
+					reach, lift = float64(s.paws.RightReach), float64(s.paws.RightLift)
+				}
+			}
+			if s.gestureT > 0 { // a gesture waves the paw
+				lift = 1
+				reach = 0.5 * math.Sin(2*math.Pi*s.gestureT/0.6)
+			}
+			femur, tibia = 42+12*lift-8*reach, -46+10*reach
 		}
 		angles[leg*3+1], angles[leg*3+2] = float32(femur), float32(tibia)
 	}

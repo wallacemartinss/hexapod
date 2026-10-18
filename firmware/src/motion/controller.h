@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "hexapod/v1/common.pb.h"
+#include "motion/front_legs.h"
 #include "motion/gait.h"
 #include "motion/ik.h"
 #include "safety/failsafe.h"
@@ -23,6 +24,8 @@ struct MotionInput {
   float body_roll = 0.0f;    // -1..1
   float body_pitch = 0.0f;
   float body_yaw = 0.0f;
+  PawInput paws;  // MODE_FRONT_LEGS
+  hexapod_v1_Gesture gesture = hexapod_v1_Gesture_GESTURE_UNSPECIFIED;
 };
 
 class MotionController {
@@ -36,15 +39,22 @@ class MotionController {
   const JointAngles& joints(int leg) const { return joints_[leg]; }
   hexapod_v1_Mode mode() const { return mode_; }
   bool sitting() const { return sitting_; }
+  const FrontLegs& front_legs() const { return legs_; }
+  // Every joint reached its target (within kSettledDeg).
+  bool settled() const { return settled_; }
   // Bit i: leg i had no IK solution this cycle and kept its last target.
   uint8_t ik_fail_mask() const { return ik_fail_mask_; }
 
  private:
   void SetTargetsFromFeet(const Vec3 feet[kLegCount]);
+  // IK for `feet`, then every joint one rate-limited step towards it.
+  void Track(const Vec3 feet[kLegCount], float dt_s);
 
   hexapod_v1_Mode mode_ = hexapod_v1_Mode_MODE_SIT;
   bool sitting_ = true;
   TripodGait gait_;
+  FrontLegs legs_;
+  bool settled_ = true;
   JointAngles targets_[kLegCount];
   JointAngles joints_[kLegCount];
   uint8_t ik_fail_mask_ = 0;

@@ -102,6 +102,28 @@ constexpr float kMaxYawRateDegS = 20.0f;   // Command.yaw_rate = 1 -> deg/s
 constexpr float kGaitPeriodS = 1.0f;       // s per full tripod cycle
 constexpr float kStepHeightMm = 30.0f;     // foot lift in swing
 constexpr float kMaxHalfStrideMm = 35.0f;  // max foot travel from neutral
+// --- Front legs mode (MODE_FRONT_LEGS) ---
+// Body moves back by this before the front legs leave the ground, so the
+// centre of mass sits over the 4 remaining feet. TODO(hardware): check the
+// real balance on the robot.
+constexpr float kFrontLegsShiftMm = 50.0f;  // mm
+// Raised paw pose (front leg frame): reach from the coxa axis, height above
+// the femur axis plane. Command.front_legs moves it by +-range. Stretched
+// forward on purpose: closer to the body the knee-up IK needs the femur
+// beyond its 100 deg limit. 12.6 deg of joint margin over the whole range.
+constexpr float kPawRestReachMm = 235.0f;  // mm
+constexpr float kPawRestZMm = 40.0f;       // mm
+constexpr float kPawReachRangeMm = 30.0f;  // mm
+constexpr float kPawLiftRangeMm = 50.0f;   // mm
+// A paw first rises straight up by this, so it never drags on the ground.
+constexpr float kPawHoverMm = 40.0f;  // mm
+// Feet move in straight lines (Cartesian), never along joint-space arcs that
+// would lift a sliding foot or drag a paw.
+constexpr float kBodyShiftSpeedMmS = 60.0f;  // mm/s, all feet sliding
+constexpr float kPawSpeedMmS = 150.0f;       // mm/s, paws in the air
+// A phase ends when every joint is within this of its target.
+constexpr float kSettledDeg = 0.5f;  // deg
+
 // Joint speed limit: every target is approached at most this fast.
 constexpr float kMaxJointSpeedDegS = 180.0f;  // deg/s
 
