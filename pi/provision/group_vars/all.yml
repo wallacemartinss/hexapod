@@ -46,6 +46,12 @@ hexapod_root: /opt/hexapod
 esp32_usb_vid: "303a"
 esp32_usb_pid: "1001"
 
+# Temporary: USB-serial bridges of classic ESP32 DevKits used for bench tests.
+# They also map to /dev/hexapod-esp32. Set to [] once the ESP32-S3 is in use.
+esp32_test_usb_ids:
+  - { vid: "10c4", pid: "ea60" }  # CP2102
+  - { vid: "1a86", pid: "7523" }  # CH340
+
 # Hardware watchdog (Raspberry Pi OS default is 1 min; we want faster recovery).
 watchdog_runtime_sec: 14s
 watchdog_reboot_sec: 2min

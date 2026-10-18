@@ -39,7 +39,7 @@ ssh wallace@hexapod.local 'bash -s' < check.sh
 | Pacotes | `base` | `apt dist-upgrade` (desligável com `apt_upgrade: false`), `rpicam-apps`, `alsa-utils`, `ffmpeg`, `avahi-daemon`, `git`, `rsync` |
 | Boot | `boot` | Câmera (`camera_auto_detect=1`, ou `dtoverlay=ov5647` com `camera_force_ov5647: true`) e economia de energia. **Reinicia o Pi** se mudar algo (`provision_reboot`) |
 | Layout | `layout` | Usuário de serviço `hexapod` (grupos `dialout`, `video`, `audio`), `/opt/hexapod/{releases,shared/{config,logs,firmware}}` |
-| udev | `udev` | ESP32-S3 `303a:1001` → `/dev/hexapod-esp32`, ignorado pelo ModemManager (para o modem 4G no futuro) |
+| udev | `udev` | ESP32-S3 `303a:1001` → `/dev/hexapod-esp32`, ignorado pelo ModemManager (para o modem 4G no futuro). **Temporário:** CP2102/CH340 de DevKits clássicos para testes de bancada (`esp32_test_usb_ids`; esvaziar quando o S3 chegar) |
 | Tailscale | `tailscale` | Repositório oficial; `tailscale up` só com `tailscale_authkey` |
 | MediaMTX | `mediamtx` | Binário arm64 com versão fixa (`mediamtx_version`) e checksum conferido; config em `pi/mediamtx/mediamtx.yml` |
 | Serviços | `services` | `hexd`, `mediamtx` e `mic-stream` com `Restart=always`. O `hexd` fica habilitado, mas só sobe depois do primeiro deploy |

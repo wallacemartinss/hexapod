@@ -5,5 +5,9 @@
     dest: /etc/udev/rules.d/99-hexapod-esp32.rules
     content: |
       SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ esp32_usb_vid }}", ATTRS{idProduct}=="{{ esp32_usb_pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"
+      {% for id in esp32_test_usb_ids %}
+      # Bench test board (esp32_test_usb_ids)
+      SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ id.vid }}", ATTRS{idProduct}=="{{ id.pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"
+      {% endfor %}
     mode: "0644"
   notify: Reload udev
