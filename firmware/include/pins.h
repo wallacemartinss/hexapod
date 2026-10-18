@@ -55,7 +55,8 @@ constexpr uint8_t kSensorScl = 33;
 constexpr uint8_t kXshut[4] = {18, 19, 13, 14};
 constexpr uint8_t kImuInt = 34;    // BNO085 INT (active low), input-only pin
 constexpr uint8_t kImuReset = 25;  // BNO085 RST (active low)
-constexpr uint8_t kGasAdc = 35;    // MQ-2 AO through a 10k/15k divider (ADC1, input-only)
+constexpr uint8_t kGasAdc =
+    35;  // MQ-2 AO through a 10k/15k divider (ADC1, input-only)
 // UART2 to the eyes ESP32 (future).
 constexpr uint8_t kEyesTx = 17;
 constexpr uint8_t kEyesRx = 16;

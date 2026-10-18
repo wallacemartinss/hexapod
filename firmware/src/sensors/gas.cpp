@@ -17,9 +17,12 @@ GasReading GasMonitor::Update(uint16_t adc, uint32_t now_ms) {
   }
   const float rise = r.level_pct - baseline_;
   if (!alarm_ && rise > config::kGasAlarmRisePct) alarm_ = true;
-  if (alarm_ && rise < config::kGasAlarmRisePct - config::kGasAlarmHysteresisPct) alarm_ = false;
+  if (alarm_ &&
+      rise < config::kGasAlarmRisePct - config::kGasAlarmHysteresisPct)
+    alarm_ = false;
   // The baseline follows slow drift (temperature, humidity) but not smoke.
-  if (!alarm_) baseline_ += config::kGasBaselineAlpha * (r.level_pct - baseline_);
+  if (!alarm_)
+    baseline_ += config::kGasBaselineAlpha * (r.level_pct - baseline_);
   r.alarm = alarm_;
   return r;
 }

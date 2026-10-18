@@ -14,12 +14,15 @@ void tearDown() {}
 namespace {
 
 // ADC counts for a level in percent.
-uint16_t Counts(float pct) { return static_cast<uint16_t>(pct / 100.0f * config::kGasAdcFullScale); }
+uint16_t Counts(float pct) {
+  return static_cast<uint16_t>(pct / 100.0f * config::kGasAdcFullScale);
+}
 
 // Feeds pct for seconds at 10 Hz from t_ms; returns the last reading.
 GasReading Feed(GasMonitor& m, float pct, uint32_t& t_ms, int seconds) {
   GasReading r;
-  for (int i = 0; i < seconds * 10; ++i, t_ms += 100) r = m.Update(Counts(pct), t_ms);
+  for (int i = 0; i < seconds * 10; ++i, t_ms += 100)
+    r = m.Update(Counts(pct), t_ms);
   return r;
 }
 
@@ -43,8 +46,9 @@ void test_clean_air_stays_quiet() {
 void test_smoke_raises_the_alarm_and_clean_air_clears_it() {
   GasMonitor m;
   uint32_t t = config::kGasWarmupMs;
-  Feed(m, 20, t, 30);                                                      // baseline ~20 %
-  TEST_ASSERT_TRUE(Feed(m, 20 + config::kGasAlarmRisePct + 5, t, 2).alarm);  // smoke
+  Feed(m, 20, t, 30);  // baseline ~20 %
+  TEST_ASSERT_TRUE(
+      Feed(m, 20 + config::kGasAlarmRisePct + 5, t, 2).alarm);  // smoke
   // Still smoky but a bit less: hysteresis keeps the alarm on.
   TEST_ASSERT_TRUE(Feed(m, 20 + config::kGasAlarmRisePct - 2, t, 2).alarm);
   TEST_ASSERT_FALSE(Feed(m, 20, t, 2).alarm);  // clean again

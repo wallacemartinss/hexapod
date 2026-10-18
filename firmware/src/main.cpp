@@ -183,7 +183,8 @@ void SendTelemetry() {
   }
   t.esp32_temperature_c = temperatureRead();
   if (config::kGasSensorFitted) {
-    const sensors::GasReading gas = g_gas.Update(analogRead(pins::kGasAdc), millis());
+    const sensors::GasReading gas =
+        g_gas.Update(analogRead(pins::kGasAdc), millis());
     t.gas_level_pct = gas.level_pct;
     t.gas_warming = gas.warming;
     t.gas_alarm = gas.alarm;

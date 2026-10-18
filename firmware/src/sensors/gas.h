@@ -9,9 +9,9 @@ namespace hexapod {
 namespace sensors {
 
 struct GasReading {
-  float level_pct = 0;   // 0..100 % of the ADC full scale
-  bool warming = true;   // heater not settled yet: level not trusted
-  bool alarm = false;    // level well above the clean-air baseline
+  float level_pct = 0;  // 0..100 % of the ADC full scale
+  bool warming = true;  // heater not settled yet: level not trusted
+  bool alarm = false;   // level well above the clean-air baseline
 };
 
 class GasMonitor {
