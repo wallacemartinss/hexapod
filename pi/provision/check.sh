@@ -73,6 +73,17 @@ else
   fi
 fi
 
+echo "== Read-only root"
+if ! command -v hexapod-readonly >/dev/null; then
+  warn "hexapod-readonly not installed (ansible --tags readonly)"
+elif findmnt -no FSTYPE / | grep -q overlay; then
+  ok "root is read-only; /opt/hexapod on $(findmnt -no SOURCE /opt/hexapod 2>/dev/null || echo '?')"
+elif mountpoint -q /opt/hexapod; then
+  warn "root is writable (sudo hexapod-readonly on && sudo reboot to protect the card)"
+else
+  warn "root is writable and /opt/hexapod has no partition of its own (make-data-partition.sh)"
+fi
+
 echo "== Tailscale"
 if tailscale status >/dev/null 2>&1; then
   ok "tailscale up: $(tailscale ip -4 2>/dev/null | head -1)"

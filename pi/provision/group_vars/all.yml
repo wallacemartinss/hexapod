@@ -30,6 +30,11 @@ disable_hdmi: true           # video=HDMI-A-1:d: headless robot
 enable_i2c: true       # dtparam=i2c_arm=on: SSD1306 OLED on GPIO2/3 (pins 3/5)
 enable_gps_uart: true  # enable_uart=1, no serial console: NEO-6M GPS on GPIO14/15 (pins 8/10)
 
+# Read-only root (overlay in RAM). Needs /opt/hexapod on its own partition:
+# split the card once with make-data-partition.sh, then set true. Toggle by
+# hand on the Pi with: sudo hexapod-readonly on|off|status (then reboot).
+readonly_root: false
+
 # Reboot automatically when boot config changes.
 provision_reboot: true
 

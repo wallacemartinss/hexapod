@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Read-only root for the hexapod Pi (overlayroot in RAM; /opt/hexapod stays
+# writable on its own partition). Changes apply at the next boot.
+#
+#   sudo hexapod-readonly status   # now / at next boot
+#   sudo hexapod-readonly on       # protect the card (normal use)
+#   sudo hexapod-readonly off      # before apt, Ansible or any system change
+#
+# Never use raspi-config's overlay option instead: it adds overlayroot without
+# recurse=0, which would also freeze /opt/hexapod.
+set -euo pipefail
+
+CMDLINE=/boot/firmware/cmdline.txt
+FLAG="overlayroot=tmpfs:recurse=0"
+
+active_now() { grep -q 'overlayroot=tmpfs' /proc/cmdline && findmnt -no FSTYPE / | grep -q overlay; }
+at_boot() { grep -q 'overlayroot=tmpfs' "$CMDLINE"; }
+
+# Under the overlay, the card's real cmdline is on the lower layer's boot
+# partition, which is the same /boot/firmware mount (not overlaid).
+edit_cmdline() {
+  local ro=0
+  if findmnt -no OPTIONS /boot/firmware | grep -qw ro; then
+    mount -o remount,rw /boot/firmware
+    ro=1
+  fi
+  local words
+  words=$(tr ' ' '\n' <"$CMDLINE" | grep -v '^overlayroot=' | grep -v '^$' | tr '\n' ' ')
+  if [[ $1 == on ]]; then words="$FLAG $words"; fi
+  printf '%s\n' "${words% }" >"$CMDLINE"
+  sync
+  if ((ro)); then mount -o remount,ro /boot/firmware; fi
+}
+
+case ${1:-status} in
+  status)
+    if active_now; then echo "now: read-only (changes to / are lost at reboot)"; else echo "now: writable"; fi
+    if at_boot; then echo "next boot: read-only"; else echo "next boot: writable"; fi
+    if mountpoint -q /opt/hexapod; then echo "/opt/hexapod: own partition (writable)"; else echo "/opt/hexapod: on the root (NOT protected)"; fi
+    ;;
+  on)
+    [[ $(id -u) == 0 ]] || { echo "run with sudo" >&2; exit 1; }
+    mountpoint -q /opt/hexapod || {
+      echo "/opt/hexapod is not on its own partition: deploys would be lost at every reboot." >&2
+      echo "Split the card first (pi/provision/make-data-partition.sh, see the runbook)." >&2
+      exit 1
+    }
+    dpkg -s overlayroot >/dev/null 2>&1 || { echo "overlayroot is not installed (Ansible --tags readonly)" >&2; exit 1; }
+    edit_cmdline on
+    echo "Read-only from the next boot: sudo reboot"
+    ;;
+  off)
+    [[ $(id -u) == 0 ]] || { echo "run with sudo" >&2; exit 1; }
+    edit_cmdline off
+    echo "Writable from the next boot: sudo reboot"
+    ;;
+  *)
+    echo "usage: hexapod-readonly [status|on|off]" >&2
+    exit 2
+    ;;
+esac

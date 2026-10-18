@@ -1,0 +1,90 @@
+---
+# Read-only root (overlayroot in RAM) with /opt/hexapod on its own writable
+# partition. The card is split once, on the PC, by make-data-partition.sh;
+# readonly_root then turns protection on. See README.md, "Somente leitura".
+- name: Overlay support and the on/off helper
+  ansible.builtin.apt:
+    name: overlayroot
+    state: present
+
+- name: Old helper location
+  ansible.builtin.file:
+    path: /usr/local/sbin/hexapod-readonly
+    state: absent
+
+- name: hexapod-readonly helper
+  ansible.builtin.copy:
+    src: files/hexapod-readonly
+    dest: /usr/local/bin/hexapod-readonly
+    mode: "0755"
+
+- name: Is /opt/hexapod on its own partition?
+  ansible.builtin.command: findmnt -no SOURCE /opt/hexapod
+  register: data_mount
+  changed_when: false
+  failed_when: false
+
+- name: Read-only needs the data partition
+  ansible.builtin.assert:
+    that: data_mount.rc == 0
+    fail_msg: >-
+      /opt/hexapod is still on the root: with a read-only root every deploy
+      would vanish at reboot. Split the card first (make-data-partition.sh).
+  when: readonly_root | bool
+
+# Tailscale keeps its login in /var/lib/tailscale: on the data partition it
+# survives reboots of a read-only root.
+- name: Tailscale state on the data partition
+  when: data_mount.rc == 0
+  block:
+    - name: State directory
+      ansible.builtin.file:
+        path: "{{ hexapod_root }}/shared/state/tailscale"
+        state: directory
+        mode: "0700"
+
+    - name: Keep an existing login
+      ansible.builtin.command: >-
+        rsync -a --ignore-existing /var/lib/tailscale/ {{ hexapod_root }}/shared/state/tailscale/
+      register: ts_copy
+      changed_when: false
+      when: ansible_mounts | selectattr('mount', 'equalto', '/var/lib/tailscale') | list | length == 0
+
+    - name: Bind it over /var/lib/tailscale at boot
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '\s/var/lib/tailscale\s'
+        line: >-
+          {{ hexapod_root }}/shared/state/tailscale  /var/lib/tailscale  none
+          bind,x-systemd.requires-mounts-for={{ hexapod_root }}  0  0
+      notify: [Reboot, Reboot pending]
+
+# With the root in RAM, logs on disk would only fill the overlay.
+- name: Journal in memory while read-only
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/90-hexapod-readonly.conf
+    content: |
+      # Read-only root: keep the journal in RAM, bounded (tasks/readonly.yml).
+      [Journal]
+      Storage=volatile
+      RuntimeMaxUse=32M
+    mode: "0644"
+  when: readonly_root | bool
+
+- name: Journal back on disk when writable
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d/90-hexapod-readonly.conf
+    state: absent
+  when: not readonly_root | bool
+
+- name: Current overlay setting
+  ansible.builtin.command: grep -c 'overlayroot=tmpfs' /boot/firmware/cmdline.txt
+  register: overlay_at_boot
+  changed_when: false
+  failed_when: false
+
+- name: Turn read-only {{ 'on' if readonly_root | bool else 'off' }}
+  ansible.builtin.command: /usr/local/bin/hexapod-readonly {{ 'on' if readonly_root | bool else 'off' }}
+  when: (overlay_at_boot.stdout | int > 0) != (readonly_root | bool)
+  changed_when: true
+  notify: [Reboot, Reboot pending]
