@@ -43,7 +43,7 @@ ssh wallace@hexapod.local 'bash -s' < check.sh
 | Tailscale | `tailscale` | Repositório oficial; `tailscale up` só com `tailscale_authkey` |
 | MediaMTX | `mediamtx` | Binário arm64 com versão fixa (`mediamtx_version`) e checksum conferido; config em `pi/mediamtx/mediamtx.yml` |
 | Serviços | `services` | `hexd`, `mediamtx` e `mic-stream` com `Restart=always`. O `hexd` fica habilitado, mas só sobe depois do primeiro deploy |
-| Watchdog | `watchdog` | `RuntimeWatchdogSec=14s` (o máximo do bcm2835 é ~15 s) |
+| Watchdog | `watchdog` | `RuntimeWatchdogSec=14s`, sobrescrevendo o padrão de 1 min do Raspberry Pi OS (`40-rpi-enable-watchdog.conf`) |
 
 ### Economia de energia
 

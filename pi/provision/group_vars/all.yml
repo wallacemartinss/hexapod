@@ -46,6 +46,6 @@ hexapod_root: /opt/hexapod
 esp32_usb_vid: "303a"
 esp32_usb_pid: "1001"
 
-# Hardware watchdog. bcm2835-wdt maximum is ~15 s.
+# Hardware watchdog (Raspberry Pi OS default is 1 min; we want faster recovery).
 watchdog_runtime_sec: 14s
 watchdog_reboot_sec: 2min

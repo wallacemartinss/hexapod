@@ -1,14 +1,22 @@
 ---
 # systemd pets /dev/watchdog; if PID 1 hangs, the SoC resets the Pi.
+# Raspberry Pi OS ships /usr/lib/systemd/system.conf.d/40-rpi-enable-watchdog.conf
+# (1 min). Drop-ins apply in filename order across directories, so ours must sort after it.
 - name: Systemd watchdog config directory
   ansible.builtin.file:
     path: /etc/systemd/system.conf.d
     state: directory
     mode: "0755"
 
+- name: Remove drop-in that sorted before the Raspberry Pi default
+  ansible.builtin.file:
+    path: /etc/systemd/system.conf.d/10-watchdog.conf
+    state: absent
+  notify: Reexec systemd
+
 - name: Enable hardware watchdog
   ansible.builtin.copy:
-    dest: /etc/systemd/system.conf.d/10-watchdog.conf
+    dest: /etc/systemd/system.conf.d/90-hexapod-watchdog.conf
     content: |
       [Manager]
       RuntimeWatchdogSec={{ watchdog_runtime_sec }}

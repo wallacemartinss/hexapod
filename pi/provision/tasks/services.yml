@@ -19,7 +19,13 @@
   loop:
     - mediamtx
     - mic-stream
-    # Enabled now; it only starts once /opt/hexapod/current/bin/hexd exists.
-    - hexd
   # Depends on earlier steps that --check does not perform.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# Enabled only: it starts once deploy.sh installs /opt/hexapod/current/bin/hexd.
+- name: Enable hexd
+  ansible.builtin.systemd_service:
+    name: hexd
+    enabled: true
+    daemon_reload: "{{ units is changed }}"
   ignore_errors: "{{ ansible_check_mode }}"
