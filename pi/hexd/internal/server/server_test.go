@@ -274,3 +274,40 @@ func TestProfileFromInterface(t *testing.T) {
 		t.Fatalf("lo as cellular -> %v", p)
 	}
 }
+
+func TestAppGetsThePosition(t *testing.T) {
+	r := newRig(t, Config{Position: func() (*pb.Position, bool) {
+		return &pb.Position{Fix: true, LatitudeDeg: -23.55, SatellitesUsed: 7}, true
+	}})
+	a := connectApp(t, r)
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case env := <-a.in:
+			if p := env.GetPosition(); p != nil {
+				if !p.Fix || p.SatellitesUsed != 7 {
+					t.Fatalf("position: %v", p)
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("no Position over the websocket")
+		}
+	}
+}
+
+func TestNoPositionWithoutGPS(t *testing.T) {
+	r := newRig(t, Config{Position: func() (*pb.Position, bool) { return &pb.Position{}, false }})
+	a := connectApp(t, r)
+	deadline := time.After(2500 * time.Millisecond)
+	for {
+		select {
+		case env := <-a.in:
+			if env.GetPosition() != nil {
+				t.Fatal("a silent GPS must not send positions")
+			}
+		case <-deadline:
+			return
+		}
+	}
+}

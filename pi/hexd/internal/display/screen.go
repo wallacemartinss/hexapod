@@ -94,6 +94,7 @@ type Status struct {
 	Version   string        // hexd version
 	Stopped   bool          // hexd is shutting down
 	Shutdown  string        // with Stopped: \"poweroff\", \"reboot\" or \"\" (only hexd)
+	GPS       string        // status-page GPS row, \"\" without a GPS
 }
 
 // Page is one screen of the rotation.
@@ -200,7 +201,7 @@ func Lines(s Status, p Page) []string {
 		if !s.ESP32 {
 			esp = "ESP32: sem resposta"
 		}
-		return []string{header(stateText(t)), "", apps(s.Apps), esp, battery(t), "", cut(orDash(s.IP))}
+		return []string{header(stateText(t)), "", apps(s.Apps), esp, battery(t), cut(s.GPS), cut(orDash(s.IP))}
 	}
 }
 

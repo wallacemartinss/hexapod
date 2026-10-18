@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
@@ -69,7 +70,7 @@ pb.Telemetry _bench(int seq) => pb.Telemetry()
   ..loopTimeUs = 330
   ..jointAnglesDeg.addAll([for (var i = 0; i < 18; i++) (i % 3 == 1 ? 35.2 : (i % 3 == 2 ? -106.8 : 0.0))]);
 
-Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry) async {
+Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry, {pb.Position? position}) async {
   tester.view.physicalSize = const Size(2400, 1080);
   tester.view.devicePixelRatio = 2.625;
   addTearDown(tester.view.reset);
@@ -78,6 +79,11 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry) as
     ProviderScope(
       overrides: [
         linkStatusProvider.overrideWith((ref) => Stream.value(LinkStatus.connected)),
+        positionProvider.overrideWith(
+          (ref) => position == null
+              ? const Stream.empty()
+              : Stream.periodic(const Duration(seconds: 1), (_) => GpsReading(position)),
+        ),
         telemetryProvider.overrideWith(
           (ref) => Stream.periodic(const Duration(milliseconds: 100), (_) => telemetry(++seq)),
         ),
@@ -112,8 +118,23 @@ void main() {
   setUpAll(_loadFonts);
 
   testWidgets('all sensors', (tester) async {
-    await _pump(tester, _full);
+    await _pump(
+      tester,
+      _full,
+      position: pb.Position()
+        ..fix = true
+        ..latitudeDeg = -23.550512
+        ..longitudeDeg = -46.633310
+        ..altitudeM = 762
+        ..speedMps = 0.4
+        ..courseDeg = 92
+        ..satellitesUsed = 8
+        ..satellitesInView = 11
+        ..hdop = 1.1
+        ..utcMs = Int64(1792364405000),
+    );
     await _tab(tester, 'Resumo', 'data_summary');
+    await _tab(tester, 'Posição', 'data_position');
     await _tab(tester, 'Orientação', 'data_orientation');
     await _tab(tester, 'Distância', 'data_distance');
     await _tab(tester, 'Ambiente', 'data_environment');
@@ -122,8 +143,15 @@ void main() {
   });
 
   testWidgets('bench board: sensors not fitted', (tester) async {
-    await _pump(tester, _bench);
+    await _pump(
+      tester,
+      _bench,
+      position: pb.Position()
+        ..satellitesInView = 1
+        ..utcMs = Int64(1792364405000),
+    );
     await _tab(tester, 'Resumo', 'data_bench_summary');
+    await _tab(tester, 'Posição', 'data_bench_position');
     await _tab(tester, 'Orientação', 'data_bench_orientation');
   });
 }

@@ -80,6 +80,13 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 		m.gauge("hexapod_gas_alarm", "1 while the MQ-2 level is well above its clean-air baseline",
 			boolGauge(t.GasAlarm))
 	}
+	if s.cfg.Position != nil {
+		if p, ok := s.cfg.Position(); ok {
+			m.gauge("hexapod_gps_fix", "1 while the GPS has a position", boolGauge(p.Fix))
+			m.gauge("hexapod_gps_satellites_used", "satellites in the position fix", float64(p.SatellitesUsed))
+			m.gauge("hexapod_gps_satellites_in_view", "satellites the GPS sees", float64(p.SatellitesInView))
+		}
+	}
 	if v, ok := readPiTemperature(s.cfg.PiTemperaturePath); ok {
 		m.gauge("hexapod_pi_temperature_celsius", "Raspberry Pi SoC temperature", v)
 	}

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/link/robot_link.dart';
@@ -33,6 +34,9 @@ class _DataScreenState extends ConsumerState<DataScreen> {
   // package:clock, so tests with simulated time get real-looking charts.
   final _start = clock.now();
   Duration get _elapsed => clock.now().difference(_start);
+
+  /// When the last GPS position arrived (null: none since the screen opened).
+  Duration? _positionAt;
   late final Timer _tick;
 
   @override
@@ -40,6 +44,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
     super.initState();
     final now = ref.read(telemetryProvider).value;
     if (now != null) _log.add(_elapsed, now);
+    if (ref.read(positionProvider).value != null) _positionAt = _elapsed;
     _tick = Timer.periodic(const Duration(milliseconds: 250), (_) => setState(() {}));
   }
 
@@ -55,6 +60,9 @@ class _DataScreenState extends ConsumerState<DataScreen> {
       final t = next.value;
       if (t != null) _log.add(_elapsed, t);
     });
+    ref.listen(positionProvider, (_, _) => _positionAt = _elapsed);
+    final position = ref.watch(positionProvider).value?.position;
+    final gpsTalking = _positionAt != null && _elapsed - _positionAt! < const Duration(seconds: 3);
     final link = ref.watch(linkStatusProvider).value ?? LinkStatus.connecting;
     final hello = ref.watch(helloProvider).value;
     final t = _log.last;
@@ -64,6 +72,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
       (Icons.dashboard_rounded, 'Resumo'),
       (Icons.explore_rounded, 'Orientação'),
       (Icons.radar_rounded, 'Distância'),
+      (Icons.place_rounded, 'Posição'),
       (Icons.thermostat_rounded, 'Ambiente'),
       (Icons.pest_control_rounded, 'Pernas'),
       (Icons.memory_rounded, 'Sistema'),
@@ -116,6 +125,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
                     _SummaryTab(t, _log, now),
                     _OrientationTab(t, _log, now),
                     _DistanceTab(t),
+                    _PositionTab(gpsTalking ? position : null),
                     _EnvironmentTab(t),
                     _LegsTab(t),
                     _SystemTab(t, _log, now, hello),
@@ -291,6 +301,156 @@ class _DistanceTab extends StatelessWidget {
         ),
     ]);
   }
+}
+
+class _PositionTab extends StatelessWidget {
+  const _PositionTab(this.p);
+
+  /// null: no GPS, or it went quiet.
+  final pb.Position? p;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = this.p;
+    if (p == null) {
+      return const _Grid([
+        _Card(
+          icon: Icons.location_off_rounded,
+          title: 'GPS',
+          wide: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'GPS (NEO-6M) sem resposta',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Não instalado, ou o fio TX do GPS não chega ao pino 10 do Pi.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ]);
+    }
+    final satellites = _Card(
+      icon: Icons.satellite_alt_rounded,
+      title: 'Satélites e precisão',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Big('${p.satellitesUsed}', 'em uso · ${p.satellitesInView} visíveis'),
+          if (p.fix) _Row('Precisão (HDOP)', '${p.hdop.toStringAsFixed(1)} · ${_hdopText(p.hdop)}'),
+          if (p.fix) _Row('Altitude', '${p.altitudeM.toStringAsFixed(0)} m'),
+          if (p.utcMs > 0) _Row('Hora do GPS', _clockText(p.utcMs.toInt())),
+        ],
+      ),
+    );
+    if (!p.fix) {
+      return _Grid([
+        const _Card(
+          icon: Icons.gps_not_fixed_rounded,
+          title: 'Posição',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Procurando satélites…',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Precisa de céu aberto: perto de uma janela ou ao ar livre. A primeira posição pode levar '
+                'alguns minutos; o LED do GPS pisca quando encontra.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        satellites,
+      ]);
+    }
+    final coords = '${p.latitudeDeg.toStringAsFixed(6)}, ${p.longitudeDeg.toStringAsFixed(6)}';
+    return _Grid([
+      _Card(
+        icon: Icons.gps_fixed_rounded,
+        title: 'Posição',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _dms(p.latitudeDeg, 'N', 'S'),
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              _dms(p.longitudeDeg, 'L', 'O'),
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(coords, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: coords));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Coordenadas copiadas'), duration: Duration(seconds: 1)),
+                );
+              },
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Copiar coordenadas'),
+            ),
+          ],
+        ),
+      ),
+      satellites,
+      _Card(
+        icon: Icons.explore_rounded,
+        title: 'Movimento',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Big((p.speedMps * 3.6).toStringAsFixed(1), 'km/h'),
+            _Row('Rumo', '${p.courseDeg.toStringAsFixed(0)}° ${_compass(p.courseDeg)}'),
+            const _Note('Abaixo de ~1 km/h o rumo do GPS não é confiável.'),
+          ],
+        ),
+      ),
+    ]);
+  }
+}
+
+/// 23°33'01.8" S
+String _dms(double deg, String positive, String negative) {
+  final d = deg.abs();
+  final whole = d.floor();
+  final minutes = (d - whole) * 60;
+  final m = minutes.floor();
+  final s = (minutes - m) * 60;
+  return "$whole°${m.toString().padLeft(2, '0')}'${s.toStringAsFixed(1).padLeft(4, '0')}\" "
+      '${deg >= 0 ? positive : negative}';
+}
+
+String _compass(double deg) {
+  const names = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'];
+  return names[((deg % 360) / 45).round() % 8];
+}
+
+String _hdopText(double hdop) => hdop <= 0
+    ? '—'
+    : hdop < 1
+    ? 'ótima'
+    : hdop < 2
+    ? 'boa'
+    : hdop < 5
+    ? 'razoável'
+    : 'fraca';
+
+String _clockText(int utcMs) {
+  final t = DateTime.fromMillisecondsSinceEpoch(utcMs).toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
 }
 
 class _EnvironmentTab extends StatelessWidget {

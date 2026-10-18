@@ -70,6 +70,21 @@ final helloProvider = StreamProvider<Hello>((ref) async* {
   yield* link.hello;
 });
 
+/// One GPS position as it arrived. Not comparable on purpose: every arrival
+/// notifies, even an identical position, which tells the GPS is still talking.
+class GpsReading {
+  GpsReading(this.position);
+
+  final Position position;
+}
+
+final positionProvider = StreamProvider<GpsReading>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastPosition;
+  if (last != null) yield GpsReading(last);
+  yield* link.position.map(GpsReading.new);
+});
+
 final controlProvider = NotifierProvider<ControlNotifier, ControlState>(ControlNotifier.new);
 
 class ControlNotifier extends Notifier<ControlState> {

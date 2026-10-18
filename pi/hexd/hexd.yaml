@@ -21,6 +21,14 @@ metrics:
   wireless_path: /proc/net/wireless
   wifi_interface: wlan0
 
+gps:                           # NEO-6M on the Pi's UART (firmware/PINOUT.md)
+  enabled: true                # without a GPS hexd only logs it and retries
+  device: /dev/serial0
+  baud: 9600
+  simulate: false              # true: fake positions around sim_latitude/longitude (no module)
+  sim_latitude: -23.5505
+  sim_longitude: -46.6333
+
 display:                       # SSD1306 OLED on the Pi's I2C (firmware/PINOUT.md)
   enabled: true                # without a panel hexd only logs it and retries
   bus: /dev/i2c-1

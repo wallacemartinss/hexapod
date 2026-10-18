@@ -32,6 +32,14 @@ type Config struct {
 		WirelessPath      string `yaml:"wireless_path"`
 		WifiInterface     string `yaml:"wifi_interface"`
 	} `yaml:"metrics"`
+	GPS struct {
+		Enabled  bool    `yaml:"enabled"`
+		Device   string  `yaml:"device"`
+		Baud     int     `yaml:"baud"`
+		Simulate bool    `yaml:"simulate"` // fake walk around the point below (no module needed)
+		SimLat   float64 `yaml:"sim_latitude"`
+		SimLon   float64 `yaml:"sim_longitude"`
+	} `yaml:"gps"`
 	Display struct {
 		Enabled  bool          `yaml:"enabled"`
 		Bus      string        `yaml:"bus"`
@@ -61,6 +69,10 @@ func Default() Config {
 	c.Metrics.PiTemperaturePath = "/sys/class/thermal/thermal_zone0/temp"
 	c.Metrics.WirelessPath = "/proc/net/wireless"
 	c.Metrics.WifiInterface = "wlan0"
+	c.GPS.Enabled = true // a missing GPS is only logged
+	c.GPS.Device = "/dev/serial0"
+	c.GPS.Baud = 9600
+	c.GPS.SimLat, c.GPS.SimLon = -23.5505, -46.6333
 	c.Display.Enabled = true // a missing panel is only logged
 	c.Display.Bus = "/dev/i2c-1"
 	c.Display.Address = 0x3C

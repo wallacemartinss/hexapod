@@ -40,6 +40,9 @@ type Config struct {
 	PiTemperaturePath string // /sys/class/thermal/thermal_zone0/temp
 	WirelessPath      string // /proc/net/wireless
 	WifiInterface     string // wlan0
+	// Position is the latest GPS reading and whether the GPS is talking
+	// (nil: no GPS). Sent to every app once a second.
+	Position func() (*pb.Position, bool)
 }
 
 // Server is created once and serves until its context ends.
@@ -203,12 +206,24 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		return write(&pb.Envelope{Payload: &pb.Envelope_Hello{Hello: s.appHello(h)}})
 	}
 	_ = sendHello()
+	var gpsTick <-chan time.Time
+	if s.cfg.Position != nil {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		gpsTick = t.C
+	}
 	go func() {
 		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-gpsTick:
+				if p, ok := s.cfg.Position(); ok {
+					if write(&pb.Envelope{Payload: &pb.Envelope_Position{Position: p}}) != nil {
+						return
+					}
+				}
 			case t := <-tel:
 				if sendHello() != nil || write(&pb.Envelope{Payload: &pb.Envelope_Telemetry{Telemetry: t}}) != nil {
 					return

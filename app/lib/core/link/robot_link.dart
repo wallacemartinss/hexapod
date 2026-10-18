@@ -18,6 +18,7 @@ class RobotLink {
   final _status = StreamController<LinkStatus>.broadcast();
   final _telemetry = StreamController<Telemetry>.broadcast();
   final _hello = StreamController<Hello>.broadcast();
+  final _position = StreamController<Position>.broadcast();
 
   WebSocketChannel? _channel;
   LinkStatus _current = LinkStatus.disconnected;
@@ -25,10 +26,15 @@ class RobotLink {
   Timer? _retry;
   bool _closed = false;
   Hello? _lastHello;
+  Position? _lastPosition;
 
   Stream<LinkStatus> get status => _status.stream;
   Stream<Telemetry> get telemetry => _telemetry.stream;
   Stream<Hello> get hello => _hello.stream;
+
+  /// GPS positions from hexd, about 1 Hz; none at all without a GPS.
+  Stream<Position> get position => _position.stream;
+  Position? get lastPosition => _lastPosition;
 
   /// The last Hello received: it arrives once per connection, so whoever
   /// starts listening later (the settings sheet) still gets the versions.
@@ -71,6 +77,7 @@ class RobotLink {
         }
         if (env.hasTelemetry()) _telemetry.add(env.telemetry);
         if (env.hasHello()) _hello.add(_lastHello = env.hello);
+        if (env.hasPosition()) _position.add(_lastPosition = env.position);
       },
       onDone: _scheduleRetry,
       onError: (_) => _scheduleRetry(),
@@ -103,5 +110,6 @@ class RobotLink {
     await _status.close();
     await _telemetry.close();
     await _hello.close();
+    await _position.close();
   }
 }
