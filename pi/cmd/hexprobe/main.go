@@ -3,6 +3,8 @@
 //
 //	hexprobe -port /dev/hexapod-esp32 -duration 5s
 //	hexprobe -failsafe   walk through the failsafe states (all velocities zero)
+//	hexprobe -gait       stand, walk, stop and sit "on paper": prints joint
+//	                     angles computed by the firmware (servos stay off)
 package main
 
 import (
@@ -23,6 +25,7 @@ func main() {
 	baud := flag.Int("baud", 115200, "baud rate (ignored by native USB)")
 	duration := flag.Duration("duration", 5*time.Second, "how long to listen")
 	failsafe := flag.Bool("failsafe", false, "run the failsafe scenario instead of listening")
+	gait := flag.Bool("gait", false, "run the gait-on-paper scenario instead of listening")
 	flag.Parse()
 
 	p, err := serial.Open(*port, &serial.Mode{BaudRate: *baud})
@@ -45,6 +48,9 @@ func main() {
 
 	if *failsafe {
 		os.Exit(runFailsafe(p))
+	}
+	if *gait {
+		os.Exit(runGait(p))
 	}
 
 	var dec link.Decoder
@@ -170,5 +176,72 @@ func runFailsafe(p serial.Port) int {
 	step("estop")
 	send(pb.Mode_MODE_WALK, true)
 	drain(time.Second, true)
+	return 0
+}
+
+// runGait commands STAND, a forward walk, a stop and SIT at 20 Hz and prints
+// leg 0 joint angles and the motion loop time from Telemetry.
+func runGait(p serial.Port) int {
+	start := time.Now()
+	latest := make(chan *pb.Telemetry, 1)
+	go func() {
+		var dec link.Decoder
+		buf := make([]byte, 256)
+		for {
+			n, err := p.Read(buf)
+			if err != nil {
+				return
+			}
+			for _, b := range buf[:n] {
+				payload, err := dec.Push(b)
+				if err != nil || payload == nil {
+					continue
+				}
+				var env pb.Envelope
+				if proto.Unmarshal(payload, &env) == nil && env.GetTelemetry() != nil {
+					select {
+					case <-latest:
+					default:
+					}
+					latest <- env.GetTelemetry()
+				}
+			}
+		}
+	}()
+
+	var seq uint32
+	var maxLoop uint32
+	phase := func(name string, mode pb.Mode, vx float32, d time.Duration) {
+		fmt.Printf("%6.2fs >> %s\n", time.Since(start).Seconds(), name)
+		tick := time.NewTicker(50 * time.Millisecond)
+		defer tick.Stop()
+		lastPrint := time.Time{}
+		for end := time.Now().Add(d); time.Now().Before(end); {
+			<-tick.C
+			seq++
+			frame, _ := link.EncodeEnvelope(&pb.Envelope{Payload: &pb.Envelope_Command{Command: &pb.Command{
+				Seq: seq, Mode: mode, Vx: vx, BodyHeight: 0.5,
+			}}})
+			if _, err := p.Write(frame); err != nil {
+				log.Fatal(err)
+			}
+			select {
+			case t := <-latest:
+				maxLoop = max(maxLoop, t.LoopTimeUs)
+				if time.Since(lastPrint) >= 250*time.Millisecond && len(t.JointAnglesDeg) >= 3 {
+					lastPrint = time.Now()
+					a := t.JointAnglesDeg
+					fmt.Printf("%6.2fs   %-14v mode=%-10v leg0 coxa=%7.2f femur=%7.2f tibia=%8.2f  loop=%dus\n",
+						time.Since(start).Seconds(), t.State, t.Mode, a[0], a[1], a[2], t.LoopTimeUs)
+				}
+			default:
+			}
+		}
+	}
+	phase("STAND", pb.Mode_MODE_STAND, 0, 1500*time.Millisecond)
+	phase("WALK forward 50%", pb.Mode_MODE_WALK, 0.5, 4*time.Second)
+	phase("WALK, sticks released", pb.Mode_MODE_WALK, 0, 2*time.Second)
+	phase("SIT", pb.Mode_MODE_SIT, 0, 2*time.Second)
+	fmt.Printf("max motion loop time: %d us (budget %d us)\n", maxLoop, 20000)
 	return 0
 }

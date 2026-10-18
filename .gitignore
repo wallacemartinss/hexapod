@@ -46,3 +46,7 @@ __pycache__/
 .idea/
 *.swp
 .DS_Store
+
+# --- CAD: designer files (MakerWorld Standard Digital File License: no redistribution) ---
+cad/stl/
+cad/.venv/

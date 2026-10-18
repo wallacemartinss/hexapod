@@ -301,7 +301,8 @@ O perfil (Wi-Fi ou 4G) é informado pelo hexd e só pode ser trocado com o robô
 - [x] Pi 3 Model B v1.2 (Wi-Fi só 2,4 GHz, sem 5 GHz)
 - [x] Mapa de pinos (v1, `firmware/PINOUT.md`); conferir os pads do SuperMini quando chegar
 - [x] Pernas: 0–2 esquerda, 3–5 direita, da frente para trás. VL53L0X: 0 frente, 1 direita, 2 trás, 3 esquerda
-- [ ] Dimensões das pernas (STLs do fêmur e da tíbia em `cad/`)
+- [x] Dimensões das pernas: coxa 38,07 / fêmur 86,27 / tíbia 163,02 mm, medidas dos STLs (`cad/README.md`, `cad/measure_legs.py`)
+- [ ] Qual lado é a frente do corpo (assumido +x, pernas a ±30°)
 - [ ] Furação real da câmera e da PCA9685
 - [ ] Resistor de shunt do INA226 (ver a seção 9)
 - [ ] LEDs: WS2812 ou 1 W

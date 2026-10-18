@@ -1,12 +1,14 @@
-// Hexapod firmware, milestone 3.2: link + failsafe, servos always off.
+// Hexapod firmware, milestone 3.3: link + failsafe + gait "on paper", servos
+// always off.
 //
 // - PCA9685 OE is driven HIGH before anything else. While
 //   config::kServoOutputsAllowed is false it is never released, whatever the
 //   failsafe allows.
 // - link task (core 0): decodes frames, answers Hello, queues Command and
 //   LinkConfig, sends Telemetry at 10 Hz. estop also cuts OE right here.
-// - motion task (core 1, 50 Hz): runs the failsafe. Gait, IK and servos come
-//   in later milestones; sensors are not read yet (reported as faults).
+// - motion task (core 1, 50 Hz): failsafe -> gait -> IK -> joint speed limit.
+//   The 18 joint angles go out in Telemetry; no servo is driven yet and
+//   sensors are not read yet (reported as faults).
 // - Both tasks are under the task watchdog: a hang resets the chip.
 #include <Arduino.h>
 #include <driver/gpio.h>
@@ -17,6 +19,7 @@
 #include "hexapod/v1/envelope.pb.h"
 #include "link/codec.h"
 #include "link/frame.h"
+#include "motion/controller.h"
 #include "pins.h"
 #include "safety/failsafe.h"
 
@@ -50,6 +53,7 @@ struct LinkEvent {
   Kind kind;
   uint32_t received_ms;
   safety::CommandInput command;
+  motion::MotionInput motion;
   hexapod_v1_LinkProfile profile;
 };
 QueueHandle_t g_events;
@@ -61,6 +65,8 @@ struct Status {
   uint32_t blocked_mask = 0;
   uint32_t last_command_seq = 0;
   uint32_t loop_time_us = 0;
+  hexapod_v1_Mode mode = hexapod_v1_Mode_MODE_SIT;
+  float joint_angles_deg[motion::kLegCount * 3] = {};
 };
 Status g_status;
 portMUX_TYPE g_status_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -68,10 +74,13 @@ portMUX_TYPE g_status_lock = portMUX_INITIALIZER_UNLOCKED;
 // --- motion task ---
 
 safety::Failsafe g_failsafe;
+motion::MotionController g_motion;
 
 void MotionTask(void*) {
   esp_task_wdt_add(nullptr);
   const safety::SensorInputs sensors;  // TODO(3.4): real sensor readings
+  motion::MotionInput pilot;           // from the last valid Command
+  constexpr float kDt = config::kMotionPeriodMs / 1000.0f;
   TickType_t wake = xTaskGetTickCount();
   for (;;) {
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(config::kMotionPeriodMs));
@@ -80,13 +89,17 @@ void MotionTask(void*) {
     LinkEvent event;
     while (xQueueReceive(g_events, &event, 0) == pdTRUE) {
       if (event.kind == LinkEvent::Kind::kCommand) {
-        g_failsafe.OnCommand(event.command, event.received_ms);
+        if (g_failsafe.OnCommand(event.command, event.received_ms)) {
+          pilot = event.motion;
+        }
       } else {
         g_failsafe.SetProfile(event.profile);
       }
     }
 
     const safety::Output& out = g_failsafe.Update(sensors, millis());
+    g_motion.Update(pilot, out, kDt);
+    pilot.mode = hexapod_v1_Mode_MODE_UNSPECIFIED;  // a mode applies once
     DisableServoOutputs();  // kServoOutputsAllowed is false (see top)
 
     const uint32_t loop_us = micros() - start_us;
@@ -100,6 +113,13 @@ void MotionTask(void*) {
     g_status.blocked_mask = out.blocked_mask;
     g_status.last_command_seq = g_failsafe.last_command_seq();
     g_status.loop_time_us = loop_us;
+    g_status.mode = g_motion.mode();
+    for (int leg = 0; leg < motion::kLegCount; ++leg) {
+      const motion::JointAngles& j = g_motion.joints(leg);
+      g_status.joint_angles_deg[leg * 3 + 0] = j.coxa_deg;
+      g_status.joint_angles_deg[leg * 3 + 1] = j.femur_deg;
+      g_status.joint_angles_deg[leg * 3 + 2] = j.tibia_deg;
+    }
     portEXIT_CRITICAL(&g_status_lock);
 
     esp_task_wdt_reset();
@@ -151,8 +171,13 @@ void SendTelemetry() {
   t.blocked_mask = status.blocked_mask;
   t.last_command_seq = status.last_command_seq;
   t.loop_time_us = status.loop_time_us;
+  t.mode = status.mode;
+  t.gait = hexapod_v1_Gait_GAIT_TRIPOD;  // the only gait so far
+  for (int i = 0; i < motion::kLegCount * 3; ++i) {
+    t.joint_angles_deg[i] = status.joint_angles_deg[i];
+  }
   t.esp32_temperature_c = temperatureRead();
-  // Sensors, gait and joint angles are filled in later milestones (zeros).
+  // Sensor fields are filled in milestone 3.4 (zeros until then).
   Send(g_tx);
 }
 
@@ -176,6 +201,14 @@ void HandleFrame(const uint8_t* payload, size_t len) {
       event.command.seq = c.seq;
       event.command.mode = c.mode;
       event.command.estop = c.estop;
+      event.motion.mode = c.mode;
+      event.motion.vx = c.vx;
+      event.motion.vy = c.vy;
+      event.motion.yaw_rate = c.yaw_rate;
+      event.motion.body_height = c.body_height;
+      event.motion.body_roll = c.body_roll;
+      event.motion.body_pitch = c.body_pitch;
+      event.motion.body_yaw = c.body_yaw;
       QueueEvent(event);
       break;
     }

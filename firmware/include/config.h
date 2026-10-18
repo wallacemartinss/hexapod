@@ -51,6 +51,60 @@ constexpr float kLowBatterySpeedScale = 0.5f;  // speed multiplier when low
 constexpr float kOvercurrentA = 12.0f;     // A
 constexpr uint32_t kOvercurrentMs = 3000;  // ms above kOvercurrentA
 
+// --- Leg geometry (measured from the STLs by cad/measure_legs.py) ---
+// Conventions in cad/README.md: body x forward, y left, z up; z = 0 is the
+// plane of the femur axes.
+constexpr float kCoxaMm = 38.07f;    // coxa axis -> femur axis
+constexpr float kFemurMm = 86.27f;   // femur axis -> knee axis
+constexpr float kTibiaMm = 163.02f;  // knee axis -> foot tip
+// Angle between the tibia bracket axis and the knee->foot line. Used when
+// mapping the tibia joint angle to its servo (servo/ module).
+constexpr float kTibiaFootOffsetDeg = 18.54f;  // deg
+
+struct LegMount {
+  float x_mm;  // coxa axis position in the body frame
+  float y_mm;
+  float angle_deg;  // outward direction of the leg at coxa angle 0
+};
+// Leg order: 0 front-left, 1 middle-left, 2 rear-left, 3 front-right,
+// 4 middle-right, 5 rear-right. TODO(hardware): confirm front = +x.
+constexpr LegMount kLegMounts[6] = {
+    {100.99f, 57.15f, 30.0f},   {0.0f, 105.78f, 90.0f},
+    {-100.98f, 57.16f, 150.0f}, {100.99f, -57.08f, -30.0f},
+    {0.0f, -105.67f, -90.0f},   {-100.98f, -57.07f, -150.0f},
+};
+
+// IK joint limits, before servo calibration (deg). TODO(hardware): narrow to
+// the real collision-free range; per-servo limits will also live in NVS.
+constexpr float kCoxaMinDeg = -45.0f;
+constexpr float kCoxaMaxDeg = 45.0f;
+constexpr float kFemurMinDeg = -80.0f;
+constexpr float kFemurMaxDeg = 100.0f;
+constexpr float kTibiaMinDeg = -165.0f;
+constexpr float kTibiaMaxDeg = 15.0f;
+
+// --- Body pose and gait ---
+// Foot distance from its coxa axis when standing (mm).
+constexpr float kNeutralReachMm = 160.0f;
+// Body height = femur axis plane above the ground (mm). Command.body_height
+// 0..1 maps to min..max. The coxa bracket hangs 20 mm below the femur axis.
+constexpr float kBodyHeightMinMm =
+    80.0f;  // lower needs femur > 100 deg in swing
+constexpr float kBodyHeightMaxMm = 130.0f;
+constexpr float kSitHeightMm = 25.0f;  // body resting on the ground
+constexpr float kSitReachMm = 180.0f;  // feet spread out when sitting
+constexpr float kMaxBodyRollDeg = 15.0f;
+constexpr float kMaxBodyPitchDeg = 15.0f;
+constexpr float kMaxBodyYawDeg = 15.0f;
+
+constexpr float kMaxSpeedMmS = 80.0f;      // Command.vx/vy = 1 -> mm/s
+constexpr float kMaxYawRateDegS = 20.0f;   // Command.yaw_rate = 1 -> deg/s
+constexpr float kGaitPeriodS = 1.0f;       // s per full tripod cycle
+constexpr float kStepHeightMm = 30.0f;     // foot lift in swing
+constexpr float kMaxHalfStrideMm = 35.0f;  // max foot travel from neutral
+// Joint speed limit: every target is approached at most this fast.
+constexpr float kMaxJointSpeedDegS = 180.0f;  // deg/s
+
 // --- FreeRTOS tasks ---
 constexpr uint32_t kMotionPeriodMs = 20;     // ms (50 Hz)
 constexpr uint32_t kMotionTaskStack = 4096;  // bytes
