@@ -3,6 +3,7 @@
 //	/ws       binary WebSocket, one hexapod.v1.Envelope per message
 //	/health   200 only if the ESP32 talked in the last 2 s
 //	/version  JSON with hexd and firmware versions
+//	/status   JSON with the robot state (deploy.sh checks it is seated)
 //	/metrics  Prometheus text format
 //
 // It also runs the dead man's switch: when the app goes quiet, hexd sends one
@@ -77,6 +78,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /version", s.handleVersion)
+	mux.HandleFunc("GET /status", s.handleStatus)
 	mux.HandleFunc("GET /metrics", s.handleMetrics)
 	return mux
 }
@@ -276,6 +278,24 @@ func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) {
 		v["firmware_version"] = h.FirmwareVersion
 		v["firmware_git"] = h.GitHash
 		v["firmware_protocol_version"] = h.ProtocolVersion
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// handleStatus reports what deploy.sh needs to decide whether updating is
+// safe. "state" is empty until the first Telemetry.
+func (s *Server) handleStatus(w http.ResponseWriter, _ *http.Request) {
+	snap := s.dev.Snapshot()
+	v := map[string]any{"connected": snap.Connected, "state": ""}
+	if t := snap.Telemetry; t != nil {
+		v["state"] = strings.TrimPrefix(t.State.String(), "STATE_")
+		v["mode"] = strings.TrimPrefix(t.Mode.String(), "MODE_")
+		v["fault_flags"] = t.FaultFlags
+		v["last_command_seq"] = t.LastCommandSeq
+	}
+	if !snap.LastRx.IsZero() {
+		v["last_rx_age_ms"] = time.Since(snap.LastRx).Milliseconds()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)

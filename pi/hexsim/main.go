@@ -28,6 +28,7 @@ func main() {
 	listen := flag.String("listen", "tcp://127.0.0.1:7777", "tcp://host:port or unix:///path")
 	noise := flag.Bool("boot-noise", true, "send ROM-like garbage on each connection")
 	drain := flag.Float64("drain", 1, "battery drain multiplier (e.g. 200 to reach LOW_BATTERY fast)")
+	firmware := flag.String("firmware", "hexsim", "firmware version reported in Hello")
 	flag.Parse()
 
 	network, addr, ok := strings.Cut(*listen, "://")
@@ -45,7 +46,7 @@ func main() {
 	defer stop()
 	go func() { <-ctx.Done(); ln.Close() }()
 
-	s := sim.New(sim.Options{FirmwareVersion: "hexsim", BootNoise: *noise, BatteryDrain: *drain})
+	s := sim.New(sim.Options{FirmwareVersion: *firmware, BootNoise: *noise, BatteryDrain: *drain})
 	log.Printf("hexsim listening on %s", *listen)
 	for {
 		conn, err := ln.Accept()
