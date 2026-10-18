@@ -2,6 +2,7 @@ package com.wallacemartinss.hexapod_app
 
 import android.hardware.input.InputManager
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.view.KeyEvent
@@ -38,6 +39,19 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
         controller?.dispose()
         multicastLock?.release()
         super.onDestroy()
+    }
+
+    // Android turns the DualSense touchpad into a mouse: a pointer on screen
+    // and accidental clicks on the pilot's buttons. While the app has focus it
+    // captures the pointer, which hides it and keeps its events to itself
+    // (the touchscreen and the gamepad sticks are not affected).
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && Build.VERSION.SDK_INT >= 26) {
+            val view = window.decorView.findFocus() ?: window.decorView
+            view.setOnCapturedPointerListener { _, _ -> true } // swallow
+            view.requestPointerCapture()
+        }
     }
 
     override fun dispatchGenericMotionEvent(motionEvent: MotionEvent): Boolean {

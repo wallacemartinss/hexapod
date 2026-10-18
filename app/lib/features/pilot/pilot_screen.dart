@@ -129,9 +129,11 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final sticksLive = canMove && control.scheme != Scheme.sit && !control.standRequested;
 
     // The height slider and the mode bar hide only while actually piloting;
-    // anything that needs the pilot (sitting, alerts, no link) keeps them on
-    // screen. The status bar on top never hides.
-    final barsPinned = !settings.autoHideBars || lost || !canMove || control.standRequested;
+    // anything that needs the pilot (seated, alerts, no link) keeps them on
+    // screen. Seated also reports a NORMAL state, hence the scheme check. The
+    // status bar on top never hides.
+    final barsPinned =
+        !settings.autoHideBars || lost || !canMove || control.scheme == Scheme.sit || control.standRequested;
     if (barsPinned) _revealBars(); // full time again once piloting starts
     final barsVisible = barsPinned || _barsLeft > Duration.zero;
 

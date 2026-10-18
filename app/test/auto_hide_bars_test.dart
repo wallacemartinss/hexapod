@@ -22,6 +22,7 @@ Future<void> _pump(
   WidgetTester tester,
   pb.State state, {
   Settings settings = const Settings(onboarded: true),
+  Scheme scheme = Scheme.walk,
 }) async {
   tester.view.physicalSize = const Size(2400, 1080);
   tester.view.devicePixelRatio = 2.625;
@@ -43,7 +44,7 @@ Future<void> _pump(
           (ref) => Stream.periodic(const Duration(milliseconds: 100), (_) => telemetry),
         ),
         helloProvider.overrideWith((ref) => const Stream.empty()),
-        controlProvider.overrideWith(() => _FixedControl(const ControlState(scheme: Scheme.walk))),
+        controlProvider.overrideWith(() => _FixedControl(ControlState(scheme: scheme))),
         settingsProvider.overrideWith(() => SettingsNotifier(settings)),
         robotAddressProvider.overrideWith((ref) async => '127.0.0.1'),
       ],
@@ -105,5 +106,11 @@ void main() {
     );
     await _wait(tester, const Duration(seconds: 6));
     expect(_opacity(tester, 'Andar'), 1);
+  });
+
+  testWidgets('seated (the ESP32 still reports NORMAL) keeps them on screen', (tester) async {
+    await _pump(tester, pb.State.STATE_NORMAL, scheme: Scheme.sit);
+    await _wait(tester, const Duration(seconds: 6));
+    expect(_opacity(tester, 'Levantar'), 1);
   });
 }
