@@ -1,0 +1,51 @@
+# MediaMTX configuration for the hexapod.
+# Keys not listed here keep MediaMTX defaults.
+# Installed to /etc/mediamtx/mediamtx.yml by pi/provision (role: mediamtx).
+
+logLevel: info
+
+# Only WebRTC (app / browser) and RTSP (local publishers) are needed.
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+webrtc: yes
+webrtcAddress: :8889
+hls: no
+rtmp: no
+srt: no
+
+# API and metrics stay on localhost; hexd scrapes them.
+api: yes
+apiAddress: 127.0.0.1:9997
+metrics: yes
+metricsAddress: 127.0.0.1:9998
+
+# Publishing only from the Pi itself; anyone on the network/tailnet can watch.
+authInternalUsers:
+  - user: any
+    ips: ['127.0.0.1', '::1']
+    permissions:
+      - action: publish
+      - action: api
+      - action: metrics
+  - user: any
+    ips: []
+    permissions:
+      - action: read
+      - action: playback
+
+paths:
+  # OV5647 120° on CSI, hardware H.264.
+  cam:
+    source: rpiCamera
+    rpiCameraWidth: 1280
+    rpiCameraHeight: 720
+    rpiCameraFPS: 30
+    rpiCameraCodec: hardwareH264
+    rpiCameraBitrate: 2000000   # bit/s
+    rpiCameraIDRPeriod: 30      # frames (1 s)
+
+  # USB microphone, published by mic-stream.service (ffmpeg → Opus → RTSP).
+  # TODO(hardware): validate; consider muxing audio into "cam" instead.
+  mic:
+    source: publisher

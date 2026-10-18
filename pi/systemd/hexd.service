@@ -1,0 +1,19 @@
+[Unit]
+Description=hexd (hexapod bridge: app <-> ESP32)
+Wants=network-online.target
+After=network-online.target
+# Skipped until the first deploy installs the binary.
+ConditionPathExists=/opt/hexapod/current/bin/hexd
+
+[Service]
+User=hexapod
+Group=hexapod
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/hexapod/current
+ExecStart=/opt/hexapod/current/bin/hexd -config /opt/hexapod/shared/config/hexd.yaml
+Restart=always
+RestartSec=1
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

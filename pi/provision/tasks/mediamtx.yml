@@ -1,0 +1,45 @@
+---
+- name: MediaMTX version directory
+  ansible.builtin.file:
+    path: "/opt/mediamtx/{{ mediamtx_version }}"
+    state: directory
+    mode: "0755"
+
+- name: Download MediaMTX (checksum verified)
+  ansible.builtin.get_url:
+    url: "https://github.com/bluenviron/mediamtx/releases/download/{{ mediamtx_version }}/mediamtx_{{ mediamtx_version }}_{{ mediamtx_arch }}.tar.gz"
+    checksum: "sha256:https://github.com/bluenviron/mediamtx/releases/download/{{ mediamtx_version }}/checksums.sha256"
+    dest: "/opt/mediamtx/{{ mediamtx_version }}/mediamtx.tar.gz"
+    mode: "0644"
+  # Depends on earlier steps that --check does not perform.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Unpack MediaMTX
+  ansible.builtin.unarchive:
+    src: "/opt/mediamtx/{{ mediamtx_version }}/mediamtx.tar.gz"
+    dest: "/opt/mediamtx/{{ mediamtx_version }}"
+    remote_src: true
+    creates: "/opt/mediamtx/{{ mediamtx_version }}/mediamtx"
+  # Depends on earlier steps that --check does not perform.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Link MediaMTX binary
+  ansible.builtin.file:
+    src: "/opt/mediamtx/{{ mediamtx_version }}/mediamtx"
+    dest: /usr/local/bin/mediamtx
+    state: link
+    force: true
+  notify: Restart mediamtx
+
+- name: MediaMTX config directory
+  ansible.builtin.file:
+    path: /etc/mediamtx
+    state: directory
+    mode: "0755"
+
+- name: MediaMTX config
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../mediamtx/mediamtx.yml"
+    dest: /etc/mediamtx/mediamtx.yml
+    mode: "0644"
+  notify: Restart mediamtx
