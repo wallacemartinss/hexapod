@@ -93,6 +93,7 @@ type Status struct {
 	Tailscale string        // tailnet address, "" when not logged in
 	Version   string        // hexd version
 	Stopped   bool          // hexd is shutting down
+	Shutdown  string        // with Stopped: \"poweroff\", \"reboot\" or \"\" (only hexd)
 }
 
 // Page is one screen of the rotation.
@@ -173,6 +174,12 @@ func stateText(t *pb.Telemetry) string {
 // per text line. Line 0 is the header.
 func Lines(s Status, p Page) []string {
 	if s.Stopped {
+		switch s.Shutdown {
+		case "poweroff":
+			return []string{header("DESLIGANDO"), "", "Desligando o Pi...", "", "Tire a energia quando", "o LED verde parar", "de piscar."}
+		case "reboot":
+			return []string{header("REINICIANDO"), "", "Reiniciando o Pi...", "", "Volta em cerca de", "1 minuto."}
+		}
 		return []string{header("PARADO"), "", "hexd parado", "", "Reinicia sozinho;", "se não voltar, veja", "o log do Pi."}
 	}
 	switch p {

@@ -2,6 +2,7 @@
 //
 //	hexd -config /opt/hexapod/shared/config/hexd.yaml
 //	hexd -serial tcp://127.0.0.1:7777 -listen :8080     # against hexsim
+//	hexd -boot-screen   # boot checklist on the OLED until the network is up
 package main
 
 import (
@@ -11,7 +12,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -32,6 +35,7 @@ func main() {
 	path := flag.String("config", "/opt/hexapod/shared/config/hexd.yaml", "configuration file")
 	serial := flag.String("serial", "", "override serial.device")
 	listen := flag.String("listen", "", "override listen")
+	bootScreen := flag.Bool("boot-screen", false, "show the boot checklist on the OLED, then exit")
 	flag.Parse()
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
@@ -46,6 +50,11 @@ func main() {
 	if *listen != "" {
 		cfg.Listen = *listen
 	}
+	if *bootScreen {
+		runBootScreen(cfg, log.With("component", "boot-screen"))
+		return
+	}
+
 	log.Info("hexd starting", "version", version, "git", gitHash, "serial", cfg.Serial.Device, "listen", cfg.Listen)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -119,6 +128,9 @@ func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv 
 			netAt = now
 		}
 		snap := dev.Snapshot()
+		if ctx.Err() != nil { // stopping: say why, if the whole Pi is going down
+			return display.Status{Stopped: true, Shutdown: systemShutdown(), Version: version}
+		}
 		return display.Status{
 			ESP32:     snap.Connected && time.Since(snap.LastRx) < cfg.HealthMaxAge,
 			Telemetry: snap.Telemetry,
@@ -135,4 +147,39 @@ func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv 
 		PageTime: cfg.Display.PageTime,
 		Retry:    30 * time.Second,
 	}, display.Open, status, log)
+}
+
+// runBootScreen shows the boot checklist until the network is up (at most a
+// minute); hexd.service starts after it and takes the screen over.
+func runBootScreen(cfg config.Config, log *slog.Logger) {
+	if !cfg.Display.Enabled {
+		return
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	probe := func() display.Boot {
+		_, ip, _ := display.Network(cfg.Metrics.WifiInterface, cfg.Display.Wired, cfg.Display.Tailnet)
+		_, err := os.Stat(cfg.Serial.Device)
+		return display.Boot{IP: ip, ESP32: err == nil}
+	}
+	display.RunBoot(ctx, display.Options{Bus: cfg.Display.Bus, Address: cfg.Display.Address},
+		display.Open, probe, time.Minute, log)
+}
+
+// systemShutdown tells whether the Pi itself is powering off or rebooting
+// (hexd stops first); "" when only hexd is stopping.
+func systemShutdown() string {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "systemctl", "list-jobs", "--no-legend").Output()
+	if err != nil {
+		return ""
+	}
+	switch jobs := string(out); {
+	case strings.Contains(jobs, "reboot.target"):
+		return "reboot"
+	case strings.Contains(jobs, "poweroff.target"), strings.Contains(jobs, "halt.target"):
+		return "poweroff"
+	}
+	return ""
 }

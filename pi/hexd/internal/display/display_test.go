@@ -241,6 +241,12 @@ func TestPreview(t *testing.T) {
 		"bench":   Render(bench, PageStatus, 0),
 		"alert":   Render(estop, PageAlert, 0),
 		"stopped": Render(stopped, PageStatus, 0),
+		"boot":    RenderBoot(Boot{Elapsed: 7 * time.Second, ESP32: true}),
+		"poweroff": func() *Frame {
+			s := stopped
+			s.Shutdown = "poweroff"
+			return Render(s, PageStatus, 0)
+		}(),
 	} {
 		const scale = 4
 		img := image.NewRGBA(image.Rect(0, 0, Width*scale, Height*scale))
@@ -263,5 +269,70 @@ func TestPreview(t *testing.T) {
 		}
 		_ = png.Encode(out, img)
 		out.Close()
+	}
+}
+
+func TestBootChecklist(t *testing.T) {
+	waiting := strings.Join(BootLines(Boot{Elapsed: 4 * time.Second}), "|")
+	for _, want := range []string{"INICIANDO", "Sistema", "ok", "Rede", "aguarda", "4 s"} {
+		if !strings.Contains(waiting, want) {
+			t.Errorf("waiting checklist lacks %q: %s", want, waiting)
+		}
+	}
+	up := BootLines(Boot{Elapsed: 9 * time.Second, IP: "10.0.0.86", ESP32: true})
+	if !strings.HasSuffix(up[3], "10.0.0.86") || !strings.HasSuffix(up[4], "ok") {
+		t.Errorf("network/ESP32 rows: %q %q", up[3], up[4])
+	}
+	for _, line := range up {
+		if n := len([]rune(line)); n > lineChars {
+			t.Errorf("%q is %d chars", line, n)
+		}
+	}
+}
+
+func TestRunBootEndsWhenTheNetworkIsUp(t *testing.T) {
+	bus := &fakeBus{}
+	calls := 0
+	probe := func() Boot {
+		calls++
+		if calls < 3 {
+			return Boot{}
+		}
+		return Boot{IP: "10.0.0.86"}
+	}
+	done := make(chan struct{})
+	go func() {
+		RunBoot(context.Background(), Options{}, func(string, int) (*Panel, error) { return NewPanel(bus), nil },
+			probe, time.Minute, quiet)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("boot screen did not hand over once the network was up")
+	}
+	if calls != 3 {
+		t.Fatalf("probed %d times", calls)
+	}
+}
+
+func TestRunBootWithoutPanelReturns(t *testing.T) {
+	start := time.Now()
+	RunBoot(context.Background(), Options{}, func(string, int) (*Panel, error) { return nil, errors.New("absent") },
+		func() Boot { return Boot{} }, time.Minute, quiet)
+	if time.Since(start) > 7*time.Second {
+		t.Fatal("a missing panel must not hold the boot")
+	}
+}
+
+func TestShutdownMessages(t *testing.T) {
+	s := seated()
+	s.Stopped, s.Shutdown = true, "poweroff"
+	if got := strings.Join(Lines(s, PageStatus), " "); !strings.Contains(got, "LED verde") {
+		t.Errorf("poweroff: %s", got)
+	}
+	s.Shutdown = "reboot"
+	if got := Lines(s, PageStatus)[0]; !strings.Contains(got, "REINICIANDO") {
+		t.Errorf("reboot: %s", got)
 	}
 }

@@ -1,0 +1,20 @@
+[Unit]
+Description=Boot checklist on the OLED status screen (until the network is up)
+# Early: only needs the root filesystem, the i2c-dev module and udev.
+DefaultDependencies=no
+After=local-fs.target systemd-modules-load.service systemd-udevd.service
+# hexd takes the screen over when this exits: never both at once.
+Before=hexd.service
+ConditionPathExists=/opt/hexapod/current/bin/hexd
+
+[Service]
+Type=oneshot
+User=hexapod
+Group=hexapod
+SupplementaryGroups=i2c
+ExecStart=/opt/hexapod/current/bin/hexd -config /opt/hexapod/shared/config/hexd.yaml -boot-screen
+# It gives up by itself after a minute; this is only a backstop.
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target
