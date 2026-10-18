@@ -117,13 +117,35 @@ func (a *app) waitState(want pb.State) {
 	}
 }
 
+func (a *app) waitHello(ok func(*pb.Hello) bool) {
+	a.t.Helper()
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case env, open := <-a.in:
+			if !open {
+				a.t.Fatal("websocket closed")
+			}
+			if h := env.GetHello(); h != nil && ok(h) {
+				return
+			}
+		case <-deadline:
+			a.t.Fatal("expected hello never arrived")
+		}
+	}
+}
+
 func TestAppDrivesTheBoardThroughHexd(t *testing.T) {
-	r := newRig(t, Config{})
+	r := newRig(t, Config{HexdVersion: "v-app"})
 	a := connectApp(t, r)
 
-	first := <-a.in
-	if h := first.GetHello(); h == nil || h.FirmwareVersion != "fw-test" {
-		t.Fatalf("first message should be the firmware hello, got %v", first)
+	h := (<-a.in).GetHello()
+	if h == nil || h.HexdVersion != "v-app" {
+		t.Fatalf("first message should be a hello with hexd's version, got %v", h)
+	}
+	if h.FirmwareVersion != "fw-test" {
+		// The firmware's version follows as soon as the ESP32 introduced itself.
+		a.waitHello(func(h *pb.Hello) bool { return h.FirmwareVersion == "fw-test" && h.HexdVersion == "v-app" })
 	}
 	// The app sends commands at 20 Hz, seq left at 0: hexd stamps it.
 	stop := make(chan struct{})

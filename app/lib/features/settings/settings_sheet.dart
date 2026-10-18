@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/link/robot_link.dart';
+import '../../core/proto.dart';
 import '../../core/providers.dart';
 import '../../core/settings.dart';
 
@@ -62,6 +64,7 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
   @override
   Widget build(BuildContext context) {
     final hello = ref.watch(helloProvider).value;
+    final connected = ref.watch(linkStatusProvider).value == LinkStatus.connected;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + MediaQuery.viewInsetsOf(context).bottom),
@@ -139,9 +142,7 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
               ),
               const Divider(color: Colors.white12),
               Text(
-                hello == null
-                    ? 'Robô: não conectado'
-                    : 'Firmware ${hello.firmwareVersion} · protocolo ${hello.protocolVersion}',
+                robotVersions(hello, connected: connected),
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ],
@@ -150,4 +151,14 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
       ),
     );
   }
+}
+
+/// Robot software line in the settings: ESP32 firmware, hexd (the bridge on
+/// the Pi) and protocol versions.
+String robotVersions(Hello? hello, {required bool connected}) {
+  if (!connected) return 'Robô: não conectado';
+  if (hello == null) return 'Robô: conectado, aguardando as versões…';
+  final firmware = hello.firmwareVersion.isEmpty ? 'aguardando o ESP32' : hello.firmwareVersion;
+  final bridge = hello.hexdVersion.isEmpty ? '' : ' · ponte (Pi) ${hello.hexdVersion}';
+  return 'Robô: firmware $firmware$bridge · protocolo ${hello.protocolVersion}';
 }

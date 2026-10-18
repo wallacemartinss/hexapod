@@ -24,10 +24,15 @@ class RobotLink {
   Duration _backoff = const Duration(milliseconds: 250);
   Timer? _retry;
   bool _closed = false;
+  Hello? _lastHello;
 
   Stream<LinkStatus> get status => _status.stream;
   Stream<Telemetry> get telemetry => _telemetry.stream;
   Stream<Hello> get hello => _hello.stream;
+
+  /// The last Hello received: it arrives once per connection, so whoever
+  /// starts listening later (the settings sheet) still gets the versions.
+  Hello? get lastHello => _lastHello;
   LinkStatus get current => _current;
 
   void _set(LinkStatus s) {
@@ -65,7 +70,7 @@ class RobotLink {
           return; // never crash on a bad frame
         }
         if (env.hasTelemetry()) _telemetry.add(env.telemetry);
-        if (env.hasHello()) _hello.add(env.hello);
+        if (env.hasHello()) _hello.add(_lastHello = env.hello);
       },
       onDone: _scheduleRetry,
       onError: (_) => _scheduleRetry(),

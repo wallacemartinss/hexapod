@@ -182,9 +182,20 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer wcancel()
 		return conn.Write(wctx, websocket.MessageBinary, b)
 	}
-	if h := s.dev.Snapshot().Hello; h != nil {
-		_ = write(&pb.Envelope{Payload: &pb.Envelope_Hello{Hello: h}})
+	// The app gets a Hello right away (hexd's version, plus the firmware's
+	// once the ESP32 introduced itself) and again whenever the ESP32 sends a
+	// new one, e.g. after a reset or a flash.
+	var helloSent bool
+	var fwHello *pb.Hello
+	sendHello := func() error {
+		h := s.dev.Snapshot().Hello
+		if helloSent && h == fwHello {
+			return nil
+		}
+		helloSent, fwHello = true, h
+		return write(&pb.Envelope{Payload: &pb.Envelope_Hello{Hello: s.appHello(h)}})
 	}
+	_ = sendHello()
 	go func() {
 		defer cancel()
 		for {
@@ -192,7 +203,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			case <-ctx.Done():
 				return
 			case t := <-tel:
-				if write(&pb.Envelope{Payload: &pb.Envelope_Telemetry{Telemetry: t}}) != nil {
+				if sendHello() != nil || write(&pb.Envelope{Payload: &pb.Envelope_Telemetry{Telemetry: t}}) != nil {
 					return
 				}
 			}
@@ -218,6 +229,17 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// appHello is the Hello the app gets: the firmware's, with hexd's own version
+// stamped in, or hexd's alone until the ESP32 introduced itself.
+func (s *Server) appHello(fw *pb.Hello) *pb.Hello {
+	h := &pb.Hello{ProtocolVersion: device.ProtocolVersion}
+	if fw != nil {
+		h = proto.CloneOf(fw)
+	}
+	h.HexdVersion = s.cfg.HexdVersion
+	return h
 }
 
 func localAddr(r *http.Request) net.Addr {
