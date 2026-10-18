@@ -1,0 +1,100 @@
+// Renders the pilot screen at phone size with real fonts, for design review:
+//   flutter test --update-goldens test/pilot_screen_golden_test.dart
+// Images land in test/goldens/.
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hexapod_app/core/control/control_state.dart';
+import 'package:hexapod_app/core/link/robot_link.dart';
+import 'package:hexapod_app/core/proto.dart' as pb;
+import 'package:hexapod_app/core/providers.dart';
+import 'package:hexapod_app/features/pilot/pilot_screen.dart';
+
+Future<void> _loadFonts() async {
+  final flutterRoot = File(Platform.resolvedExecutable).parent.parent.parent.parent.parent.parent.path;
+  final fonts = Directory('$flutterRoot/bin/cache/artifacts/material_fonts');
+  Future<void> load(String family, List<String> files) async {
+    final loader = FontLoader(family);
+    for (final f in files) {
+      final bytes = File('${fonts.path}/$f').readAsBytesSync();
+      loader.addFont(Future.value(ByteData.view(Uint8List.fromList(bytes).buffer)));
+    }
+    await loader.load();
+  }
+
+  await load('Roboto', ['Roboto-Regular.ttf', 'Roboto-Medium.ttf', 'Roboto-Bold.ttf']);
+  await load('MaterialIcons', ['MaterialIcons-Regular.otf']);
+}
+
+pb.Telemetry _telemetry(pb.State state, {int faults = 0}) => pb.Telemetry()
+  ..state = state
+  ..faultFlags = faults
+  ..batteryVoltageV = 11.6
+  ..distancesMm.addAll([420, 1300, 900, 180])
+  ..blockedMask = 0
+  ..mode = pb.Mode.MODE_WALK;
+
+Future<void> _pump(WidgetTester tester, ControlState control, pb.Telemetry telemetry) async {
+  tester.view.physicalSize = const Size(2400, 1080); // 20:9 phone, landscape
+  tester.view.devicePixelRatio = 2.625;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        commandLoopProvider.overrideWith((ref) {}),
+        linkStatusProvider.overrideWith((ref) => Stream.value(LinkStatus.connected)),
+        telemetryProvider.overrideWith(
+          (ref) => Stream.periodic(const Duration(milliseconds: 100), (_) => telemetry),
+        ),
+        helloProvider.overrideWith((ref) => const Stream.empty()),
+        controlProvider.overrideWith(() => _FixedControl(control)),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          fontFamily: 'Roboto',
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4FD1FF), brightness: Brightness.dark),
+        ),
+        home: const PilotScreen(),
+      ),
+    ),
+  );
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+class _FixedControl extends ControlNotifier {
+  _FixedControl(this.initial);
+
+  final ControlState initial;
+
+  @override
+  ControlState build() => initial;
+}
+
+void main() {
+  setUpAll(_loadFonts);
+
+  testWidgets('walking, robot ready', (tester) async {
+    await _pump(tester, const ControlState(scheme: Scheme.walk), _telemetry(pb.State.STATE_NORMAL));
+    await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/walk.png'));
+  });
+
+  testWidgets('failsafe: sat down after signal loss', (tester) async {
+    await _pump(
+      tester,
+      const ControlState(scheme: Scheme.walk),
+      _telemetry(pb.State.STATE_SAFE_SIT, faults: 4 | 8),
+    );
+    await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/safe_sit.png'));
+  });
+
+  testWidgets('front legs mode with gestures', (tester) async {
+    await _pump(tester, const ControlState(scheme: Scheme.legs), _telemetry(pb.State.STATE_NORMAL));
+    await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/legs.png'));
+  });
+}
