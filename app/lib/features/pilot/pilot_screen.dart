@@ -9,6 +9,7 @@ import '../../core/input/gamepad_service.dart';
 import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
+import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
@@ -134,6 +135,10 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     if (barsPinned) _revealBars(); // full time again once piloting starts
     final barsVisible = barsPinned || _barsLeft > Duration.zero;
 
+    // A connected gamepad drives: the screen sticks step aside (STOP stays),
+    // and come back the moment the pad disconnects.
+    final padDriving = gamepad != null && settings.hideSticksWithPad;
+
     final (leftText, rightText) = _stickTexts[control.scheme]!;
     void onLeft(Stick s) =>
         settings.swapSticks ? controller.setSticks(right: s) : controller.setSticks(left: s);
@@ -152,35 +157,36 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
             if (settings.robotAudio) RobotAudio(uri: media.mic),
 
             // Stick areas first: buttons drawn later win the taps.
-            Positioned(
-              left: 0,
-              top: 64,
-              bottom: 0,
-              width: MediaQuery.sizeOf(context).width / 2,
-              child: FloatingJoystick(
-                restAlignment: const Alignment(-0.3, 0.05),
-                label: settings.swapSticks ? rightText.$1 : leftText.$1,
-                hint: settings.swapSticks ? rightText.$2 : leftText.$2,
-                enabled: sticksLive,
-                haptics: settings.haptics,
-                onChanged: onLeft,
+            if (!padDriving) ...[
+              Positioned(
+                left: 0,
+                top: 64,
+                bottom: 0,
+                width: MediaQuery.sizeOf(context).width / 2,
+                child: FloatingJoystick(
+                  restAlignment: const Alignment(-0.3, 0.05),
+                  label: settings.swapSticks ? rightText.$1 : leftText.$1,
+                  hint: settings.swapSticks ? rightText.$2 : leftText.$2,
+                  enabled: sticksLive,
+                  haptics: settings.haptics,
+                  onChanged: onLeft,
+                ),
               ),
-            ),
-            Positioned(
-              right: 0,
-              top: 64,
-              bottom: 0,
-              width: MediaQuery.sizeOf(context).width / 2,
-              child: FloatingJoystick(
-                restAlignment: const Alignment(0.3, 0.05),
-                label: settings.swapSticks ? leftText.$1 : rightText.$1,
-                hint: settings.swapSticks ? leftText.$2 : rightText.$2,
-                enabled: sticksLive,
-                haptics: settings.haptics,
-                onChanged: onRight,
+              Positioned(
+                right: 0,
+                top: 64,
+                bottom: 0,
+                width: MediaQuery.sizeOf(context).width / 2,
+                child: FloatingJoystick(
+                  restAlignment: const Alignment(0.3, 0.05),
+                  label: settings.swapSticks ? leftText.$1 : rightText.$1,
+                  hint: settings.swapSticks ? leftText.$2 : rightText.$2,
+                  enabled: sticksLive,
+                  haptics: settings.haptics,
+                  onChanged: onRight,
+                ),
               ),
-            ),
-
+            ],
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -191,6 +197,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                       telemetry: fresh ? telemetry : null,
                       telemetryAge: age,
                       gamepad: gamepad,
+                      onGamepad: () => showControllerSheet(context),
                       audio: settings.robotAudio,
                       onAudio: () => ref
                           .read(settingsProvider.notifier)

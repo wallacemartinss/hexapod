@@ -55,11 +55,11 @@ final gamepadServiceProvider = Provider<GamepadInterpreter>((ref) {
   Future<void> refresh() async {
     try {
       final pads = await Gamepads.list();
-      names.set(pads.isEmpty ? null : pads.first.name);
       if (pads.isNotEmpty) {
         padId ??= pads.first.id;
         listenMotion(); // sensors belong to the pad: (re)subscribe on connect
       }
+      names.set(pads.isEmpty ? null : pads.first.name);
     } catch (_) {
       names.set(null); // platform without gamepad support
     }
@@ -137,9 +137,14 @@ final gamepadServiceProvider = Provider<GamepadInterpreter>((ref) {
   ref.listen(controlProvider, (_, _) => updateLight());
   ref.listen(telemetryProvider, (_, _) => updateLight());
   ref.listen(linkStatusProvider, (_, _) => updateLight());
-  ref.listen(gamepadNameProvider, (_, _) {
+  ref.listen(gamepadNameProvider, (was, now) {
     lastColor = null; // a newly paired pad needs the color again
     updateLight();
+    if (was == null && now != null) {
+      // Whatever the screen sticks held does not carry over to the pad.
+      ref.read(controlProvider.notifier).releaseSticks();
+      interpreter.identify(); // "you're connected"
+    }
   });
 
   final hold = ref.read(standHoldProvider.notifier);

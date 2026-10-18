@@ -21,6 +21,8 @@ class FakePlatform implements ControllerPlatform {
   }
 
   @override
+  Future<bool> openBluetoothSettings() async => true;
+  @override
   Future<bool> hasRumble(String gamepadId) async => true;
   @override
   Future<void> rumble(String gamepadId, Rumble r) async {}

@@ -5,6 +5,7 @@ import '../../core/link/robot_link.dart';
 import '../../core/proto.dart';
 import '../../core/providers.dart';
 import '../../core/settings.dart';
+import 'controller_sheet.dart';
 
 Future<void> showSettingsSheet(BuildContext context) => showModalBottomSheet<void>(
   context: context,
@@ -139,6 +140,22 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                 ),
                 value: _s.autoHideBars,
                 onChanged: (v) => setState(() => _s = _s.copyWith(autoHideBars: v)),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.sports_esports_rounded, color: Colors.white70),
+                title: const Text('Controle externo', style: TextStyle(color: Colors.white)),
+                subtitle: const Text(
+                  'Parear o controle de PS5 e ver os botões',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+                onTap: () {
+                  // Close this sheet first (it holds unsaved edits of its own);
+                  // the navigator's context outlives it.
+                  final nav = Navigator.of(context)..pop();
+                  showControllerSheet(nav.context);
+                },
               ),
               const Divider(color: Colors.white12),
               Text(

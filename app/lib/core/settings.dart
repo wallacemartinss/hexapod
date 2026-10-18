@@ -15,6 +15,7 @@ class Settings {
     this.haptics = true,
     this.robotAudio = false,
     this.autoHideBars = true,
+    this.hideSticksWithPad = true,
     this.onboarded = false,
   });
 
@@ -34,6 +35,9 @@ class Settings {
 
   /// Height slider and mode bar hide while piloting; a tap brings them back.
   final bool autoHideBars;
+
+  /// With a gamepad connected, the on-screen sticks go away (STOP stays).
+  final bool hideSticksWithPad;
 
   /// The first-run tips were dismissed.
   final bool onboarded;
@@ -56,6 +60,7 @@ class Settings {
     bool? haptics,
     bool? robotAudio,
     bool? autoHideBars,
+    bool? hideSticksWithPad,
     bool? onboarded,
   }) => Settings(
     host: host ?? this.host,
@@ -68,6 +73,7 @@ class Settings {
     haptics: haptics ?? this.haptics,
     robotAudio: robotAudio ?? this.robotAudio,
     autoHideBars: autoHideBars ?? this.autoHideBars,
+    hideSticksWithPad: hideSticksWithPad ?? this.hideSticksWithPad,
     onboarded: onboarded ?? this.onboarded,
   );
 
@@ -85,6 +91,7 @@ class Settings {
       haptics: p.getBool('haptics') ?? d.haptics,
       robotAudio: p.getBool('robotAudio') ?? d.robotAudio,
       autoHideBars: p.getBool('autoHideBars') ?? d.autoHideBars,
+      hideSticksWithPad: p.getBool('hideSticksWithPad') ?? d.hideSticksWithPad,
       onboarded: p.getBool('onboarded') ?? d.onboarded,
     );
   }
@@ -101,6 +108,7 @@ class Settings {
     await p.setBool('haptics', haptics);
     await p.setBool('robotAudio', robotAudio);
     await p.setBool('autoHideBars', autoHideBars);
+    await p.setBool('hideSticksWithPad', hideSticksWithPad);
     await p.setBool('onboarded', onboarded);
   }
 }

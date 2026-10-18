@@ -33,6 +33,16 @@ class Rumble {
   static const tick = Rumble(0, 0.35, Duration(milliseconds: 40));
   static const confirm = Rumble(0.5, 0.8, Duration(milliseconds: 150));
 
+  /// "Which controller is it?": the Test button in the controller sheet, and
+  /// a newly connected pad.
+  static const hello = Rumble(
+    0.6,
+    0.9,
+    Duration(milliseconds: 180),
+    times: 2,
+    gap: Duration(milliseconds: 140),
+  );
+
   /// A gesture started.
   static const tap = Rumble(0.2, 0.5, Duration(milliseconds: 80));
 

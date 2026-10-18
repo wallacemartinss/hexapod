@@ -30,6 +30,9 @@ class GamepadInterpreter {
   /// Feedback for actions started on the pad (hold ticks, gestures).
   final void Function(Rumble)? onRumble;
 
+  /// Makes the pad buzz, so the pilot knows which one the app is using.
+  void identify() => onRumble?.call(Rumble.hello);
+
   final tilt = TiltTracker();
   bool _tilting = false;
   int _lastTick = -1;

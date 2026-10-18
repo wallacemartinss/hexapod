@@ -22,7 +22,7 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        controller = ControllerChannel(flutterEngine.dartExecutor.binaryMessenger)
+        controller = ControllerChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

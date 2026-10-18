@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/input/gamepad_service.dart';
 import '../../../core/providers.dart';
 import '../../../core/proto.dart' as pb;
 import 'controls.dart';
@@ -31,9 +32,14 @@ class _CenterFeedbackState extends ConsumerState<CenterFeedback> {
   bool _stood = false;
   Timer? _stoodTimer;
 
+  /// Gamepad just connected (name) or disconnected (''), shown for a moment.
+  String? _pad;
+  Timer? _padTimer;
+
   @override
   void dispose() {
     _stoodTimer?.cancel();
+    _padTimer?.cancel();
     super.dispose();
   }
 
@@ -49,6 +55,15 @@ class _CenterFeedbackState extends ConsumerState<CenterFeedback> {
           if (mounted) setState(() => _stood = false);
         });
       }
+    });
+
+    ref.listen(gamepadNameProvider, (was, now) {
+      if ((was == null) == (now == null)) return;
+      setState(() => _pad = now ?? '');
+      _padTimer?.cancel();
+      _padTimer = Timer(const Duration(milliseconds: 1800), () {
+        if (mounted) setState(() => _pad = null);
+      });
     });
 
     final hold = ref.watch(standHoldProvider);
@@ -82,6 +97,24 @@ class _CenterFeedbackState extends ConsumerState<CenterFeedback> {
         progress: 1,
         title: 'Em pé',
       );
+    } else if (_pad != null) {
+      card = _pad!.isEmpty
+          ? const _Card(
+              key: ValueKey('pad-off'),
+              color: Color(0xFFFFB020),
+              icon: Icons.sports_esports_rounded,
+              progress: 1,
+              title: 'Controle desconectado',
+              subtitle: 'Os joysticks da tela voltaram',
+            )
+          : _Card(
+              key: const ValueKey('pad-on'),
+              color: standColor,
+              icon: Icons.sports_esports_rounded,
+              progress: 1,
+              title: 'Controle conectado',
+              subtitle: _pad,
+            );
     } else if (gesture != null && gestureTexts[gesture] != null) {
       final (label, icon) = gestureTexts[gesture]!;
       card = _Card(key: ValueKey(gesture), color: gestureColor, icon: icon, progress: 1, title: label);

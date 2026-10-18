@@ -17,6 +17,7 @@ class StatusBar extends StatelessWidget {
     required this.onSettings,
     required this.onFaults,
     this.gamepad,
+    this.onGamepad,
     this.audio = false,
     this.onAudio,
   });
@@ -31,6 +32,9 @@ class StatusBar extends StatelessWidget {
 
   /// Name of the connected gamepad, if any.
   final String? gamepad;
+
+  /// Opens the external controller sheet.
+  final VoidCallback? onGamepad;
   final bool audio;
   final VoidCallback? onAudio;
 
@@ -116,12 +120,19 @@ class StatusBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        if (gamepad != null) ...[
-          Tooltip(
-            message: gamepad!,
-            child: Glass(
-              padding: const EdgeInsets.all(8),
-              child: Icon(Icons.sports_esports_rounded, color: severityColor(Severity.ok), size: 20),
+        if (gamepad != null || onGamepad != null) ...[
+          GestureDetector(
+            onTap: onGamepad,
+            child: Tooltip(
+              message: gamepad ?? 'Controle externo',
+              child: Glass(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.sports_esports_rounded,
+                  color: gamepad != null ? severityColor(Severity.ok) : Colors.white54,
+                  size: 20,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),

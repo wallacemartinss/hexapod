@@ -17,6 +17,9 @@ class MotionSample {
 /// soft: a phone or pad without the feature simply does nothing.
 abstract class ControllerPlatform {
   Future<bool> setLight(int argb);
+
+  /// Opens the phone's Bluetooth settings, to pair a controller.
+  Future<bool> openBluetoothSettings();
   Future<bool> hasRumble(String gamepadId);
   Future<void> rumble(String gamepadId, Rumble r);
   Stream<MotionSample> motion();
@@ -32,6 +35,15 @@ class AndroidControllerPlatform implements ControllerPlatform {
   Future<bool> setLight(int argb) async {
     try {
       return await _methods.invokeMethod<bool>('setLight', {'color': argb}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> openBluetoothSettings() async {
+    try {
+      return await _methods.invokeMethod<bool>('openBluetoothSettings') ?? false;
     } catch (_) {
       return false;
     }

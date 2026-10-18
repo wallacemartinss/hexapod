@@ -1,5 +1,7 @@
 package com.wallacemartinss.hexapod_app
 
+import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -9,6 +11,7 @@ import android.hardware.lights.LightState
 import android.hardware.lights.LightsManager
 import android.hardware.lights.LightsRequest
 import android.os.Build
+import android.provider.Settings
 import android.view.InputDevice
 import androidx.annotation.RequiresApi
 import io.flutter.plugin.common.BinaryMessenger
@@ -18,11 +21,12 @@ import io.flutter.plugin.common.MethodChannel
 /**
  * Gamepad features the gamepads plugin does not cover (Android 12+, API 31):
  *  - "hexapod/controller" setLight(color): RGB light bar (DualSense, DualShock 4)
+ *  - "hexapod/controller" openBluetoothSettings(): to pair a controller
  *  - "hexapod/controller/motion": accelerometer + gyroscope samples
  *    [kind (0 accel, 1 gyro), x, y, z] from the controller's own sensors.
  * Anything the phone's kernel does not expose is reported as unsupported.
  */
-class ControllerChannel(messenger: BinaryMessenger) {
+class ControllerChannel(private val context: Context, messenger: BinaryMessenger) {
     private var lightSession: LightsManager.LightsSession? = null
     private var sensorManager: SensorManager? = null
     private var listener: SensorEventListener? = null
@@ -34,6 +38,7 @@ class ControllerChannel(messenger: BinaryMessenger) {
                     val color = (call.argument<Number>("color") ?: 0).toInt()
                     result.success(if (Build.VERSION.SDK_INT >= 31) setLight(color) else false)
                 }
+                "openBluetoothSettings" -> result.success(openBluetoothSettings())
                 "capabilities" -> result.success(
                     if (Build.VERSION.SDK_INT >= 31) capabilities() else mapOf("light" to false, "motion" to false)
                 )
@@ -47,6 +52,15 @@ class ControllerChannel(messenger: BinaryMessenger) {
 
             override fun onCancel(arguments: Any?) = stopMotion()
         })
+    }
+
+    private fun openBluetoothSettings(): Boolean = try {
+        context.startActivity(
+            Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (e: Exception) {
+        false
     }
 
     private fun gamepads(): List<InputDevice> = InputDevice.getDeviceIds().toList()

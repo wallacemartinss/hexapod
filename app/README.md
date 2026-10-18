@@ -56,7 +56,9 @@ Opção **Canhoto** troca os sticks de lado. Gestos no modo Patas: Acenar, Guard
 
 ## Controle PS5 (DualSense)
 
-Pareie no Bluetooth do celular. O controle escreve no **mesmo estado** que os joysticks da tela, com as mesmas regras de segurança.
+Pareie no Bluetooth do celular: **Ajustes → Controle externo** (ou o ícone do controle na barra de cima) tem o passo a passo, um botão que abre o Bluetooth do Android e um **Testar** que faz o controle vibrar. O controle escreve no **mesmo estado** que os joysticks da tela, com as mesmas regras de segurança.
+
+Com o controle conectado, **os joysticks da tela somem** (o vídeo fica livre) e o **PARAR continua na tela**. Se o controle desconectar, os sticks zeram e os joysticks da tela voltam na hora. Dá para manter os joysticks em Controle externo → "Esconder joysticks da tela".
 
 | Controle | Ação |
 |---|---|
