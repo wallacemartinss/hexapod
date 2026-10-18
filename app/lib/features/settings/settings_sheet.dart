@@ -127,6 +127,16 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                 value: _s.haptics,
                 onChanged: (v) => setState(() => _s = _s.copyWith(haptics: v)),
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Esconder altura e modos', style: TextStyle(color: Colors.white)),
+                subtitle: const Text(
+                  'Somem enquanto você pilota; um toque na tela traz de volta',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                value: _s.autoHideBars,
+                onChanged: (v) => setState(() => _s = _s.copyWith(autoHideBars: v)),
+              ),
               const Divider(color: Colors.white12),
               Text(
                 hello == null

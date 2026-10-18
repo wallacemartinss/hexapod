@@ -5,11 +5,15 @@ App Flutter (Android) para pilotar o hexápode pelo `hexd` (WebSocket) e ver a c
 ## Rodar
 
 ```bash
-cd proto && buf generate --template buf.gen.app.yaml   # gera lib/gen (dart pub global activate protoc_plugin)
 cd app
-flutter run -d linux        # no PC, contra o hexsim/hexd local
-flutter run                 # no celular Android (USB)
+make help        # lista os comandos
+make gen         # gera lib/gen a partir de proto/ (dart pub global activate protoc_plugin)
+make run         # no PC (Linux), contra o hexsim/hexd local ou o robô
+make install     # compila o APK, instala no celular pelo cabo USB e abre o app
+make crash       # mostra o último crash do app no celular
 ```
+
+No celular: **Depuração USB** ligada e cabo de dados. Alguns aparelhos (Redmi/HyperOS) só aparecem para o `adb` uns 30 s depois e bloqueiam APK baixado pelo navegador: use o `make install`.
 
 Para testar sem o robô: `hexsim` + `hexd -serial tcp://127.0.0.1:7777` (ver `pi/`) e, nos ajustes do app, endereço `127.0.0.1`.
 
@@ -38,6 +42,7 @@ flutter test --update-goldens test/pilot_screen_golden_test.dart   # capturas em
 - Joysticks ficam **cinza e inertes** quando o robô não pode se mover; trocar de modo zera os sticks.
 - Todo estado do failsafe vira uma frase com **o que aconteceu e o que fazer** (ex.: "Segure LEVANTAR para retomar").
 - Sem conexão: aviso central, reconexão automática e acesso aos ajustes.
+- **Régua de altura e barra de modos somem** depois de 5 s pilotando; um toque rápido na tela traz de volta (arrastar um joystick não). Ficam fixas com o robô sentado, depois de alertas ou sem conexão. PARAR, radar e barra de estado nunca somem. Desligável em Ajustes.
 
 ## Controles
 

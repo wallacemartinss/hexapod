@@ -53,11 +53,35 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
   late final Timer _clock;
   bool _wasLost = true;
 
+  /// Height slider and mode bar stay on screen for this long after the last
+  /// tap (counted down by [_clock], see [_revealBars]).
+  Duration _barsLeft = _barsShownFor;
+  static const _barsShownFor = Duration(seconds: 5);
+  static const _tick = Duration(milliseconds: 250);
+
+  /// Where and when the current touch started, to tell a tap from a drag.
+  Offset? _downAt;
+  DateTime? _downTime;
+
+  void _revealBars() => _barsLeft = _barsShownFor;
+
+  void _onPointerDown(PointerDownEvent e) {
+    _downAt = e.position;
+    _downTime = DateTime.now();
+  }
+
+  void _onPointerUp(PointerUpEvent e) {
+    final at = _downAt, time = _downTime;
+    if (at == null || time == null) return;
+    final quick = DateTime.now().difference(time) < const Duration(milliseconds: 300);
+    if (quick && (e.position - at).distance < 16) setState(_revealBars); // a tap, not a stick
+  }
+
   @override
   void initState() {
     super.initState();
     // Re-evaluate staleness even when no telemetry arrives.
-    _clock = Timer.periodic(const Duration(milliseconds: 250), (_) => setState(() {}));
+    _clock = Timer.periodic(_tick, (_) => setState(() => _barsLeft -= _tick));
   }
 
   @override
@@ -79,6 +103,9 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
       }
     });
 
+    // A mode change (also from the PS5 pad) shows the bars again.
+    ref.listen(controlProvider.select((c) => c.scheme), (_, _) => _revealBars());
+
     final settings = ref.watch(settingsProvider);
     final media = ref.watch(mediaUrisProvider);
     final gamepad = ref.watch(gamepadNameProvider);
@@ -99,6 +126,13 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final banner = robotState == null ? null : describeState(robotState);
     final sticksLive = canMove && control.scheme != Scheme.sit && !control.standRequested;
 
+    // The height slider and the mode bar hide only while actually piloting;
+    // anything that needs the pilot (sitting, alerts, no link) keeps them on
+    // screen. The status bar on top never hides.
+    final barsPinned = !settings.autoHideBars || lost || !canMove || control.standRequested;
+    if (barsPinned) _revealBars(); // full time again once piloting starts
+    final barsVisible = barsPinned || _barsLeft > Duration.zero;
+
     final (leftText, rightText) = _stickTexts[control.scheme]!;
     void onLeft(Stick s) =>
         settings.swapSticks ? controller.setSticks(right: s) : controller.setSticks(left: s);
@@ -107,125 +141,138 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(child: ref.watch(videoViewProvider)(media.video)),
-          if (settings.robotAudio) RobotAudio(uri: media.mic),
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerUp: _onPointerUp,
+        child: Stack(
+          children: [
+            Positioned.fill(child: ref.watch(videoViewProvider)(media.video)),
+            if (settings.robotAudio) RobotAudio(uri: media.mic),
 
-          // Stick areas first: buttons drawn later win the taps.
-          Positioned(
-            left: 0,
-            top: 64,
-            bottom: 0,
-            width: MediaQuery.sizeOf(context).width / 2,
-            child: FloatingJoystick(
-              restAlignment: const Alignment(-0.3, 0.05),
-              label: settings.swapSticks ? rightText.$1 : leftText.$1,
-              hint: settings.swapSticks ? rightText.$2 : leftText.$2,
-              enabled: sticksLive,
-              haptics: settings.haptics,
-              onChanged: onLeft,
-            ),
-          ),
-          Positioned(
-            right: 0,
-            top: 64,
-            bottom: 0,
-            width: MediaQuery.sizeOf(context).width / 2,
-            child: FloatingJoystick(
-              restAlignment: const Alignment(0.3, 0.05),
-              label: settings.swapSticks ? leftText.$1 : rightText.$1,
-              hint: settings.swapSticks ? leftText.$2 : rightText.$2,
-              enabled: sticksLive,
-              haptics: settings.haptics,
-              onChanged: onRight,
-            ),
-          ),
-
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: Stack(
-                children: [
-                  StatusBar(
-                    link: link,
-                    telemetry: fresh ? telemetry : null,
-                    telemetryAge: age,
-                    gamepad: gamepad,
-                    audio: settings.robotAudio,
-                    onAudio: () => ref
-                        .read(settingsProvider.notifier)
-                        .update(settings.copyWith(robotAudio: !settings.robotAudio)),
-                    onSettings: () => showSettingsSheet(context),
-                    onFaults: () => _showFaults(context, telemetry),
-                  ),
-                  // Obstacles at the top, out of the camera's center.
-                  if (fresh && telemetry != null)
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: ProximityRadar(
-                        distancesMm: telemetry.distancesMm,
-                        blockedMask: telemetry.blockedMask,
-                      ),
-                    ),
-                  if (banner != null && banner.severity != Severity.ok && !lost)
-                    Positioned(
-                      top: 84,
-                      left: 0,
-                      right: 0,
-                      child: Center(child: StateBanner(text: banner)),
-                    ),
-                  Align(
-                    alignment: const Alignment(1, -0.35),
-                    child: StopButton(
-                      latched: control.estop || robotState == pb.State.STATE_ESTOP,
-                      haptics: settings.haptics,
-                      onPressed: controller.stop,
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: HeightSlider(
-                      value: control.bodyHeight,
-                      enabled: standing,
-                      onChanged: controller.setBodyHeight,
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (control.scheme == Scheme.legs) ...[
-                          _GestureRow(
-                            enabled: canMove,
-                            haptics: settings.haptics,
-                            onGesture: controller.gesture,
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                        _ModeRail(
-                          scheme: control.scheme,
-                          standing: standing || control.standRequested,
-                          needsStand: needsStand,
-                          haptics: settings.haptics,
-                          onSit: controller.sit,
-                          onStand: controller.stand,
-                          onScheme: controller.setScheme,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            // Stick areas first: buttons drawn later win the taps.
+            Positioned(
+              left: 0,
+              top: 64,
+              bottom: 0,
+              width: MediaQuery.sizeOf(context).width / 2,
+              child: FloatingJoystick(
+                restAlignment: const Alignment(-0.3, 0.05),
+                label: settings.swapSticks ? rightText.$1 : leftText.$1,
+                hint: settings.swapSticks ? rightText.$2 : leftText.$2,
+                enabled: sticksLive,
+                haptics: settings.haptics,
+                onChanged: onLeft,
               ),
             ),
-          ),
-          if (lost) _ConnectionOverlay(host: settings.host, status: link),
-          if (!settings.onboarded)
-            _Onboarding(
-              onDone: () => ref.read(settingsProvider.notifier).update(settings.copyWith(onboarded: true)),
+            Positioned(
+              right: 0,
+              top: 64,
+              bottom: 0,
+              width: MediaQuery.sizeOf(context).width / 2,
+              child: FloatingJoystick(
+                restAlignment: const Alignment(0.3, 0.05),
+                label: settings.swapSticks ? leftText.$1 : rightText.$1,
+                hint: settings.swapSticks ? leftText.$2 : rightText.$2,
+                enabled: sticksLive,
+                haptics: settings.haptics,
+                onChanged: onRight,
+              ),
             ),
-        ],
+
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Stack(
+                  children: [
+                    StatusBar(
+                      link: link,
+                      telemetry: fresh ? telemetry : null,
+                      telemetryAge: age,
+                      gamepad: gamepad,
+                      audio: settings.robotAudio,
+                      onAudio: () => ref
+                          .read(settingsProvider.notifier)
+                          .update(settings.copyWith(robotAudio: !settings.robotAudio)),
+                      onSettings: () => showSettingsSheet(context),
+                      onFaults: () => _showFaults(context, telemetry),
+                    ),
+                    // Obstacles at the top, out of the camera's center.
+                    if (fresh && telemetry != null)
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: ProximityRadar(
+                          distancesMm: telemetry.distancesMm,
+                          blockedMask: telemetry.blockedMask,
+                        ),
+                      ),
+                    if (banner != null && banner.severity != Severity.ok && !lost)
+                      Positioned(
+                        top: 84,
+                        left: 0,
+                        right: 0,
+                        child: Center(child: StateBanner(text: banner)),
+                      ),
+                    Align(
+                      alignment: const Alignment(1, -0.35),
+                      child: StopButton(
+                        latched: control.estop || robotState == pb.State.STATE_ESTOP,
+                        haptics: settings.haptics,
+                        onPressed: controller.stop,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _AutoHide(
+                        visible: barsVisible,
+                        hiddenOffset: const Offset(-1.5, 0),
+                        child: HeightSlider(
+                          value: control.bodyHeight,
+                          enabled: standing,
+                          onChanged: controller.setBodyHeight,
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _AutoHide(
+                        visible: barsVisible,
+                        hiddenOffset: const Offset(0, 1.5),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (control.scheme == Scheme.legs) ...[
+                              _GestureRow(
+                                enabled: canMove,
+                                haptics: settings.haptics,
+                                onGesture: controller.gesture,
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            _ModeRail(
+                              scheme: control.scheme,
+                              standing: standing || control.standRequested,
+                              needsStand: needsStand,
+                              haptics: settings.haptics,
+                              onSit: controller.sit,
+                              onStand: controller.stand,
+                              onScheme: controller.setScheme,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (lost) _ConnectionOverlay(host: settings.host, status: link),
+            if (!settings.onboarded)
+              _Onboarding(
+                onDone: () => ref.read(settingsProvider.notifier).update(settings.copyWith(onboarded: true)),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -253,6 +300,30 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Slides [child] off screen (and out of the way of touches) when not
+/// [visible].
+class _AutoHide extends StatelessWidget {
+  const _AutoHide({required this.visible, required this.hiddenOffset, required this.child});
+
+  final bool visible;
+  final Offset hiddenOffset;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    const duration = Duration(milliseconds: 250);
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : hiddenOffset,
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        child: AnimatedOpacity(opacity: visible ? 1 : 0, duration: duration, child: child),
       ),
     );
   }
@@ -508,7 +579,7 @@ class _Onboarding extends StatelessWidget {
                   Icons.radio_button_checked_rounded,
                   const Color(0xFF4FD1FF),
                   'Joysticks flutuantes',
-                  'Toque em qualquer lugar de cada metade da tela: o joystick nasce sob o seu polegar.',
+                  'Toque em qualquer lugar de cada metade da tela: o joystick nasce sob o seu polegar. As barras somem enquanto você pilota; um toque rápido traz de volta.',
                 ),
                 tip(
                   Icons.sports_esports_rounded,

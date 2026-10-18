@@ -14,6 +14,7 @@ class Settings {
     this.swapSticks = false,
     this.haptics = true,
     this.robotAudio = false,
+    this.autoHideBars = true,
     this.onboarded = false,
   });
 
@@ -30,6 +31,9 @@ class Settings {
 
   /// Play the robot's microphone.
   final bool robotAudio;
+
+  /// Height slider and mode bar hide while piloting; a tap brings them back.
+  final bool autoHideBars;
 
   /// The first-run tips were dismissed.
   final bool onboarded;
@@ -51,6 +55,7 @@ class Settings {
     bool? swapSticks,
     bool? haptics,
     bool? robotAudio,
+    bool? autoHideBars,
     bool? onboarded,
   }) => Settings(
     host: host ?? this.host,
@@ -62,6 +67,7 @@ class Settings {
     swapSticks: swapSticks ?? this.swapSticks,
     haptics: haptics ?? this.haptics,
     robotAudio: robotAudio ?? this.robotAudio,
+    autoHideBars: autoHideBars ?? this.autoHideBars,
     onboarded: onboarded ?? this.onboarded,
   );
 
@@ -78,6 +84,7 @@ class Settings {
       swapSticks: p.getBool('swapSticks') ?? d.swapSticks,
       haptics: p.getBool('haptics') ?? d.haptics,
       robotAudio: p.getBool('robotAudio') ?? d.robotAudio,
+      autoHideBars: p.getBool('autoHideBars') ?? d.autoHideBars,
       onboarded: p.getBool('onboarded') ?? d.onboarded,
     );
   }
@@ -93,6 +100,7 @@ class Settings {
     await p.setBool('swapSticks', swapSticks);
     await p.setBool('haptics', haptics);
     await p.setBool('robotAudio', robotAudio);
+    await p.setBool('autoHideBars', autoHideBars);
     await p.setBool('onboarded', onboarded);
   }
 }
