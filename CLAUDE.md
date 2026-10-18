@@ -21,6 +21,8 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 | IMU | BNO085 | Usar *game rotation vector* (sem magnetômetro) por padrão |
 | Distância | 4x VL53L0X (GY-VL53L0XV2) | Todos com 0x29 de fábrica: trocar no boot via XSHUT para 0x30–0x33 |
 | Ambiente | BME280 (0x76) | |
+| GPS | GY-NEO6MV2 (u-blox NEO-6M) | No **Pi**: UART GPIO14/15, 9600. Ver `firmware/PINOUT.md` |
+| Tela de status | OLED 0,96" SSD1306, I2C 0x3C | No **Pi**: I2C GPIO2/3. Mostra rede, IP e o QR de pareamento |
 | Gás e fumaça | MQ-2 (módulo com LM393) | Saída analógica pelo divisor 10k/15k (AO vai a 5 V). Leitura relativa, alarme só informativo. Ver `firmware/PINOUT.md` |
 | Bateria | INA226 (0x40) | **Ver o aviso sobre o shunt na seção 9** |
 | Câmera | OV5647, grande-angular 120° | Porta CSI, H.264 por hardware |
@@ -30,7 +32,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 | Energia da lógica | Mini560 Pro 5 V / 5 A | Pi pelo GPIO (pinos 2/6), ESP32 e sensores |
 | Bateria | LiPo 3S 2200 mAh, XT60 | Fusível de 20 A + chave anti-spark |
 
-**Fora do projeto:** GPS, JSN-SR04T, VL53L1X. (O MQ-2 entrou em 18/10/2026.)
+**Fora do projeto:** JSN-SR04T, VL53L1X. (MQ-2, GPS e OLED entraram em 18/10/2026.)
 
 ### Barramentos
 

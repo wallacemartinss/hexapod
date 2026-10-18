@@ -71,6 +71,26 @@ Mapa de cada pino do ESP32 e sua função, para as duas placas. A fonte para o c
 | 0, 2, 5, 12, 15 | — | *Strapping*: afetam o boot, evitados |
 | 4, 26, 36 (VP), 39 (VN) | livres | 36/39 são só entrada |
 
+## Raspberry Pi: GPS e tela OLED
+
+Os dois ficam no Pi, não no ESP32: o quadro serial do ESP32 está cheio (250 de 254 bytes), o GPS não é tempo real, e só o Pi sabe IP, rede e se o app está conectado (a tela pode mostrar o QR de pareamento). Ativados pelo Ansible (`enable_i2c`, `enable_gps_uart`).
+
+| Módulo | Pino do módulo | Pino físico do Pi | Observação |
+|---|---|---|---|
+| OLED SSD1306 0,96" (I2C, 0x3C) | VCC | 1 (3,3 V) | |
+| | GND | 9 | |
+| | SDA | 3 (GPIO2) | `/dev/i2c-1` |
+| | SCL | 5 (GPIO3) | |
+| GPS GY-NEO6MV2 (UART, 9600) | VCC | 17 (3,3 V) | O módulo aceita 3,3–5 V |
+| | GND | 14 | |
+| | TX | 10 (GPIO15, RX do Pi) | `/dev/serial0` |
+| | RX | 8 (GPIO14, TX do Pi) | Opcional: só para configurar o GPS |
+
+Os pinos 2 e 4 (5 V) e 6 (GND) alimentam o Pi a partir do Mini560 no robô. **Ligar e desligar módulos com o Pi desligado.**
+
+- **GPS:** só pega posição (*fix*) com o céu à vista. O primeiro *fix* pode levar minutos; a bateria do módulo guarda o almanaque para os próximos.
+- **Validar:** `ssh wallace@hexapod.local 'bash -s' < pi/provision/check.sh` (seções OLED e GPS).
+
 ## MQ-2 (gás e fumaça)
 
 O módulo é alimentado em **5 V** (Mini560) e o aquecedor consome **~150 mA**. A saída analógica `AO` vai de 0 a **5 V**, mas o pino do ESP32 aguenta no máximo 3,3 V. Por isso, **nunca ligue `AO` direto**:

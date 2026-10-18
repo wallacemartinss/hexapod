@@ -35,7 +35,38 @@
     line: "dtparam=audio={{ 'off' if disable_onboard_audio | bool else 'on' }}"
   notify: [Reboot, Reboot pending]
 
-# cmdline.txt is a single line: rewrite it only when the HDMI flag differs.
+- name: I2C for the OLED
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: '^dtparam=i2c_arm='
+    line: "dtparam=i2c_arm={{ 'on' if enable_i2c | bool else 'off' }}"
+  notify: [Reboot, Reboot pending]
+
+- name: I2C device nodes at boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/i2c-dev.conf
+    content: "i2c-dev\n"
+    mode: "0644"
+  when: enable_i2c | bool
+
+# With Bluetooth disabled the PL011 UART is on GPIO14/15 (/dev/serial0).
+- name: UART for the GPS
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: '^enable_uart='
+    line: "enable_uart={{ '1' if enable_gps_uart | bool else '0' }}"
+  notify: [Reboot, Reboot pending]
+
+- name: No login prompt on the GPS UART
+  ansible.builtin.systemd_service:
+    name: serial-getty@ttyAMA0
+    enabled: false
+    masked: true
+  when: enable_gps_uart | bool
+  failed_when: false
+
+# cmdline.txt is a single line: rewrite it only when the HDMI flag differs
+# (or, with the GPS on the UART, to drop the serial console).
 - name: Read kernel cmdline
   ansible.builtin.slurp:
     src: /boot/firmware/cmdline.txt
@@ -45,7 +76,9 @@
   ansible.builtin.set_fact:
     cmdline_new: >-
       {{ ((cmdline_raw.content | b64decode | trim).split()
-          | reject('equalto', 'video=HDMI-A-1:d') | list
+          | reject('equalto', 'video=HDMI-A-1:d')
+          | reject('match', '^console=(serial0|ttyAMA0|ttyS0),' if enable_gps_uart | bool else '^$')
+          | list
           + (['video=HDMI-A-1:d'] if disable_hdmi | bool else []))
          | join(' ') }}
 
