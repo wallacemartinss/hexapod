@@ -1,7 +1,8 @@
 // hexprobe is a bench tool: it opens the ESP32 serial port, sends a Hello and
-// prints every message received for a while. It never sends motion commands.
+// prints every message received for a while.
 //
 //	hexprobe -port /dev/hexapod-esp32 -duration 5s
+//	hexprobe -failsafe   walk through the failsafe states (all velocities zero)
 package main
 
 import (
@@ -21,6 +22,7 @@ func main() {
 	port := flag.String("port", "/dev/hexapod-esp32", "serial device")
 	baud := flag.Int("baud", 115200, "baud rate (ignored by native USB)")
 	duration := flag.Duration("duration", 5*time.Second, "how long to listen")
+	failsafe := flag.Bool("failsafe", false, "run the failsafe scenario instead of listening")
 	flag.Parse()
 
 	p, err := serial.Open(*port, &serial.Mode{BaudRate: *baud})
@@ -39,6 +41,10 @@ func main() {
 	}}})
 	if _, err := p.Write(hello); err != nil {
 		log.Fatal(err)
+	}
+
+	if *failsafe {
+		os.Exit(runFailsafe(p))
 	}
 
 	var dec link.Decoder
@@ -86,4 +92,83 @@ func report(env *pb.Envelope, counts map[string]int) {
 	default:
 		counts[fmt.Sprintf("%T", m)]++
 	}
+}
+
+// runFailsafe sends Commands with zero velocity and reports every state change:
+// STAND -> NORMAL, silence -> STOPPING -> SAFE_SIT -> RELAXED, STAND, estop.
+func runFailsafe(p serial.Port) int {
+	start := time.Now()
+	var seq uint32
+	send := func(mode pb.Mode, estop bool) {
+		seq++
+		frame, _ := link.EncodeEnvelope(&pb.Envelope{Payload: &pb.Envelope_Command{Command: &pb.Command{
+			Seq: seq, TimestampMs: uint32(time.Since(start).Milliseconds()), Mode: mode, Estop: estop,
+		}}})
+		if _, err := p.Write(frame); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Telemetry reader in the background: prints state changes.
+	type change struct {
+		at    time.Duration
+		state pb.State
+	}
+	changes := make(chan change, 64)
+	go func() {
+		var dec link.Decoder
+		buf := make([]byte, 256)
+		last := pb.State(-1)
+		for {
+			n, err := p.Read(buf)
+			if err != nil {
+				return
+			}
+			for _, b := range buf[:n] {
+				payload, err := dec.Push(b)
+				if err != nil || payload == nil {
+					continue
+				}
+				var env pb.Envelope
+				if proto.Unmarshal(payload, &env) != nil {
+					continue
+				}
+				if t := env.GetTelemetry(); t != nil && t.State != last {
+					last = t.State
+					changes <- change{time.Since(start), t.State}
+				}
+			}
+		}
+	}()
+
+	step := func(name string) { fmt.Printf("%7.2fs  >> %s\n", time.Since(start).Seconds(), name) }
+	drain := func(d time.Duration, pilot bool) {
+		end := time.Now().Add(d)
+		tick := time.NewTicker(50 * time.Millisecond) // 20 Hz like the app
+		defer tick.Stop()
+		for time.Now().Before(end) {
+			select {
+			case c := <-changes:
+				fmt.Printf("%7.2fs  state %v\n", c.at.Seconds(), c.state)
+			case <-tick.C:
+				if pilot {
+					send(pb.Mode_MODE_WALK, false)
+				}
+			}
+		}
+	}
+
+	drain(500*time.Millisecond, false)
+	step("STAND, then commands at 20 Hz (zero velocity)")
+	send(pb.Mode_MODE_STAND, false)
+	drain(2*time.Second, true)
+	step("silence: expect STOPPING > 150 ms, SAFE_SIT > 500 ms, RELAXED > 10 s")
+	drain(11*time.Second, false)
+	step("STAND")
+	send(pb.Mode_MODE_STAND, false)
+	drain(time.Second, true)
+	step("estop")
+	send(pb.Mode_MODE_WALK, true)
+	drain(time.Second, true)
+	return 0
 }
