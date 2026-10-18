@@ -3,6 +3,12 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- mDNS lookup of hexapod.local (multicast replies need a MulticastLock). -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
+    <!-- WebRTC (flutter_webrtc) watches the network interfaces and routes the
+         robot's audio: without these the native network thread aborts. The
+         phone's own camera and microphone are not used (receive only). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <application
         android:label="Hexápode"
         android:usesCleartextTraffic="true"
