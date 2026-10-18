@@ -33,3 +33,28 @@
     group: "{{ hexapod_user }}"
     mode: "0644"
   notify: Restart mic-stream
+
+# Copied only once: edits made on the Pi survive re-provisioning.
+- name: hexd configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../hexd/hexd.yaml"
+    dest: "{{ hexapod_root }}/shared/config/hexd.yaml"
+    owner: "{{ hexapod_user }}"
+    group: "{{ hexapod_user }}"
+    mode: "0644"
+    force: false
+
+# hexd powers the Pi off on critical battery (robot already seated). Only the
+# power-off action is granted, only to the service user.
+- name: Allow the service user to power off
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/50-hexapod-poweroff.rules
+    content: |
+      polkit.addRule(function (action, subject) {
+        if (subject.user === "{{ hexapod_user }}" &&
+            (action.id === "org.freedesktop.login1.power-off" ||
+             action.id === "org.freedesktop.login1.power-off-multiple-sessions")) {
+          return polkit.Result.YES;
+        }
+      });
+    mode: "0644"

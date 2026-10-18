@@ -1,0 +1,95 @@
+// hexctl drives the robot through hexd's WebSocket, like the app will.
+//
+//	hexctl -url ws://hexapod.local:8080/ws watch      print state changes
+//	hexctl -url ws://hexapod.local:8080/ws demo       STAND, walk, release, SIT, then go silent
+//	hexctl -url ws://hexapod.local:8080/ws estop      one emergency stop
+//
+// Commands are sent at 20 Hz, as the app does (dead man's switch). hexd stamps
+// the seq. While the firmware keeps servo outputs locked, nothing moves.
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/coder/websocket"
+	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
+	"google.golang.org/protobuf/proto"
+)
+
+func main() {
+	url := flag.String("url", "ws://hexapod.local:8080/ws", "hexd WebSocket")
+	flag.Parse()
+	ctx := context.Background()
+	conn, _, err := websocket.Dial(ctx, *url, nil)
+	if err != nil {
+		log.Fatalf("connect %s: %v", *url, err)
+	}
+	defer conn.CloseNow()
+
+	start := time.Now()
+	elapsed := func() float64 { return time.Since(start).Seconds() }
+	var last pb.State = -1
+	go func() {
+		for {
+			_, b, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			var env pb.Envelope
+			if proto.Unmarshal(b, &env) != nil {
+				continue
+			}
+			if h := env.GetHello(); h != nil {
+				fmt.Printf("%6.2fs  firmware %s (protocol %d)\n", elapsed(), h.FirmwareVersion, h.ProtocolVersion)
+			}
+			if t := env.GetTelemetry(); t != nil && t.State != last {
+				last = t.State
+				a := t.JointAnglesDeg
+				leg0 := ""
+				if len(a) >= 3 {
+					leg0 = fmt.Sprintf("leg0 %.1f/%.1f/%.1f", a[0], a[1], a[2])
+				}
+				fmt.Printf("%6.2fs  state %-16v mode %-11v last_cmd %-5d %s\n", elapsed(), t.State, t.Mode, t.LastCommandSeq, leg0)
+			}
+		}
+	}()
+
+	send := func(c *pb.Command) {
+		b, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_Command{Command: c}})
+		if err := conn.Write(ctx, websocket.MessageBinary, b); err != nil {
+			log.Fatal(err)
+		}
+	}
+	drive := func(name string, c *pb.Command, d time.Duration) {
+		fmt.Printf("%6.2fs  >> %s\n", elapsed(), name)
+		t := time.NewTicker(50 * time.Millisecond)
+		defer t.Stop()
+		for end := time.Now().Add(d); time.Now().Before(end); <-t.C {
+			send(proto.CloneOf(c))
+		}
+	}
+
+	switch flag.Arg(0) {
+	case "watch":
+		select {}
+	case "estop":
+		send(&pb.Command{Estop: true})
+		time.Sleep(500 * time.Millisecond)
+	case "demo":
+		time.Sleep(500 * time.Millisecond)
+		drive("STAND", &pb.Command{Mode: pb.Mode_MODE_STAND, BodyHeight: 0.5}, 1500*time.Millisecond)
+		drive("WALK forward 50%", &pb.Command{Mode: pb.Mode_MODE_WALK, Vx: 0.5, BodyHeight: 0.5}, 3*time.Second)
+		drive("sticks released", &pb.Command{Mode: pb.Mode_MODE_WALK, BodyHeight: 0.5}, time.Second)
+		drive("SIT", &pb.Command{Mode: pb.Mode_MODE_SIT, BodyHeight: 0.5}, 1500*time.Millisecond)
+		fmt.Printf("%6.2fs  >> app goes silent (dead man's switch)\n", elapsed())
+		time.Sleep(2 * time.Second)
+	default:
+		fmt.Fprintln(os.Stderr, "usage: hexctl [-url ws://...] watch|demo|estop")
+		os.Exit(2)
+	}
+}

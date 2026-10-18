@@ -4,6 +4,8 @@ Wants=network-online.target
 After=network-online.target
 # Skipped until the first deploy installs the binary.
 ConditionPathExists=/opt/hexapod/current/bin/hexd
+# Never give up restarting (the default stops after 5 starts in 10 s).
+StartLimitIntervalSec=0
 
 [Service]
 User=hexapod
@@ -13,7 +15,6 @@ WorkingDirectory=/opt/hexapod/current
 ExecStart=/opt/hexapod/current/bin/hexd -config /opt/hexapod/shared/config/hexd.yaml
 Restart=always
 RestartSec=1
-StartLimitIntervalSec=0
 
 [Install]
 WantedBy=multi-user.target
