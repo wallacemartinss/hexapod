@@ -1,0 +1,61 @@
+# ESP32 firmware: native tests on the runner, builds for both boards.
+name: firmware
+
+on:
+  push:
+    branches: [main, "phase-*"]
+    paths: ["firmware/**", "proto/**", ".github/workflows/firmware.yml"]
+  pull_request:
+    paths: ["firmware/**", "proto/**", ".github/workflows/firmware.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the firmware version comes from git describe
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: pi/go.mod
+          cache-dependency-path: pi/go.sum
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Tools (PlatformIO, buf, nanopb)
+        run: |
+          pip install platformio==6.2.0 nanopb==0.4.9.1
+          go install github.com/bufbuild/buf/cmd/buf@v1.74.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          sudo apt-get install -y -qq clang-format
+
+      - name: clang-format
+        run: clang-format --dry-run --Werror src/*.cpp src/*/*.h src/*/*.cpp include/*.h test/*/*.cpp
+
+      - name: Native tests (link, failsafe, IK, gait)
+        run: pio test -e native
+
+      - name: Build ESP32-S3 (robot) and ESP32 DevKit (bench)
+        run: |
+          pio run -e esp32s3 -t merged
+          pio run -e esp32dev -t merged
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: firmware-${{ github.sha }}
+          path: firmware/.pio/build/*/firmware-merged.bin
+          retention-days: 14

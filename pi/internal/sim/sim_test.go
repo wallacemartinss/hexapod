@@ -22,7 +22,7 @@ type client struct {
 func dial(t *testing.T, s *Sim) (*client, context.CancelFunc) {
 	a, b := net.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
-	go s.Serve(ctx, b)
+	go func() { _ = s.Serve(ctx, b) }()
 	c := &client{t: t, conn: a, in: make(chan *pb.Envelope, 256)}
 	go func() {
 		var dec link.Decoder
