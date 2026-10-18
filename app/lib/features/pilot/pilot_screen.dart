@@ -9,6 +9,7 @@ import '../../core/input/gamepad_service.dart';
 import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
+import '../data/data_screen.dart';
 import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
@@ -200,6 +201,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                       telemetryAge: age,
                       gamepad: gamepad,
                       onGamepad: () => showControllerSheet(context),
+                      onData: () => showDataScreen(context),
                       audio: settings.robotAudio,
                       onAudio: () => ref
                           .read(settingsProvider.notifier)

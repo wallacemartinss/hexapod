@@ -16,6 +16,7 @@ class StatusBar extends StatelessWidget {
     required this.telemetryAge,
     required this.onSettings,
     required this.onFaults,
+    this.onData,
     this.gamepad,
     this.onGamepad,
     this.audio = false,
@@ -29,6 +30,9 @@ class StatusBar extends StatelessWidget {
   final Duration? telemetryAge;
   final VoidCallback onSettings;
   final VoidCallback onFaults;
+
+  /// Opens the robot data screen (sensors, legs, system).
+  final VoidCallback? onData;
 
   /// Name of the connected gamepad, if any.
   final String? gamepad;
@@ -147,6 +151,16 @@ class StatusBar extends StatelessWidget {
                 color: audio ? Colors.white : Colors.white54,
                 size: 20,
               ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (onData != null) ...[
+          GestureDetector(
+            onTap: onData,
+            child: const Glass(
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.insights_rounded, color: Colors.white, size: 20),
             ),
           ),
           const SizedBox(width: 8),

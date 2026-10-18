@@ -67,9 +67,11 @@ List<String> describeFaults(int flags) => [
   if (flags & 2 != 0) 'Servos direitos sem resposta',
   if (flags & 4 != 0) 'IMU ausente: sem detecção de queda',
   if (flags & 8 != 0) 'Sensores de distância ausentes',
+  if (flags & 16 != 0) 'Sensor de ambiente ausente',
   if (flags & 32 != 0) 'Medidor de bateria ausente',
   if (flags & 64 != 0) 'Corrente alta',
   if (flags & 128 != 0) 'Bateria baixa: velocidade reduzida',
+  if (flags & 256 != 0) 'Bateria crítica: desligando',
   if (flags & 512 != 0) 'Laço de controle atrasado',
   if (flags & 1024 != 0) 'Calibração não carregada',
 ];
