@@ -11,6 +11,8 @@ import android.hardware.lights.LightState
 import android.hardware.lights.LightsManager
 import android.hardware.lights.LightsRequest
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.InputDevice
 import androidx.annotation.RequiresApi
@@ -30,6 +32,10 @@ class ControllerChannel(private val context: Context, messenger: BinaryMessenger
     private var lightSession: LightsManager.LightsSession? = null
     private var sensorManager: SensorManager? = null
     private var listener: SensorEventListener? = null
+
+    // A controller's sensors report on Android's own "SensorThread"; Flutter
+    // only accepts channel messages on the main thread (else it aborts).
+    private val main = Handler(Looper.getMainLooper())
 
     init {
         MethodChannel(messenger, "hexapod/controller").setMethodCallHandler { call, result ->
@@ -110,7 +116,8 @@ class ControllerChannel(private val context: Context, messenger: BinaryMessenger
         val l = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
                 val kind = if (e.sensor.type == Sensor.TYPE_GYROSCOPE) 1.0 else 0.0
-                events.success(listOf(kind, e.values[0].toDouble(), e.values[1].toDouble(), e.values[2].toDouble()))
+                val sample = listOf(kind, e.values[0].toDouble(), e.values[1].toDouble(), e.values[2].toDouble())
+                main.post { if (listener === this) events.success(sample) } // dropped once stopped
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
