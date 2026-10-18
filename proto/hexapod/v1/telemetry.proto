@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+import "hexapod/v1/common.proto";
+
+// Failsafe state machine (CLAUDE.md section 6).
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_NORMAL = 1;
+  STATE_STOPPING = 2; // no valid command: decelerating to zero
+  STATE_SAFE_SIT = 3; // no valid command: feet down, body lowered
+  STATE_RELAXED = 4; // no valid command for 10 s: torque relieved
+  STATE_BLOCKED = 5; // obstacle: speed blocked in that direction
+  STATE_LOW_BATTERY = 6;
+  STATE_TIPPED = 7; // tilt > 35 deg
+  STATE_ESTOP = 8;
+}
+
+// Bits of Telemetry.fault_flags. Values are bit masks, not bit indexes.
+enum Fault {
+  FAULT_UNSPECIFIED = 0;
+  FAULT_PCA9685_LEFT = 1; // 0x40 not answering
+  FAULT_PCA9685_RIGHT = 2; // 0x41 not answering
+  FAULT_IMU = 4;
+  FAULT_DISTANCE_SENSOR = 8;
+  FAULT_ENV_SENSOR = 16;
+  FAULT_POWER_MONITOR = 32;
+  FAULT_OVERCURRENT = 64; // high current for more than 3 s
+  FAULT_BATTERY_LOW = 128; // < 3.5 V/cell: speed reduced
+  FAULT_BATTERY_CRITICAL = 256; // < 3.3 V/cell: shutdown requested
+  FAULT_LOOP_OVERRUN = 512; // motion loop missed its 50 Hz deadline
+  FAULT_NVS = 1024; // calibration not loaded
+}
+
+// Sent by the ESP32 at 10 Hz.
+message Telemetry {
+  uint32 seq = 1;
+  uint32 uptime_ms = 2;
+  State state = 3;
+  uint32 fault_flags = 4; // OR of Fault values
+  uint32 last_command_seq = 5; // last Command.seq accepted
+
+  Mode mode = 6;
+  Gait gait = 7;
+
+  float battery_voltage_v = 8;
+  float battery_current_a = 9; // only valid with the right INA226 shunt (CLAUDE.md section 9)
+
+  Quaternion orientation = 10;
+  float roll_deg = 11;
+  float pitch_deg = 12;
+  float yaw_deg = 13;
+
+  // VL53L0X readings. Index -> sensor position is defined in firmware config.h.
+  repeated uint32 distances_mm = 14;
+  // Bit i set: motion towards distances_mm[i] is blocked (< 150 mm).
+  uint32 blocked_mask = 15;
+
+  float temperature_c = 16; // BME280
+  float humidity_pct = 17;
+  float pressure_hpa = 18;
+  float esp32_temperature_c = 19;
+
+  uint32 loop_time_us = 20; // last motion loop duration
+
+  // Commanded joint angles, leg-major: [leg0 coxa, femur, tibia, leg1 coxa, ...].
+  // Sent even with servos off, so gaits can be checked "on paper".
+  repeated float joint_angles_deg = 21;
+}

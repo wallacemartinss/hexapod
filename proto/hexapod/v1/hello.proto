@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+// Handshake. hexd sends one when the serial link opens; the ESP32 answers with its own.
+// deploy.sh reads firmware_version from the reply to verify a flash.
+message Hello {
+  // Bumped on any wire-incompatible change to this package.
+  uint32 protocol_version = 1;
+  string firmware_version = 2; // set by the ESP32 (tag or short commit hash)
+  string hexd_version = 3; // set by hexd
+  string git_hash = 4; // full commit hash of the sender's build
+  uint32 uptime_ms = 5; // sender's uptime
+}

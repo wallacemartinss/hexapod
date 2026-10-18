@@ -1,0 +1,19 @@
+# Run from proto/: `buf generate`
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/wallacemartinss/hexapod/pi/hexd/gen
+plugins:
+  # Go (hexd, hexsim)
+  - local: protoc-gen-go
+    out: ../pi/hexd/gen
+    opt: paths=source_relative
+  # C (ESP32 firmware). Reads hexapod/v1/*.options for max_size/max_count.
+  - local: protoc-gen-nanopb
+    out: ../firmware/lib/proto
+    opt: --options-path=.
+  # Dart (app): enabled in phase 6.
+  # - local: protoc-gen-dart
+  #   out: ../app/lib/gen

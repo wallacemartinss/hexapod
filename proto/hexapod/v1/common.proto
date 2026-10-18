@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+// Gait used while walking.
+enum Gait {
+  GAIT_UNSPECIFIED = 0; // keep the current gait
+  GAIT_TRIPOD = 1;
+  GAIT_WAVE = 2;
+  GAIT_RIPPLE = 3;
+}
+
+// Operating mode requested by the app.
+enum Mode {
+  MODE_UNSPECIFIED = 0; // keep the current mode
+  MODE_SIT = 1;
+  MODE_STAND = 2; // also the only way to leave a failsafe state
+  MODE_WALK = 3;
+  MODE_CALIBRATE = 4; // only accepted while sitting
+}
+
+// Leg joint, from body to foot.
+enum Joint {
+  JOINT_UNSPECIFIED = 0;
+  JOINT_COXA = 1;
+  JOINT_FEMUR = 2;
+  JOINT_TIBIA = 3;
+}
+
+// Link profile: selects the failsafe timeouts (see CLAUDE.md section 6).
+enum LinkProfile {
+  LINK_PROFILE_UNSPECIFIED = 0;
+  LINK_PROFILE_WIFI = 1; // 150 ms / 500 ms / 10 s
+  LINK_PROFILE_CELLULAR = 2; // 400 ms / 1.5 s / 10 s
+}
+
+// Unit quaternion (BNO085 game rotation vector).
+message Quaternion {
+  float w = 1;
+  float x = 2;
+  float y = 3;
+  float z = 4;
+}
