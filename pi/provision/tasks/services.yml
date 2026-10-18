@@ -1,0 +1,31 @@
+---
+- name: Install systemd units
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - hexd.service
+    - mediamtx.service
+    - mic-stream.service
+  register: units
+
+- name: Enable and start services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: "{{ units is changed }}"
+  loop:
+    - mediamtx
+    - mic-stream
+  # Depends on earlier steps that --check does not perform.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# Enabled only: it starts once deploy.sh installs /opt/hexapod/current/bin/hexd.
+- name: Enable hexd
+  ansible.builtin.systemd_service:
+    name: hexd
+    enabled: true
+    daemon_reload: "{{ units is changed }}"
+  ignore_errors: "{{ ansible_check_mode }}"

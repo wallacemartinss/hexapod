@@ -1,0 +1,58 @@
+---
+# config.txt ends with an [all] section, so lines appended at EOF apply to every board.
+- name: Camera auto-detect
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: '^camera_auto_detect='
+    line: "camera_auto_detect={{ '0' if camera_force_ov5647 | bool else '1' }}"
+  notify: [Reboot, Reboot pending]
+
+- name: Force OV5647 overlay
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    line: dtoverlay=ov5647
+    state: "{{ 'present' if camera_force_ov5647 | bool else 'absent' }}"
+  notify: [Reboot, Reboot pending]
+
+- name: Bluetooth overlay
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    line: dtoverlay=disable-bt
+    state: "{{ 'present' if disable_bluetooth | bool else 'absent' }}"
+  notify: [Reboot, Reboot pending]
+
+- name: Bluetooth UART helper
+  ansible.builtin.systemd_service:
+    name: hciuart
+    enabled: false
+  when: disable_bluetooth | bool
+  failed_when: false
+
+- name: Onboard audio
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: '^dtparam=audio='
+    line: "dtparam=audio={{ 'off' if disable_onboard_audio | bool else 'on' }}"
+  notify: [Reboot, Reboot pending]
+
+# cmdline.txt is a single line: rewrite it only when the HDMI flag differs.
+- name: Read kernel cmdline
+  ansible.builtin.slurp:
+    src: /boot/firmware/cmdline.txt
+  register: cmdline_raw
+
+- name: Compute kernel cmdline
+  ansible.builtin.set_fact:
+    cmdline_new: >-
+      {{ ((cmdline_raw.content | b64decode | trim).split()
+          | reject('equalto', 'video=HDMI-A-1:d') | list
+          + (['video=HDMI-A-1:d'] if disable_hdmi | bool else []))
+         | join(' ') }}
+
+- name: Write kernel cmdline
+  ansible.builtin.copy:
+    dest: /boot/firmware/cmdline.txt
+    content: "{{ cmdline_new }}\n"
+    mode: "0755"
+  when: cmdline_new != (cmdline_raw.content | b64decode | trim)
+  notify: [Reboot, Reboot pending]
