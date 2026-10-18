@@ -36,7 +36,7 @@ ssh wallace@hexapod.local 'bash -s' < check.sh
 
 | Parte | Tag | Detalhe |
 |---|---|---|
-| Pacotes | `base` | `apt dist-upgrade` (desligável com `apt_upgrade: false`), `rpicam-apps`, `alsa-utils`, `ffmpeg`, `avahi-daemon`, `git`, `rsync` |
+| Pacotes | `base` | `apt dist-upgrade` (desligável com `apt_upgrade: false`), `rpicam-apps`, `alsa-utils`, `ffmpeg`, `avahi-daemon`, `git`, `rsync`; `esptool` do PyPI com versão fixa em `/opt/esptool` (o pacote do Debian não traz o *stub flasher*) |
 | Boot | `boot` | Câmera (`camera_auto_detect=1`, ou `dtoverlay=ov5647` com `camera_force_ov5647: true`) e economia de energia. **Reinicia o Pi** se mudar algo (`provision_reboot`) |
 | Layout | `layout` | Usuário de serviço `hexapod` (grupos `dialout`, `video`, `audio`), `/opt/hexapod/{releases,shared/{config,logs,firmware}}` |
 | udev | `udev` | ESP32-S3 `303a:1001` → `/dev/hexapod-esp32`, ignorado pelo ModemManager (para o modem 4G no futuro). **Temporário:** CP2102/CH340 de DevKits clássicos para testes de bancada (`esp32_test_usb_ids`; esvaziar quando o S3 chegar) |

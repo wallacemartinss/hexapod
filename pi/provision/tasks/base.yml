@@ -19,3 +19,22 @@
     name: avahi-daemon
     enabled: true
     state: started
+
+- name: Remove Debian esptool (no stub flasher)
+  ansible.builtin.apt:
+    name: esptool
+    state: absent
+
+- name: Install esptool from PyPI
+  ansible.builtin.pip:
+    name: "esptool=={{ esptool_version }}"
+    virtualenv: /opt/esptool
+    virtualenv_command: python3 -m venv
+
+- name: Link esptool
+  ansible.builtin.file:
+    src: /opt/esptool/bin/esptool
+    dest: /usr/local/bin/esptool
+    state: link
+    force: true
+  ignore_errors: "{{ ansible_check_mode }}"

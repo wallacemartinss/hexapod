@@ -12,6 +12,8 @@ base_packages:
   - rsync
   - curl
   - jq
+  - python3-venv
+  - python3-packaging  # required by the Ansible pip module
 
 # --- Boot config (/boot/firmware/config.txt, cmdline.txt) ---
 # Set true if the OV5647 is not auto-detected (rpicam-hello --list-cameras is empty).
@@ -28,6 +30,10 @@ provision_reboot: true
 # --- MediaMTX ---
 mediamtx_version: v1.21.2
 mediamtx_arch: linux_arm64
+
+# --- esptool (deploy.sh flashes the ESP32 from the Pi) ---
+# From PyPI: Debian's package strips the stub flasher (flash_id/write_flash fail).
+esptool_version: "5.6.0"
 
 # --- Microphone (ALSA device for mic-stream.service) ---
 # TODO(hardware): confirm with `arecord -L` once the USB mic is plugged in.
