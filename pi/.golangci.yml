@@ -1,0 +1,14 @@
+version: "2"
+linters:
+  settings:
+    errcheck:
+      # Closing on teardown, and writing a response the client may have
+      # abandoned: nothing useful can be done with these errors.
+      exclude-functions:
+        - (io.Closer).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+        - (*os.File).Close
+        - (go.bug.st/serial.Port).Close
+        - (*github.com/coder/websocket.Conn).CloseNow
+        - fmt.Fprintf

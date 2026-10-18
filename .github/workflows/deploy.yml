@@ -1,0 +1,95 @@
+# Manual deploy to the robot (Actions tab -> deploy -> Run workflow).
+#
+# Builds the release package, joins the tailnet as an ephemeral node, copies the
+# package to the Pi over SSH and runs deploy.sh there. deploy.sh itself refuses
+# unless the robot is seated, and rolls back if the new version does not come up.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET  Tailscale OAuth client with the tag below
+#   DEPLOY_SSH_KEY                       private key allowed for DEPLOY_USER on the Pi
+#   DEPLOY_KNOWN_HOSTS                   `ssh-keyscan hexapod` line(s) for the Pi
+# Optional repository variables: DEPLOY_HOST (default hexapod), DEPLOY_USER (wallace).
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: Firmware target
+        type: choice
+        options: [esp32dev, esp32s3]
+        default: esp32dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: robot
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          # The tools (buf 1.74) need Go >= 1.26.7; the module itself still
+          # declares its own minimum in pi/go.mod.
+          go-version: "1.26"
+          cache-dependency-path: pi/go.sum
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Tools
+        run: |
+          pip install platformio==6.2.0 nanopb==0.4.9.1
+          go install github.com/bufbuild/buf/cmd/buf@v1.74.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+
+      - name: Package
+        id: package
+        env:
+          BOARD: ${{ inputs.board }}
+        run: |
+          pi/deploy/package.sh
+          echo "path=$(ls dist/hexapod-*.tar.gz)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ github.sha }}
+          path: ${{ steps.package.outputs.path }}
+
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy
+        env:
+          HOST: ${{ vars.DEPLOY_HOST || 'hexapod' }}
+          USER_: ${{ vars.DEPLOY_USER || 'wallace' }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          PKG: ${{ steps.package.outputs.path }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh_() { ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$USER_@$HOST" "$@"; }
+          scp -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$PKG" "$USER_@$HOST:/tmp/"
+          name=$(basename "$PKG")
+          # deploy.sh from the package itself, so the script matches the release.
+          ssh_ "set -e; cd /tmp; tar -xzf $name --wildcards '*/deploy.sh' --strip-components=1; sudo bash ./deploy.sh /tmp/$name"

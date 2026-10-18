@@ -188,9 +188,15 @@ func TestHealthVersionMetrics(t *testing.T) {
 	dir := t.TempDir()
 	temp := filepath.Join(dir, "temp")
 	wireless := filepath.Join(dir, "wireless")
-	os.WriteFile(temp, []byte("48312\n"), 0o644)
-	os.WriteFile(wireless, []byte("Inter-| sta-|   Quality        |\n face | tus | link level noise |\n"+
-		" wlan0: 0000   55.  -61.  -256        0      0      0      0     12        0\n"), 0o644)
+	for path, content := range map[string]string{
+		temp: "48312\n",
+		wireless: "Inter-| sta-|   Quality        |\n face | tus | link level noise |\n" +
+			" wlan0: 0000   55.  -61.  -256        0      0      0      0     12        0\n",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	r := newRig(t, Config{HexdVersion: "v-test", PiTemperaturePath: temp, WirelessPath: wireless, WifiInterface: "wlan0"})
 
 	if code, _ := get(t, r.http.URL+"/health"); code != 200 {
@@ -201,6 +207,10 @@ func TestHealthVersionMetrics(t *testing.T) {
 		t.Fatalf("/version = %d %s", code, body)
 	}
 	waitFor(t, "telemetry", func() bool { return r.dev.Snapshot().Telemetry != nil })
+	if code, body := get(t, r.http.URL+"/status"); code != 200 || !strings.Contains(body, `"state":"RELAXED"`) ||
+		!strings.Contains(body, `"connected":true`) {
+		t.Fatalf("/status = %d %s", code, body)
+	}
 	_, metrics := get(t, r.http.URL+"/metrics")
 	for _, want := range []string{
 		"hexapod_esp32_up 1",

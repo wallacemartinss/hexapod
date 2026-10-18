@@ -3,6 +3,7 @@
 //	hexctl -url ws://hexapod.local:8080/ws watch      print state changes
 //	hexctl -url ws://hexapod.local:8080/ws demo       STAND, walk, release, SIT, then go silent
 //	hexctl -url ws://hexapod.local:8080/ws estop      one emergency stop
+//	hexctl -url ws://hexapod.local:8080/ws -for 5s stand   keep it standing
 //
 // Commands are sent at 20 Hz, as the app does (dead man's switch). hexd stamps
 // the seq. While the firmware keeps servo outputs locked, nothing moves.
@@ -23,6 +24,7 @@ import (
 
 func main() {
 	url := flag.String("url", "ws://hexapod.local:8080/ws", "hexd WebSocket")
+	hold := flag.Duration("for", 5*time.Second, "how long `stand` keeps commanding")
 	flag.Parse()
 	ctx := context.Background()
 	conn, _, err := websocket.Dial(ctx, *url, nil)
@@ -77,6 +79,9 @@ func main() {
 	switch flag.Arg(0) {
 	case "watch":
 		select {}
+	case "stand":
+		time.Sleep(300 * time.Millisecond)
+		drive("STAND", &pb.Command{Mode: pb.Mode_MODE_STAND, BodyHeight: 0.5}, *hold)
 	case "estop":
 		send(&pb.Command{Estop: true})
 		time.Sleep(500 * time.Millisecond)
@@ -89,7 +94,7 @@ func main() {
 		fmt.Printf("%6.2fs  >> app goes silent (dead man's switch)\n", elapsed())
 		time.Sleep(2 * time.Second)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: hexctl [-url ws://...] watch|demo|estop")
+		fmt.Fprintln(os.Stderr, "usage: hexctl [-url ws://...] [-for 5s] watch|demo|stand|estop")
 		os.Exit(2)
 	}
 }

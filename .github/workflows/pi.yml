@@ -1,0 +1,77 @@
+# Go side (hexd, hexsim, tools) and the Protobuf contract.
+name: pi
+
+on:
+  push:
+    branches: [main, "phase-*"]
+    paths: ["pi/**", "proto/**", ".github/workflows/pi.yml"]
+  pull_request:
+    paths: ["pi/**", "proto/**", ".github/workflows/pi.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pi
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # buf breaking compares with main; versions use git describe
+
+      - uses: actions/setup-go@v7
+        with:
+          # The tools (buf 1.74) need Go >= 1.26.7; the module itself still
+          # declares its own minimum in pi/go.mod.
+          go-version: "1.26"
+          cache-dependency-path: pi/go.sum
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Protobuf tools
+        run: |
+          go install github.com/bufbuild/buf/cmd/buf@v1.74.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          pip install nanopb==0.4.9.1
+
+      - name: Contract (lint, breaking, generate)
+        working-directory: proto
+        run: |
+          buf lint
+          # Only once main has a contract to compare with.
+          if [ -n "$(git ls-tree -d origin/main proto/hexapod 2>/dev/null)" ]; then
+            buf breaking --against "../.git#branch=origin/main,subdir=proto"
+          fi
+          buf generate
+
+      - name: gofmt
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
+
+      - name: go vet
+        run: go vet ./...
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          working-directory: pi
+
+      - name: Unit and integration tests (against hexsim)
+        run: go test -race -count=1 ./...
+
+      - name: deploy.sh end-to-end test
+        run: |
+          shellcheck -S warning deploy/*.sh
+          deploy/test_deploy.sh
+
+      - name: Cross-compile for the Pi (linux/arm64)
+        run: |
+          V=$(git describe --tags --always --dirty)
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -X main.version=$V -X main.gitHash=$(git rev-parse HEAD)" \
+            -o bin/hexd ./hexd/cmd/hexd
+          file bin/hexd
