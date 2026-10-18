@@ -1,0 +1,27 @@
+# hexd configuration. Installed to /opt/hexapod/shared/config/hexd.yaml by
+# pi/provision (only if missing: local edits on the Pi survive re-provisioning).
+# Every key is optional; the values below are the defaults.
+
+listen: ":8080"            # /ws, /health, /version, /metrics
+
+serial:
+  device: /dev/hexapod-esp32   # or tcp://127.0.0.1:7777 for hexsim
+  baud: 115200                 # CP2102 of the bench board; ignored by the S3 USB
+  silence_limit: 3s            # reopen the link if the ESP32 says nothing
+
+deadman:
+  wifi: 150ms                  # app silence before the zero-velocity command
+  cellular: 400ms
+  cellular_interfaces: [wwan, ppp]   # interface prefixes that mean 4G
+
+health_max_age: 2s             # /health is 200 only if the ESP32 talked this recently
+
+metrics:
+  pi_temperature_path: /sys/class/thermal/thermal_zone0/temp
+  wireless_path: /proc/net/wireless
+  wifi_interface: wlan0
+
+shutdown:
+  enabled: true                # power off on LOW_BATTERY (robot already seated)
+  delay: 10s                   # condition must hold this long
+  command: [systemctl, poweroff]   # allowed by a polkit rule (pi/provision)
