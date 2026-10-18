@@ -48,3 +48,24 @@ flutter test --update-goldens test/pilot_screen_golden_test.dart   # capturas em
 | Patas | pata dianteira esquerda (cima levanta, fora estica) | pata dianteira direita |
 
 Opção **Canhoto** troca os sticks de lado. Gestos no modo Patas: Acenar, Guarda, Golpe.
+
+## Controle PS5 (DualSense)
+
+Pareie no Bluetooth do celular. O controle escreve no **mesmo estado** que os joysticks da tela, com as mesmas regras de segurança.
+
+| Controle | Ação |
+|---|---|
+| Sticks | Iguais aos da tela |
+| **Bolinha** | **PARAR** |
+| D-pad cima (segurar) | Levantar (vibra a cada quarto do "carregamento" e confirma no fim) |
+| D-pad baixo | Sentar |
+| Xis / Quadrado / Triângulo | Andar / Pose / Patas (só com o robô em pé) |
+| L2 / R2 | Abaixa / sobe o corpo, proporcional à pressão |
+| **L1 segurado no modo Pose** | **Inclinar o controle inclina o robô** (o jeito que você segura ao apertar vira o "nível") |
+| L1 / R1 / R3 no modo Patas | Guarda / Acenar / Golpe |
+
+**Barra de LED** (Android 12+): verde andando, ciano pose, roxo patas, azul relaxado/sentado, âmbar alerta, vermelho perigo ou PARADO, cinza sem conexão.
+
+**Vibração** (motores do controle): tranco no PARAR, dois pulsos quando o failsafe age, pulso longo se o sinal cai, zumbido crescente com obstáculo à frente enquanto anda, toque curto nos gestos.
+
+Se o Bluetooth cair, os sticks voltam a zero na hora. Recursos que o celular não expõe (LED, sensores ou vibração do controle dependem do kernel do aparelho) são ignorados sem erro. Gatilhos adaptativos e vibração "HD" não são acessíveis a apps no Android.

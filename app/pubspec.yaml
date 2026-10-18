@@ -43,6 +43,7 @@ dependencies:
   wakelock_plus: ^1.7.0
   gamepads: ^0.1.12
   multicast_dns: ^0.3.3+1
+  gamepads_platform_interface: ^0.1.4
 
 dev_dependencies:
   flutter_test:

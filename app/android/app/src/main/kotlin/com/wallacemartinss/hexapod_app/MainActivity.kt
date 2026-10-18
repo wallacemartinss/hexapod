@@ -7,6 +7,7 @@ import android.os.Handler
 import android.view.KeyEvent
 import android.view.MotionEvent
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
 import org.flame_engine.gamepads_android.GamepadsCompatibleActivity
 
 // Hands gamepad input (PS5 DualSense over Bluetooth) to the gamepads plugin.
@@ -17,6 +18,12 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
     // Many phones drop multicast packets unless an app holds this lock: without
     // it the mDNS lookup of hexapod.local never gets an answer.
     private var multicastLock: WifiManager.MulticastLock? = null
+    private var controller: ControllerChannel? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        controller = ControllerChannel(flutterEngine.dartExecutor.binaryMessenger)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +35,7 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
     }
 
     override fun onDestroy() {
+        controller?.dispose()
         multicastLock?.release()
         super.onDestroy()
     }
