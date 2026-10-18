@@ -14,6 +14,7 @@ base_packages:
   - jq
   - python3-venv
   - python3-packaging  # required by the Ansible pip module
+  - polkitd           # lets hexd power the Pi off (see tasks/layout.yml)
 
 # --- Boot config (/boot/firmware/config.txt, cmdline.txt) ---
 # Set true if the OV5647 is not auto-detected (rpicam-hello --list-cameras is empty).
