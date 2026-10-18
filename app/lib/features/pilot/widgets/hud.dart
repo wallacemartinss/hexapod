@@ -16,6 +16,9 @@ class StatusBar extends StatelessWidget {
     required this.telemetryAge,
     required this.onSettings,
     required this.onFaults,
+    this.gamepad,
+    this.audio = false,
+    this.onAudio,
   });
 
   final LinkStatus link;
@@ -25,6 +28,11 @@ class StatusBar extends StatelessWidget {
   final Duration? telemetryAge;
   final VoidCallback onSettings;
   final VoidCallback onFaults;
+
+  /// Name of the connected gamepad, if any.
+  final String? gamepad;
+  final bool audio;
+  final VoidCallback? onAudio;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +116,30 @@ class StatusBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
+        if (gamepad != null) ...[
+          Tooltip(
+            message: gamepad!,
+            child: Glass(
+              padding: const EdgeInsets.all(8),
+              child: Icon(Icons.sports_esports_rounded, color: severityColor(Severity.ok), size: 20),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (onAudio != null) ...[
+          GestureDetector(
+            onTap: onAudio,
+            child: Glass(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                audio ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                color: audio ? Colors.white : Colors.white54,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         GestureDetector(
           onTap: onSettings,
           child: const Glass(

@@ -7,6 +7,7 @@ import '../features/video/video_view.dart';
 
 import 'control/command_mapper.dart';
 import 'control/control_state.dart';
+import 'link/host_resolver.dart';
 import 'link/robot_link.dart';
 import 'proto.dart';
 import 'settings.dart';
@@ -35,9 +36,20 @@ class SettingsNotifier extends Notifier<Settings> {
   }
 }
 
+/// The robot's address: the configured host resolved (mDNS fallback for
+/// `.local` on phones that do not resolve it). Raw host until resolved.
+final robotAddressProvider = FutureProvider<String>((ref) {
+  return resolveHost(ref.watch(settingsProvider.select((s) => s.host)));
+});
+
+String _address(Ref ref) =>
+    ref.watch(robotAddressProvider).value ?? ref.watch(settingsProvider.select((s) => s.host));
+
 /// The link follows the configured host: changing it reconnects.
 final linkProvider = Provider<RobotLink>((ref) {
-  final uri = ref.watch(settingsProvider.select((s) => s.wsUri));
+  // Only the address and port matter: other settings must not reconnect.
+  final port = ref.watch(settingsProvider.select((s) => s.port));
+  final uri = Uri(scheme: 'ws', host: _address(ref), port: port, path: '/ws');
   final link = RobotLink(uri);
   unawaited(link.start());
   ref.onDispose(link.close);
@@ -64,7 +76,13 @@ class ControlNotifier extends Notifier<ControlState> {
     return const ControlState();
   }
 
-  void setSticks({Stick? left, Stick? right}) => state = state.copyWith(left: left, right: right);
+  /// Current intent, for input devices (gamepad) that apply the screen's rules.
+  ControlState get current => state;
+
+  void setSticks({Stick? left, Stick? right}) {
+    if (state.estop) return; // stopped: sticks stay centered until a stand
+    state = state.copyWith(left: left, right: right);
+  }
 
   void releaseSticks() => state = state.copyWith(left: Stick.zero, right: Stick.zero);
 
@@ -128,3 +146,10 @@ final videoViewProvider = Provider<Widget Function(Uri whep)>(
   (ref) =>
       (uri) => VideoView(uri: uri),
 );
+
+/// Camera and microphone endpoints for the resolved address.
+final mediaUrisProvider = Provider<({Uri video, Uri mic})>((ref) {
+  final s = ref.watch(settingsProvider);
+  final address = _address(ref);
+  return (video: s.whepUri(address), mic: s.micUri(address));
+});

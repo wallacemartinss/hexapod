@@ -1,6 +1,10 @@
 // Renders the pilot screen at phone size with real fonts, for design review:
 //   flutter test --update-goldens test/pilot_screen_golden_test.dart
-// Images land in test/goldens/.
+// Images land in test/goldens/. Tagged `golden`: CI skips them (pixel output
+// varies between machines); they are a local design-review tool.
+@Tags(['golden'])
+library;
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,6 +15,7 @@ import 'package:hexapod_app/core/control/control_state.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
 import 'package:hexapod_app/core/providers.dart';
+import 'package:hexapod_app/core/settings.dart';
 import 'package:hexapod_app/features/pilot/pilot_screen.dart';
 import 'package:hexapod_app/features/video/video_view.dart';
 
@@ -38,7 +43,12 @@ pb.Telemetry _telemetry(pb.State state, {int faults = 0}) => pb.Telemetry()
   ..blockedMask = 0
   ..mode = pb.Mode.MODE_WALK;
 
-Future<void> _pump(WidgetTester tester, ControlState control, pb.Telemetry telemetry) async {
+Future<void> _pump(
+  WidgetTester tester,
+  ControlState control,
+  pb.Telemetry telemetry, {
+  bool onboarded = true,
+}) async {
   tester.view.physicalSize = const Size(2400, 1080); // 20:9 phone, landscape
   tester.view.devicePixelRatio = 2.625;
   addTearDown(tester.view.reset);
@@ -56,6 +66,8 @@ Future<void> _pump(WidgetTester tester, ControlState control, pb.Telemetry telem
         ),
         helloProvider.overrideWith((ref) => const Stream.empty()),
         controlProvider.overrideWith(() => _FixedControl(control)),
+        settingsProvider.overrideWith(() => SettingsNotifier(Settings(onboarded: onboarded))),
+        robotAddressProvider.overrideWith((ref) async => '127.0.0.1'),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -96,6 +108,11 @@ void main() {
       _telemetry(pb.State.STATE_SAFE_SIT, faults: 4 | 8),
     );
     await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/safe_sit.png'));
+  });
+
+  testWidgets('first run tips', (tester) async {
+    await _pump(tester, const ControlState(), _telemetry(pb.State.STATE_RELAXED), onboarded: false);
+    await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/onboarding.png'));
   });
 
   testWidgets('front legs mode with gestures', (tester) async {

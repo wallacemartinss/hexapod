@@ -13,6 +13,8 @@ class Settings {
     this.maxSpeed = 1.0,
     this.swapSticks = false,
     this.haptics = true,
+    this.robotAudio = false,
+    this.onboarded = false,
   });
 
   final String host;
@@ -26,8 +28,17 @@ class Settings {
   final bool swapSticks;
   final bool haptics;
 
-  Uri get wsUri => Uri(scheme: 'ws', host: host, port: port, path: '/ws');
-  Uri get whepUri => Uri(scheme: 'http', host: host, port: videoPort, path: '/cam/whep');
+  /// Play the robot's microphone.
+  final bool robotAudio;
+
+  /// The first-run tips were dismissed.
+  final bool onboarded;
+
+  /// URIs for an already resolved [address] (see host_resolver.dart).
+  Uri wsUri(String address) => Uri(scheme: 'ws', host: address, port: port, path: '/ws');
+  Uri whepUri(String address) => Uri(scheme: 'http', host: address, port: videoPort, path: '/cam/whep');
+  Uri micUri(String address) => Uri(scheme: 'http', host: address, port: videoPort, path: '/mic/whep');
+
   StickShaping get shaping => StickShaping(deadzone: deadzone, expo: expo, maxSpeed: maxSpeed);
 
   Settings copyWith({
@@ -39,6 +50,8 @@ class Settings {
     double? maxSpeed,
     bool? swapSticks,
     bool? haptics,
+    bool? robotAudio,
+    bool? onboarded,
   }) => Settings(
     host: host ?? this.host,
     port: port ?? this.port,
@@ -48,6 +61,8 @@ class Settings {
     maxSpeed: maxSpeed ?? this.maxSpeed,
     swapSticks: swapSticks ?? this.swapSticks,
     haptics: haptics ?? this.haptics,
+    robotAudio: robotAudio ?? this.robotAudio,
+    onboarded: onboarded ?? this.onboarded,
   );
 
   static Future<Settings> load() async {
@@ -62,6 +77,8 @@ class Settings {
       maxSpeed: p.getDouble('maxSpeed') ?? d.maxSpeed,
       swapSticks: p.getBool('swapSticks') ?? d.swapSticks,
       haptics: p.getBool('haptics') ?? d.haptics,
+      robotAudio: p.getBool('robotAudio') ?? d.robotAudio,
+      onboarded: p.getBool('onboarded') ?? d.onboarded,
     );
   }
 
@@ -75,5 +92,7 @@ class Settings {
     await p.setDouble('maxSpeed', maxSpeed);
     await p.setBool('swapSticks', swapSticks);
     await p.setBool('haptics', haptics);
+    await p.setBool('robotAudio', robotAudio);
+    await p.setBool('onboarded', onboarded);
   }
 }

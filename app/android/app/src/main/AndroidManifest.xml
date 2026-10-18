@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- hexd (ws://) and MediaMTX (http://) on the LAN / tailnet are plain HTTP. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- mDNS lookup of hexapod.local (multicast replies need a MulticastLock). -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
     <application
         android:label="Hexápode"
         android:usesCleartextTraffic="true"

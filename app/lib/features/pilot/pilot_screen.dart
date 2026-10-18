@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/control/control_state.dart';
+import '../../core/input/gamepad_service.dart';
 import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
 import '../settings/settings_sheet.dart';
+import '../video/robot_audio.dart';
 import 'state_texts.dart';
 import 'widgets/controls.dart';
 import 'widgets/floating_joystick.dart';
@@ -16,6 +18,17 @@ import 'widgets/hud.dart';
 
 /// Robot states in which it can move under the sticks.
 const _moving = {pb.State.STATE_NORMAL, pb.State.STATE_BLOCKED};
+
+/// States worth a strong vibration when they start: the pilot may be looking
+/// at the robot, not at the phone.
+const _alarms = {
+  pb.State.STATE_STOPPING,
+  pb.State.STATE_SAFE_SIT,
+  pb.State.STATE_TIPPED,
+  pb.State.STATE_LOW_BATTERY,
+  pb.State.STATE_ESTOP,
+  pb.State.STATE_BLOCKED,
+};
 
 /// What each stick does, per scheme: (label, hint).
 const _stickTexts = {
@@ -38,6 +51,7 @@ class PilotScreen extends ConsumerStatefulWidget {
 class _PilotScreenState extends ConsumerState<PilotScreen> {
   DateTime? _lastTelemetry;
   late final Timer _clock;
+  bool _wasLost = true;
 
   @override
   void initState() {
@@ -55,9 +69,19 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(commandLoopProvider); // keeps the 20 Hz command stream alive
-    ref.listen(telemetryProvider, (_, _) => _lastTelemetry = DateTime.now());
+    ref.watch(gamepadServiceProvider); // PS5 / Bluetooth gamepad, if any
+    ref.listen(telemetryProvider, (prev, next) {
+      _lastTelemetry = DateTime.now();
+      final before = prev?.value?.state;
+      final now = next.value?.state;
+      if (now != null && now != before && _alarms.contains(now) && ref.read(settingsProvider).haptics) {
+        HapticFeedback.heavyImpact();
+      }
+    });
 
     final settings = ref.watch(settingsProvider);
+    final media = ref.watch(mediaUrisProvider);
+    final gamepad = ref.watch(gamepadNameProvider);
     final control = ref.watch(controlProvider);
     final controller = ref.read(controlProvider.notifier);
     final link = ref.watch(linkStatusProvider).value ?? LinkStatus.connecting;
@@ -65,6 +89,8 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final age = _lastTelemetry == null ? null : DateTime.now().difference(_lastTelemetry!);
     final fresh = link == LinkStatus.connected && age != null && age < const Duration(seconds: 1);
     final lost = link != LinkStatus.connected || age == null || age > const Duration(seconds: 3);
+    if (lost && !_wasLost && settings.haptics) HapticFeedback.vibrate(); // signal just dropped
+    _wasLost = lost;
 
     final robotState = fresh ? telemetry?.state : null;
     final canMove = robotState != null && _moving.contains(robotState) && !control.estop;
@@ -83,7 +109,8 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Positioned.fill(child: ref.watch(videoViewProvider)(settings.whepUri)),
+          Positioned.fill(child: ref.watch(videoViewProvider)(media.video)),
+          if (settings.robotAudio) RobotAudio(uri: media.mic),
 
           // Stick areas first: buttons drawn later win the taps.
           Positioned(
@@ -124,6 +151,11 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                     link: link,
                     telemetry: fresh ? telemetry : null,
                     telemetryAge: age,
+                    gamepad: gamepad,
+                    audio: settings.robotAudio,
+                    onAudio: () => ref
+                        .read(settingsProvider.notifier)
+                        .update(settings.copyWith(robotAudio: !settings.robotAudio)),
                     onSettings: () => showSettingsSheet(context),
                     onFaults: () => _showFaults(context, telemetry),
                   ),
@@ -189,6 +221,10 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
             ),
           ),
           if (lost) _ConnectionOverlay(host: settings.host, status: link),
+          if (!settings.onboarded)
+            _Onboarding(
+              onDone: () => ref.read(settingsProvider.notifier).update(settings.copyWith(onboarded: true)),
+            ),
         ],
       ),
     );
@@ -402,6 +438,90 @@ class _ConnectionOverlay extends StatelessWidget {
                 label: const Text('Ajustes de conexão'),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// First-run tips: the few things a new pilot must know.
+class _Onboarding extends StatelessWidget {
+  const _Onboarding({required this.onDone});
+
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget tip(IconData icon, Color color, String title, String text) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+                Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.6),
+        alignment: Alignment.center,
+        child: Glass(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
+          child: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Antes de pilotar',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                tip(
+                  Icons.back_hand_rounded,
+                  const Color(0xFFE5383B),
+                  'PARAR',
+                  'Um toque corta a força dos servos na hora. No controle PS5: bolinha.',
+                ),
+                tip(
+                  Icons.keyboard_double_arrow_up_rounded,
+                  const Color(0xFF3DDC97),
+                  'Segure LEVANTAR',
+                  'O robô só se levanta se você segurar o botão. Também é assim que ele volta depois de um alerta.',
+                ),
+                tip(
+                  Icons.radio_button_checked_rounded,
+                  const Color(0xFF4FD1FF),
+                  'Joysticks flutuantes',
+                  'Toque em qualquer lugar de cada metade da tela: o joystick nasce sob o seu polegar.',
+                ),
+                tip(
+                  Icons.sports_esports_rounded,
+                  Colors.white,
+                  'Controle PS5',
+                  'Pareie no Bluetooth do celular: sticks andam, xis, quadrado e triângulo trocam o modo, L2/R2 mudam a altura.',
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(onPressed: onDone, child: const Text('Entendi')),
+                ),
+              ],
+            ),
           ),
         ),
       ),

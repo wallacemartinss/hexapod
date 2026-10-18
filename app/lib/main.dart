@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'core/providers.dart';
 import 'core/settings.dart';
@@ -14,6 +15,8 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  // The screen must not sleep while piloting.
+  await WakelockPlus.enable().catchError((_) {});
   final settings = await Settings.load();
   runApp(
     ProviderScope(
