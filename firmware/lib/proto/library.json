@@ -1,0 +1,12 @@
+{
+  "name": "hexapod-proto",
+  "version": "1.0.0",
+  "description": "nanopb code generated from proto/hexapod/v1 by `buf generate` (not versioned)",
+  "dependencies": {
+    "nanopb/Nanopb": "0.4.91"
+  },
+  "build": {
+    "srcDir": ".",
+    "includeDir": "."
+  }
+}

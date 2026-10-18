@@ -15,6 +15,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 |---|---|---|
 | Ponte, vídeo e rede | Raspberry Pi 3 Model B v1.2 | Raspberry Pi OS Lite 64-bit. Wi-Fi só 2,4 GHz (802.11n) |
 | Tempo real | ESP32-S3 SuperMini | USB nativa (VID:PID `303a:1001`) ligada ao Pi |
+| Tempo real (só bancada, temporário) | ESP32 DevKit 38 pinos, ESP-WROOM-32 (ESP32-D0WDQ6, 4 MB) | USB via CP2102 (`10c4:ea60`). PlatformIO `esp32dev`. GPIO6–11 = flash (proibidos); 34–39 só entrada |
 | Olhos (fase futura) | 2nd ESP32-S3 SuperMini + 2x GC9A01 1,28" | Recebe comandos simples do ESP32 principal |
 | Servos | 2x PCA9685 (HW-170), endereços 0x40 e 0x41 | Nº 1: pernas esquerdas; nº 2: pernas direitas |
 | IMU | BNO085 | Usar *game rotation vector* (sem magnetômetro) por padrão |
@@ -36,7 +37,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 - **I2C 1 (sensores):** VL53L0X 0x30–0x33, BNO085 0x4A, BME280 0x76, INA226 0x40.
 - **USB:** ESP32 ↔ Pi (protocolo + gravação do firmware).
 - **GPIO do ESP32:** 4x XSHUT, OE das PCA9685 (ligado ao das duas placas: corte de emergência), dados dos WS2812, interrupção do BNO085 (opcional) e UART para o ESP32 dos olhos (futuro).
-- **Mapa de pinos: AINDA NÃO DEFINIDO.** Proponha um mapa em `firmware/include/pins.h` evitando os pinos de *strapping* do ESP32-S3 e os da USB nativa (GPIO19/20). Peça confirmação antes de dar o mapa como final.
+- **Mapa de pinos: definido (v1)** em `firmware/include/pins.h` e documentado em `firmware/PINOUT.md`, para o S3 e para a placa de bancada. Pads do SuperMini ainda a conferir quando a placa chegar.
 
 ## 2. Regras de segurança (obrigatórias)
 
@@ -298,8 +299,10 @@ O perfil (Wi-Fi ou 4G) é informado pelo hexd e só pode ser trocado com o robô
 ## 7. Itens pendentes do usuário (não chute, pergunte)
 
 - [x] Pi 3 Model B v1.2 (Wi-Fi só 2,4 GHz, sem 5 GHz)
-- [ ] Mapa de pinos do ESP32-S3 SuperMini (proposta → aprovação)
-- [ ] Dimensões das pernas (STLs do fêmur e da tíbia em `cad/`)
+- [x] Mapa de pinos (v1, `firmware/PINOUT.md`); conferir os pads do SuperMini quando chegar
+- [x] Pernas: 0–2 esquerda, 3–5 direita, da frente para trás. VL53L0X: 0 frente, 1 direita, 2 trás, 3 esquerda
+- [x] Dimensões das pernas: coxa 38,07 / fêmur 86,27 / tíbia 163,02 mm, medidas dos STLs (`cad/README.md`, `cad/measure_legs.py`)
+- [ ] Qual lado é a frente do corpo (assumido +x, pernas a ±30°)
 - [ ] Furação real da câmera e da PCA9685
 - [ ] Resistor de shunt do INA226 (ver a seção 9)
 - [ ] LEDs: WS2812 ou 1 W
