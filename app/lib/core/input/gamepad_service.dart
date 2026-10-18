@@ -6,6 +6,7 @@ import 'package:gamepads/gamepads.dart';
 
 import '../control/control_state.dart';
 import '../link/robot_link.dart';
+import '../alarms.dart';
 import '../proto.dart' as pb;
 import '../providers.dart';
 import 'controller_feedback.dart';
@@ -107,6 +108,7 @@ final gamepadServiceProvider = Provider<GamepadInterpreter>((ref) {
     final t = next.value;
     if (t == null) return;
     if (t.state != prev?.value?.state && alarmStates.contains(t.state)) rumble(Rumble.alarm);
+    if (gasAlarmOn(t) && !gasAlarmOn(prev?.value)) rumble(Rumble.alarm);
     final walking = ref.read(controlProvider).scheme == Scheme.walk;
     final moving = t.state == pb.State.STATE_NORMAL || t.state == pb.State.STATE_BLOCKED;
     final buzz = walking && moving && t.distancesMm.isNotEmpty ? Rumble.obstacle(t.distancesMm.first) : null;
@@ -127,6 +129,7 @@ final gamepadServiceProvider = Provider<GamepadInterpreter>((ref) {
       estop: control.estop,
       state: telemetry?.state,
       scheme: control.scheme,
+      gasAlarm: gasAlarmOn(telemetry),
     );
     if (color != lastColor) {
       lastColor = color;

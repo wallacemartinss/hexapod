@@ -68,11 +68,17 @@ const alarmStates = {
 
 /// Light bar color (ARGB) for what the robot is doing, so the pilot can tell
 /// at a glance without looking at the phone.
-int lightColor({required bool connected, required bool estop, pb.State? state, required Scheme scheme}) {
+int lightColor({
+  required bool connected,
+  required bool estop,
+  pb.State? state,
+  required Scheme scheme,
+  bool gasAlarm = false,
+}) {
   const white = 0xFF303030, red = 0xFFFF0000, amber = 0xFFFF8C00;
   const blue = 0xFF0050FF, green = 0xFF00E060, purple = 0xFFB000FF, cyan = 0xFF00C8FF;
   if (!connected || state == null) return white;
-  if (estop || state == pb.State.STATE_ESTOP) return red;
+  if (estop || state == pb.State.STATE_ESTOP || gasAlarm) return red;
   return switch (state) {
     pb.State.STATE_TIPPED || pb.State.STATE_LOW_BATTERY => red,
     pb.State.STATE_STOPPING || pb.State.STATE_SAFE_SIT || pb.State.STATE_BLOCKED => amber,

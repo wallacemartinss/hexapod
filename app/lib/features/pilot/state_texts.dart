@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/proto.dart' as pb;
 
+export '../../core/alarms.dart' show gasAlarmOn;
+
 enum Severity { ok, info, warning, danger }
 
 /// How a robot state is shown to the pilot: a short label, what happened and
@@ -14,6 +16,14 @@ class StateText {
   final String? detail;
   final String? action;
 }
+
+/// Banner for the gas alarm: informative, the robot keeps doing what it does.
+const gasAlarmText = StateText(
+  'Gás ou fumaça',
+  Severity.danger,
+  'O sensor MQ-2 detectou gás ou fumaça perto do robô.',
+  'Verifique o ambiente',
+);
 
 StateText describeState(pb.State s) => switch (s) {
   pb.State.STATE_NORMAL => const StateText('Pronto', Severity.ok),

@@ -104,6 +104,9 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
       if (now != null && now != before && _alarms.contains(now) && ref.read(settingsProvider).haptics) {
         HapticFeedback.heavyImpact();
       }
+      if (gasAlarmOn(next.value) && !gasAlarmOn(prev?.value) && ref.read(settingsProvider).haptics) {
+        HapticFeedback.vibrate(); // gas: a long buzz, unlike any state change
+      }
     });
 
     // A mode change (also from the PS5 pad) shows the bars again.
@@ -218,12 +221,23 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                           blockedMask: telemetry.blockedMask,
                         ),
                       ),
-                    if (banner != null && banner.severity != Severity.ok && !lost)
+                    if (!lost)
                       Positioned(
                         top: 84,
                         left: 0,
                         right: 0,
-                        child: Center(child: StateBanner(text: banner)),
+                        child: Column(
+                          children: [
+                            // Gas first: it is not a robot state and can come with any.
+                            if (fresh && gasAlarmOn(telemetry)) const StateBanner(text: gasAlarmText),
+                            if (fresh &&
+                                gasAlarmOn(telemetry) &&
+                                banner != null &&
+                                banner.severity != Severity.ok)
+                              const SizedBox(height: 8),
+                            if (banner != null && banner.severity != Severity.ok) StateBanner(text: banner),
+                          ],
+                        ),
                       ),
                     Align(
                       alignment: const Alignment(1, -0.35),

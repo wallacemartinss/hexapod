@@ -42,6 +42,16 @@ void main() {
       expect(c(pb.State.STATE_NORMAL, estop: true), 0xFFFF0000); // red: stopped
       expect(c(pb.State.STATE_RELAXED), 0xFF0050FF); // blue: no torque
       expect(c(pb.State.STATE_NORMAL, connected: false), 0xFF303030); // dim: no robot
+      expect(
+        lightColor(
+          connected: true,
+          estop: false,
+          state: pb.State.STATE_NORMAL,
+          scheme: Scheme.walk,
+          gasAlarm: true,
+        ),
+        0xFFFF0000,
+      ); // red: gas or smoke
     });
   });
 
