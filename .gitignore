@@ -1,0 +1,48 @@
+# --- Secrets (never commit) ---
+.env
+.env.*
+*.key
+*.pem
+secrets/
+**/secrets.yml
+**/vault_pass*
+pi/provision/group_vars/*/vault.yml
+pi/provision/host_vars/
+tailscale-authkey*
+wifi.conf
+firmware/include/secrets.h
+
+# --- Firmware (PlatformIO) ---
+firmware/.pio/
+firmware/.vscode/
+firmware/lib/proto/*.pb.c
+firmware/lib/proto/*.pb.h
+
+# --- Go ---
+pi/hexd/gen/
+pi/**/bin/
+dist/
+*.test
+*.out
+coverage.*
+
+# --- Flutter / Dart ---
+app/.dart_tool/
+app/build/
+app/.flutter-plugins*
+app/lib/gen/
+app/android/local.properties
+app/ios/Flutter/Generated.xcconfig
+
+# --- Python (CAD scripts) ---
+__pycache__/
+*.pyc
+.venv/
+
+# --- Release packages ---
+*.tar.gz
+
+# --- Editors / OS ---
+.idea/
+*.swp
+.DS_Store
