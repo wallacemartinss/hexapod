@@ -24,7 +24,9 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: pi/go.mod
+          # The tools (buf 1.74) need Go >= 1.26.7; the module itself still
+          # declares its own minimum in pi/go.mod.
+          go-version: "1.26"
           cache-dependency-path: pi/go.sum
 
       - uses: actions/setup-python@v7
