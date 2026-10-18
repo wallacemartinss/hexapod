@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show Widget;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../features/video/video_view.dart';
 
 import 'control/command_mapper.dart';
 import 'control/control_state.dart';
@@ -119,3 +122,9 @@ final commandLoopProvider = Provider<void>((ref) {
     }
   });
 });
+
+/// Builds the camera view. Tests replace it (WebRTC needs the native plugin).
+final videoViewProvider = Provider<Widget Function(Uri whep)>(
+  (ref) =>
+      (uri) => VideoView(uri: uri),
+);

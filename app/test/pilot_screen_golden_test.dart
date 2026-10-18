@@ -12,6 +12,7 @@ import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
 import 'package:hexapod_app/core/providers.dart';
 import 'package:hexapod_app/features/pilot/pilot_screen.dart';
+import 'package:hexapod_app/features/video/video_view.dart';
 
 Future<void> _loadFonts() async {
   final flutterRoot = File(Platform.resolvedExecutable).parent.parent.parent.parent.parent.parent.path;
@@ -45,6 +46,10 @@ Future<void> _pump(WidgetTester tester, ControlState control, pb.Telemetry telem
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        videoViewProvider.overrideWith(
+          (ref) =>
+              (_) => const VideoPlaceholder(),
+        ),
         linkStatusProvider.overrideWith((ref) => Stream.value(LinkStatus.connected)),
         telemetryProvider.overrideWith(
           (ref) => Stream.periodic(const Duration(milliseconds: 100), (_) => telemetry),

@@ -9,7 +9,6 @@ import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
 import '../settings/settings_sheet.dart';
-import '../video/video_view.dart';
 import 'state_texts.dart';
 import 'widgets/controls.dart';
 import 'widgets/floating_joystick.dart';
@@ -84,7 +83,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Positioned.fill(child: VideoView(uri: settings.whepUri)),
+          Positioned.fill(child: ref.watch(videoViewProvider)(settings.whepUri)),
 
           // Stick areas first: buttons drawn later win the taps.
           Positioned(

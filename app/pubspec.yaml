@@ -38,6 +38,10 @@ dependencies:
   web_socket_channel: ^3.0.3
   protobuf: ^6.1.0
   shared_preferences: ^2.5.6
+  flutter_webrtc: ^1.6.2+hotfix.4
+  http: ^1.6.0
+  wakelock_plus: ^1.7.0
+  gamepads: ^0.1.12
 
 dev_dependencies:
   flutter_test:
