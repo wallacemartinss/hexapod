@@ -50,8 +50,9 @@ echo "== OLED (I2C)"
 if [[ ! -e /dev/i2c-1 ]]; then
   fail "/dev/i2c-1 absent (enable_i2c, then reboot)"
 # -r: probe with a read. Some SSD1306 clones ignore i2cdetect's default
-# quick-write probe and look absent.
-elif i2cdetect -y -r 1 2>/dev/null | grep -qE '^30:.* 3c'; then
+# quick-write probe and look absent. Output captured first: with pipefail,
+# grep -q quitting early would SIGPIPE i2cdetect and turn a match into a miss.
+elif bus=$(i2cdetect -y -r 1 2>/dev/null) && grep -qE '^30:.* 3c' <<<"$bus"; then
   ok "SSD1306 answers at 0x3C"
 else
   warn "nothing at 0x3C (OLED not wired? some boards use 0x3D)"
