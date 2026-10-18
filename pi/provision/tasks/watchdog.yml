@@ -1,0 +1,17 @@
+---
+# systemd pets /dev/watchdog; if PID 1 hangs, the SoC resets the Pi.
+- name: Systemd watchdog config directory
+  ansible.builtin.file:
+    path: /etc/systemd/system.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Enable hardware watchdog
+  ansible.builtin.copy:
+    dest: /etc/systemd/system.conf.d/10-watchdog.conf
+    content: |
+      [Manager]
+      RuntimeWatchdogSec={{ watchdog_runtime_sec }}
+      RebootWatchdogSec={{ watchdog_reboot_sec }}
+    mode: "0644"
+  notify: Reexec systemd

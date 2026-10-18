@@ -1,0 +1,6 @@
+all:
+  hosts:
+    hexapod:
+      # Override with -e ansible_host=<ip> if mDNS is not available.
+      ansible_host: hexapod.local
+      ansible_user: wallace

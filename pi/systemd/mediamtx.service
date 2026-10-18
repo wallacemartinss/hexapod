@@ -1,0 +1,16 @@
+[Unit]
+Description=MediaMTX (hexapod camera and microphone streams)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=hexapod
+Group=hexapod
+SupplementaryGroups=video
+ExecStart=/usr/local/bin/mediamtx /etc/mediamtx/mediamtx.yml
+Restart=always
+RestartSec=2
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

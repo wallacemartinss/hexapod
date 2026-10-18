@@ -1,0 +1,35 @@
+---
+- name: Service user
+  ansible.builtin.user:
+    name: "{{ hexapod_user }}"
+    system: true
+    create_home: false
+    home: "{{ hexapod_root }}"
+    shell: /usr/sbin/nologin
+    groups: [dialout, video, audio]
+    append: true
+
+# /opt/hexapod/releases/<version>/, current -> releases/<version>, shared/{config,logs,firmware}
+- name: Deploy directories
+  ansible.builtin.file:
+    path: "{{ hexapod_root }}/{{ item }}"
+    state: directory
+    owner: "{{ hexapod_user }}"
+    group: "{{ hexapod_user }}"
+    mode: "0755"
+  loop:
+    - ""
+    - releases
+    - shared
+    - shared/config
+    - shared/logs
+    - shared/firmware
+
+- name: Microphone device for mic-stream
+  ansible.builtin.copy:
+    dest: "{{ hexapod_root }}/shared/config/mic.env"
+    content: "MIC_DEVICE={{ mic_alsa_device }}\n"
+    owner: "{{ hexapod_user }}"
+    group: "{{ hexapod_user }}"
+    mode: "0644"
+  notify: Restart mic-stream

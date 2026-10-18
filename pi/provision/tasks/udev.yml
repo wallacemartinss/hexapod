@@ -1,0 +1,9 @@
+---
+# ID_MM_DEVICE_IGNORE keeps ModemManager (4G modem, future) away from the ESP32 port.
+- name: ESP32-S3 symlink /dev/hexapod-esp32
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/99-hexapod-esp32.rules
+    content: |
+      SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ esp32_usb_vid }}", ATTRS{idProduct}=="{{ esp32_usb_pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"
+    mode: "0644"
+  notify: Reload udev

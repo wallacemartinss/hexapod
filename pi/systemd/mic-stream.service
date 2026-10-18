@@ -1,0 +1,22 @@
+[Unit]
+Description=USB microphone to MediaMTX (Opus over RTSP)
+Requires=mediamtx.service
+After=mediamtx.service sound.target
+
+[Service]
+User=hexapod
+Group=hexapod
+SupplementaryGroups=audio
+# MIC_DEVICE (ALSA name) comes from here; see pi/provision group_vars.
+EnvironmentFile=/opt/hexapod/shared/config/mic.env
+ExecStart=/usr/bin/ffmpeg -nostdin -hide_banner -loglevel warning \
+  -f alsa -ac 1 -ar 48000 -i ${MIC_DEVICE} \
+  -c:a libopus -b:a 32k -application lowdelay -frame_duration 20 \
+  -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:8554/mic
+# Keep retrying: the microphone may be plugged in later.
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

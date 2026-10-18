@@ -1,0 +1,21 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade packages
+  ansible.builtin.apt:
+    upgrade: dist
+  when: apt_upgrade | bool
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Enable avahi (hexapod.local)
+  ansible.builtin.systemd_service:
+    name: avahi-daemon
+    enabled: true
+    state: started

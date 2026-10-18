@@ -1,0 +1,45 @@
+---
+- name: Tailscale apt key
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/debian/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+
+- name: Tailscale apt repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/tailscale.list
+    content: >
+      deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg]
+      https://pkgs.tailscale.com/stable/debian {{ ansible_facts['distribution_release'] }} main
+    mode: "0644"
+  register: tailscale_repo
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    update_cache: "{{ tailscale_repo is changed }}"
+  # Depends on earlier steps that --check does not perform.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Enable tailscaled
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    enabled: true
+    state: started
+  # Depends on earlier steps that --check does not perform.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Check Tailscale login
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+
+- name: Tailscale up (only with tailscale_authkey)
+  ansible.builtin.command: >-
+    tailscale up --authkey={{ tailscale_authkey }} --hostname={{ tailscale_hostname }}
+  no_log: true
+  changed_when: true
+  when:
+    - tailscale_authkey | length > 0
+    - (tailscale_status.stdout | default('{}') | from_json).BackendState | default('') != 'Running'

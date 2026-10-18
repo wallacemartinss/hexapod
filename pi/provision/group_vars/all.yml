@@ -1,0 +1,51 @@
+# Provisioning parameters for the hexapod Raspberry Pi.
+# Secrets never go here: pass them with -e or environment variables (see README.md).
+
+apt_upgrade: true
+
+base_packages:
+  - rpicam-apps
+  - alsa-utils
+  - ffmpeg
+  - avahi-daemon
+  - git
+  - rsync
+  - curl
+  - jq
+
+# --- Boot config (/boot/firmware/config.txt, cmdline.txt) ---
+# Set true if the OV5647 is not auto-detected (rpicam-hello --list-cameras is empty).
+camera_force_ov5647: false
+
+# Power savings (each documented in README.md). All need a reboot.
+disable_bluetooth: true      # dtoverlay=disable-bt: BT is unused
+disable_onboard_audio: true  # dtparam=audio=off: the mic is USB, no speaker on the Pi
+disable_hdmi: true           # video=HDMI-A-1:d: headless robot
+
+# Reboot automatically when boot config changes.
+provision_reboot: true
+
+# --- MediaMTX ---
+mediamtx_version: v1.21.2
+mediamtx_arch: linux_arm64
+
+# --- Microphone (ALSA device for mic-stream.service) ---
+# TODO(hardware): confirm with `arecord -L` once the USB mic is plugged in.
+mic_alsa_device: "plughw:CARD=Device,DEV=0"
+
+# --- Tailscale ---
+# `tailscale up` only runs if this is set, e.g. -e tailscale_authkey="$TS_AUTHKEY".
+tailscale_authkey: ""
+tailscale_hostname: hexapod
+
+# --- Hexapod service layout ---
+hexapod_user: hexapod
+hexapod_root: /opt/hexapod
+
+# ESP32-S3 native USB (VID:PID) -> /dev/hexapod-esp32
+esp32_usb_vid: "303a"
+esp32_usb_pid: "1001"
+
+# Hardware watchdog. bcm2835-wdt maximum is ~15 s.
+watchdog_runtime_sec: 14s
+watchdog_reboot_sec: 2min
