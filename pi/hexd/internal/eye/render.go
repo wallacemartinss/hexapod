@@ -8,6 +8,8 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"runtime"
+	"sync"
 
 	"rsc.io/qr"
 
@@ -95,24 +97,56 @@ func Render(l Look) *image.RGBA {
 		drawQR(img, l)
 		return img
 	}
-	const px = 2.0 / Size // one pixel in eye units
 	irisR := 0.58
 	if l.IrisScale > 0 {
 		irisR *= l.IrisScale
 	}
 	cx, cy := l.X*0.30, l.Y*0.26 // the iris moves inside the socket
 	pupilR := irisR * 0.36 * clamp(l.Pupil, 0.4, 1.7)
-	for y := 0; y < Size; y++ {
-		for x := 0; x < Size; x++ {
-			u := (float64(x)+0.5)*px - 1 - l.ShakeX
-			v := (float64(y)+0.5)*px - 1 - l.ShakeY
-			c := shade(l, u, v, cx, cy, irisR, pupilR, px)
-			if l.Hud > 0 {
-				c = hud(l, c, u+l.ShakeX, v+l.ShakeY, y, px)
-			}
-			img.SetRGBA(x, y, scale(c, l.Dim))
-		}
+	// The fast path (fast.go) unless the iris has a moving texture.
+	var spr *sprite
+	if l.Swirl < 0 && l.Fire < 0 {
+		spr, irisR = spriteFor(l, irisR)
+		pupilR = irisR * 0.36 * clamp(l.Pupil, 0.4, 1.7)
+		// On the pixel grid, the sprite lands exactly: no blur on its thin
+		// rings (the iris moves in whole pixels, invisible at 240 px).
+		cx, cy = snap(cx), snap(cy)
+		l.ShakeX, l.ShakeY = math.Round(l.ShakeX/px)*px, math.Round(l.ShakeY/px)*px
 	}
+	bg := socketCache()
+	// Rows are independent: bands of them drawn on every core (a Pi 3
+	// draws a frame in a fraction of the time it takes on one).
+	bands := runtime.NumCPU()
+	var wg sync.WaitGroup
+	for b := 0; b < bands; b++ {
+		wg.Add(1)
+		go func(from, to int) {
+			defer wg.Done()
+			for y := from; y < to; y++ {
+				for x := 0; x < Size; x++ {
+					u := (float64(x)+0.5)*px - 1 - l.ShakeX
+					v := (float64(y)+0.5)*px - 1 - l.ShakeY
+					var c color.RGBA
+					if spr != nil {
+						c = shadeFast(l, x, y, u, v, cx, cy, irisR, pupilR, spr, bg)
+					} else {
+						c = shade(l, u, v, cx, cy, irisR, pupilR, px)
+					}
+					if l.Hud > 0 {
+						c = hud(l, c, u+l.ShakeX, v+l.ShakeY, y, px)
+					}
+					img.SetRGBA(x, y, scale(c, l.Dim))
+				}
+			}
+		}(b*Size/bands, (b+1)*Size/bands)
+	}
+	wg.Wait()
+	finish(img, l)
+	return img
+}
+
+// finish draws what goes over the whole eye: texts, z's, the flash.
+func finish(img *image.RGBA, l Look) {
 	if l.Label != "" {
 		text(img, l.Label, Size/2, Size-50, 2, rgb(0x8a9cc4))
 	}
@@ -129,8 +163,10 @@ func Render(l Look) *image.RGBA {
 			}
 		}
 	}
-	return img
 }
+
+// snap moves a coordinate to the nearest pixel center.
+func snap(c float64) float64 { return (math.Round((c+1)/px-0.5)+0.5)*px - 1 }
 
 // drawZzz: three z's rising up and to the right, growing and fading.
 func drawZzz(img *image.RGBA, phase, dim float64) {
@@ -144,16 +180,30 @@ func drawZzz(img *image.RGBA, phase, dim float64) {
 	}
 }
 
-// shade is the color of one point of the eye.
+// shade is the color of one point of the eye (the reference path: every
+// layer computed for every pixel; fast.go reuses the parts that repeat).
 func shade(l Look, u, v, cx, cy, irisR, pupilR, px float64) color.RGBA {
-	// Socket: dark navy, a little lighter in the middle.
-	r := math.Hypot(u, v)
-	c := mix(rgb(0x16284a), socket, smooth(0, 1, r))
-
-	// Iris: brand gradient, two thin inner rings, a dark rim and a glow.
+	r := hyp(u, v)
+	c := socketAt(r)
 	dx, dy := u-cx, v-cy
-	d := math.Hypot(dx, dy)
+	d := hyp(dx, dy)
 	glow := clamp(l.Glow, 0, 1.6)
+	c = irisLayer(l, c, dx, dy, d, irisR, px, glow)
+	// Pupil, aperture and highlights all sit inside the iris: skip the
+	// rest of the socket.
+	if d < irisR+2*px {
+		c = innerIris(l, c, u, v, dx, dy, d, cx, cy, irisR, pupilR, px, glow)
+	}
+	return lidsAndMarks(l, c, u, v, r, px)
+}
+
+// socketAt: dark navy, a little lighter in the middle.
+func socketAt(r float64) color.RGBA { return mix(rgb(0x16284a), socket, smooth(0, 1, r)) }
+
+// irisLayer lays the iris over c: a soft halo, the brand gradient, two thin
+// inner rings and a dark rim. (dx, dy) is the point relative to the iris
+// center, d its distance.
+func irisLayer(l Look, c color.RGBA, dx, dy, d, irisR, px, glow float64) color.RGBA {
 	if halo := 1 - smooth(irisR, irisR+0.22, d); halo > 0 { // soft light around it
 		c = mix(c, l.Iris.Mid, halo*0.28*glow)
 	}
@@ -197,13 +247,17 @@ func shade(l Look, u, v, cx, cy, irisR, pupilR, px float64) color.RGBA {
 			c = mix(c, l.Iris.Edge, k*0.9)
 		}
 	}
+	return c
+}
+
+func innerIris(l Look, c color.RGBA, u, v, dx, dy, d, cx, cy, irisR, pupilR, px, glow float64) color.RGBA {
 	// Pupil, slightly toward the gaze.
 	pdx, pdy := u-(cx+l.X*0.03), v-(cy+l.Y*0.03)
 	if l.Heart {
 		if in := heart(pdx, pdy, pupilR*1.25, px); in > 0 {
 			c = mix(c, pupilC, in)
 		}
-	} else if in := cover(pupilR-math.Hypot(pdx, pdy), px); in > 0 {
+	} else if in := cover(pupilR-hyp(pdx, pdy), px); in > 0 {
 		c = mix(c, pupilC, in)
 	}
 	// Photo: six aperture blades close over the iris, like a camera.
@@ -216,16 +270,20 @@ func shade(l Look, u, v, cx, cy, irisR, pupilR, px float64) color.RGBA {
 		}
 	}
 	// Highlights: a big soft one up-left and a small dot down-right.
-	if k := cover(1-math.Hypot((dx+irisR*0.38)/(irisR*0.26), (dy+irisR*0.40)/(irisR*0.17)), px*4); k > 0 {
+	if k := cover(1-hyp((dx+irisR*0.38)/(irisR*0.26), (dy+irisR*0.40)/(irisR*0.17)), px*4); k > 0 {
 		c = mix(c, white, k*0.85*math.Min(glow, 1))
 	}
-	if k := cover(irisR*0.07-math.Hypot(dx-irisR*0.30, dy-irisR*0.28), px); k > 0 {
+	if k := cover(irisR*0.07-hyp(dx-irisR*0.30, dy-irisR*0.28), px); k > 0 {
 		c = mix(c, white, k*0.75)
 	}
+	return c
+}
+
+func lidsAndMarks(l Look, c color.RGBA, u, v, r, px float64) color.RGBA {
 
 	// Recording: a red dot at the iris' upper right, pulsing.
 	if l.Rec > 0 {
-		if k := cover(0.075-math.Hypot(u-0.56, v+0.56), px); k > 0 {
+		if k := cover(0.075-hyp(u-0.56, v+0.56), px); k > 0 {
 			c = mix(c, rgb(0xff3b41), k*l.Rec)
 		}
 	}
@@ -255,7 +313,7 @@ func shade(l Look, u, v, cx, cy, irisR, pupilR, px float64) color.RGBA {
 	if l.Dots >= 0 {
 		for i := 0; i < 3; i++ {
 			on := 0.35 + 0.65*math.Max(0, math.Sin((l.Dots-float64(i)/3)*2*math.Pi))
-			if k := cover(0.045-math.Hypot(u-(-0.16+0.16*float64(i)), v-0.74), px); k > 0 {
+			if k := cover(0.045-hyp(u-(-0.16+0.16*float64(i)), v-0.74), px); k > 0 {
 				c = mix(c, scale(rgb(0xc8d6f0), on), k)
 			}
 		}
@@ -371,7 +429,17 @@ func smooth(a, b, x float64) float64 {
 	return t * t * (3 - 2*t)
 }
 
-func clamp(x, lo, hi float64) float64 { return math.Max(lo, math.Min(hi, x)) }
+// clamp limits x to [lo, hi] (plain comparisons: math.Max/Min handle NaN
+// and signed zeros the eye never meets, at a cost per pixel).
+func clamp(x, lo, hi float64) float64 {
+	if x < lo {
+		return lo
+	}
+	if x > hi {
+		return hi
+	}
+	return x
+}
 
 func mix(a, b color.RGBA, t float64) color.RGBA {
 	t = clamp(t, 0, 1)
@@ -404,7 +472,7 @@ func heart(x, y, s, px float64) float64 {
 func hexDist(x, y, rot float64) float64 {
 	a := math.Atan2(y, x) - rot
 	seg := math.Mod(a+math.Pi/6+8*math.Pi, math.Pi/3) - math.Pi/6
-	return math.Hypot(x, y) * math.Cos(seg)
+	return hyp(x, y) * math.Cos(seg)
 }
 
 // textAlpha is text blended over what is there.
@@ -445,7 +513,7 @@ func hud(l Look, c color.RGBA, u, v float64, row int, px float64) color.RGBA {
 		c = scale(c, 1-0.22*k)
 	}
 	line := rgb(0xff3040)
-	r := math.Hypot(u, v)
+	r := hyp(u, v)
 	a := math.Atan2(v, u)
 	turn := l.HudPhase * 2 * math.Pi
 	// Segmented outer ring, turning.
@@ -482,3 +550,7 @@ func hud(l Look, c color.RGBA, u, v float64, row int, px float64) color.RGBA {
 	}
 	return c
 }
+
+// hyp is the length of (a, b) (math.Hypot guards against overflow we
+// never meet, at several times the cost).
+func hyp(a, b float64) float64 { return math.Sqrt(a*a + b*b) }

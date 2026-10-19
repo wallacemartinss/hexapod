@@ -60,6 +60,19 @@ display:                       # SSD1306 OLED on the Pi's I2C (firmware/PINOUT.m
   wired_interface: eth0        # Wi-Fi is metrics.wifi_interface
   tailnet_interface: tailscale0
 
+eye:                           # the cyclops eye: ST7789 1.54" on SPI0 (firmware/PINOUT.md, ADR-0015)
+  enabled: true                # without the panel hexd only logs it and retries
+  spi: /dev/spidev0.0
+  spi_mode: 3                  # boards without a CS pin need mode 3
+  spi_hz: 40000000             # the Pi rounds it down to what its SPI can do
+  gpio_chip: /dev/gpiochip0
+  dc: 25                       # BCM numbers (physical pins 22, 18, 12)
+  reset: 24
+  backlight: 18
+  rotation: 0                  # 0/90/180/270: how the panel sits behind the window
+  bgr: false                   # red and blue swapped on screen? set true
+  fps: 15                      # still frames are skipped (a calm eye costs little)
+
 shutdown:
   enabled: true                # power off on LOW_BATTERY (robot already seated)
   delay: 10s                   # condition must hold this long
