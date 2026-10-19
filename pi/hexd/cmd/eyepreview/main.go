@@ -64,6 +64,11 @@ func main() {
 		{"tired", "Tired / Cansado", eye.Inputs{Mood: eye.Tired, Battery: 0.15, Boot: -1}},
 		{"wink", "Wink / Piscadinha", eye.Inputs{Mood: eye.Ready, Wink: 1, Boot: -1}},
 		{"photo", "Photo / Foto", eye.Inputs{Mood: eye.Ready, Photo: 1, Boot: -1}},
+		{"furious", "Furious / Bravo", eye.Inputs{Mood: eye.Furious, Boot: -1}},
+		{"scared", "Scared / Assustado", eye.Inputs{Mood: eye.Scared, Boot: -1}},
+		{"bored", "Yawning / Bocejando", eye.Inputs{Mood: eye.Bored, Boot: -1}},
+		{"hunter", "Target / Alvo", eye.Inputs{Mood: eye.Hunter, Boot: -1}},
+		{"sneeze", "Achoo / Atchim", eye.Inputs{Mood: eye.Ready, Sneeze: 1, Boot: -1}},
 	}
 	var tiles []*image.RGBA
 	for _, s := range stills {
@@ -71,15 +76,27 @@ func main() {
 		a := eye.NewAnimator(7)
 		var l eye.Look
 		settle := s.in
-		settle.Wink, settle.Photo = 0, 0
-		for i := 0; i < 90; i++ {
+		settle.Wink, settle.Photo, settle.Sneeze = 0, 0, 0
+		frames := 90
+		switch s.in.Mood {
+		case eye.Bored:
+			frames = 6*60 + 40 // into the first yawn
+		case eye.Hunter:
+			frames = 123 // locked on
+		}
+		for i := 0; i < frames; i++ {
 			l = a.Step(time.Second/60, settle)
 		}
-		l.Open = settledOpen(s.in.Mood)      // never caught mid-blink
-		if s.in.Wink > 0 || s.in.Photo > 0 { // the event at its peak
+		if s.in.Mood != eye.Bored {
+			l.Open = settledOpen(s.in.Mood) // never caught mid-blink
+		}
+		if s.in.Wink > 0 || s.in.Photo > 0 || s.in.Sneeze > 0 { // the event at its peak
 			steps := 21 // the wink at its peak
 			if s.in.Photo > 0 {
 				steps = 9 // the aperture nearly shut, before the flash
+			}
+			if s.in.Sneeze > 0 {
+				steps = 70 // squeezed, right before the "achoo"
 			}
 			for i := 0; i < steps; i++ {
 				l = a.Step(time.Second/60, s.in)
@@ -87,7 +104,7 @@ func main() {
 		}
 		if s.in.Steering {
 			l.X, l.Y = s.in.LookX, s.in.LookY
-		} else if s.in.PairQR == "" {
+		} else if s.in.PairQR == "" && s.in.Mood != eye.Hunter && s.in.Mood != eye.Bored {
 			l.X, l.Y = 0.15, -0.05
 		}
 		if s.in.Mood == eye.Searching {
@@ -118,9 +135,10 @@ func main() {
 			a := t * 2 * math.Pi / 3
 			return eye.Inputs{Mood: eye.Ready, Steering: true, LookX: math.Cos(a), LookY: 0.6 * math.Sin(a), Boot: -1}
 		}},
-		{"moods", 30, func(t float64) eye.Inputs {
+		{"moods", 38, func(t float64) eye.Inputs {
 			seq := []eye.Mood{eye.Ready, eye.Happy, eye.Love, eye.Surprised, eye.Alert, eye.Danger, eye.Dizzy,
-				eye.Gas, eye.Sad, eye.Thinking, eye.Tired, eye.Relaxed, eye.Dozing, eye.Searching, eye.Ready}
+				eye.Furious, eye.Scared, eye.Gas, eye.Sad, eye.Thinking, eye.Tired, eye.Bored, eye.Relaxed,
+				eye.Dozing, eye.Searching, eye.Hunter, eye.Ready}
 			return eye.Inputs{Mood: seq[int(t/2)%len(seq)], Boot: -1}
 		}},
 		{"boot", 5, func(t float64) eye.Inputs {
@@ -136,6 +154,17 @@ func main() {
 		{"dozing", 6, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Dozing, Boot: -1} }},
 		{"love", 5, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Love, Boot: -1} }},
 		{"thinking", 5, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Thinking, Boot: -1} }},
+		{"furious", 4, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Furious, Boot: -1} }},
+		{"scared", 4, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Scared, Boot: -1} }},
+		{"bored", 10, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Bored, Boot: -1} }},
+		{"hunter", 9, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Hunter, Boot: -1} }},
+		{"sneeze", 3.5, func(t float64) eye.Inputs {
+			in := eye.Inputs{Mood: eye.Ready, Boot: -1}
+			if t > 0.6 {
+				in.Sneeze = 1
+			}
+			return in
+		}},
 		{"wink-photo", 5, func(t float64) eye.Inputs {
 			in := eye.Inputs{Mood: eye.Ready, Boot: -1}
 			if t > 1 {
@@ -190,6 +219,12 @@ func settledOpen(m eye.Mood) float64 {
 		return 0.92
 	case eye.Tired:
 		return 0.45
+	case eye.Bored:
+		return 0.55
+	case eye.Furious, eye.Scared:
+		return 0.95
+	case eye.Hunter:
+		return 0.9
 	}
 	return 1
 }

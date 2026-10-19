@@ -70,13 +70,21 @@ type Look struct {
 	Dots      float64 // "..." pulsing under the iris (phase 0..1, thinking); <0 off
 	Desat     float64 // iris colors faded toward grey (0..1)
 	Battery   float64 // small battery icon at the bottom with this charge (0..1); <0 off
+
+	ShakeX, ShakeY float64 // the whole eye moved by this much (eye units): trembling, sneezing
+	Squint         float64 // lower lid rising straight (0..1): anger, yawning
+	Hud            float64 // targeting visor (0..1): red tint, reticle, scanlines
+	HudPhase       float64 // reticle rotation (0..1)
+	Lock           float64 // targeting brackets closing on the center (0..1)
+	Locked         bool    // "LOCKED" under the reticle
+	Fire           float64 // iris flickering like flames (phase 0..1, fury); <0 off
 }
 
 // Neutral is a calm, open eye looking ahead.
 func Neutral() Look {
 	return Look{
 		Open: 1, Pupil: 1, Glow: 1, Iris: Cyan, Ring: -1, Dim: 1, Scanner: -1,
-		IrisScale: 1, Swirl: -1, Zzz: -1, Dots: -1, Battery: -1,
+		IrisScale: 1, Swirl: -1, Zzz: -1, Dots: -1, Battery: -1, Fire: -1,
 	}
 }
 
@@ -96,9 +104,12 @@ func Render(l Look) *image.RGBA {
 	pupilR := irisR * 0.36 * clamp(l.Pupil, 0.4, 1.7)
 	for y := 0; y < Size; y++ {
 		for x := 0; x < Size; x++ {
-			u := (float64(x)+0.5)*px - 1
-			v := (float64(y)+0.5)*px - 1
+			u := (float64(x)+0.5)*px - 1 - l.ShakeX
+			v := (float64(y)+0.5)*px - 1 - l.ShakeY
 			c := shade(l, u, v, cx, cy, irisR, pupilR, px)
+			if l.Hud > 0 {
+				c = hud(l, c, u+l.ShakeX, v+l.ShakeY, y, px)
+			}
 			img.SetRGBA(x, y, scale(c, l.Dim))
 		}
 	}
@@ -107,6 +118,9 @@ func Render(l Look) *image.RGBA {
 	}
 	if l.Zzz >= 0 {
 		drawZzz(img, l.Zzz, l.Dim)
+	}
+	if l.Locked {
+		text(img, "LOCKED", Size/2, Size-44, 2, rgb(0xff3040))
 	}
 	if l.Flash > 0 {
 		for i := 0; i < len(img.Pix); i += 4 {
@@ -159,6 +173,12 @@ func shade(l Look, u, v, cx, cy, irisR, pupilR, px float64) color.RGBA {
 			if k := cover(px*1.1-math.Abs(t-ring)*irisR, px); k > 0 {
 				ic = mix(ic, l.Iris.Rim, k*0.6)
 			}
+		}
+		// Fury: flames flickering out from the pupil.
+		if l.Fire >= 0 {
+			a := math.Atan2(dy, dx)
+			f := 0.5 + 0.25*math.Sin(a*7+l.Fire*2*math.Pi*3) + 0.25*math.Sin(a*13-l.Fire*2*math.Pi*5+t*9)
+			ic = mix(ic, rgb(0xffd23f), smooth(0.55, 0.95, f)*(1-t)*0.9)
 		}
 		// Dizzy: a spiral turning inside the iris.
 		if l.Swirl >= 0 {
@@ -266,6 +286,13 @@ func shade(l Look, u, v, cx, cy, irisR, pupilR, px float64) color.RGBA {
 	if k := cover(edge-v, px*1.5); k > 0 {
 		lc := mix(lid, lidRim, smooth(edge-0.10, edge, v)) // rim catches light
 		c = mix(c, lc, k)
+	}
+	// Lower lid rising straight (anger, yawning): a flat edge, a bit curved.
+	if l.Squint > 0 {
+		low := 1.15 - 1.35*l.Squint - 0.10*u*u
+		if k := cover(v-low, px*1.5); k > 0 {
+			c = mix(c, lid, k)
+		}
 	}
 	// Lower lid for a smile: an arc rising from below.
 	if l.Smile > 0 {
@@ -405,4 +432,53 @@ func textAlpha(img *image.RGBA, s string, x, y, scl int, c color.RGBA, alpha flo
 			}
 		}
 	}
+}
+
+// hud turns the eye into a targeting visor: red monochrome, scanlines, a
+// rotating segmented ring, ticks, a crosshair and corner brackets.
+func hud(l Look, c color.RGBA, u, v float64, row int, px float64) color.RGBA {
+	k := clamp(l.Hud, 0, 1)
+	lum := (0.3*float64(c.R) + 0.59*float64(c.G) + 0.11*float64(c.B)) / 255
+	red := color.RGBA{uint8(clamp(lum*1.35, 0, 1) * 255), uint8(lum * 0.18 * 255), uint8(lum * 0.2 * 255), 255}
+	c = mix(c, red, k)
+	if row%3 == 0 { // scanlines
+		c = scale(c, 1-0.22*k)
+	}
+	line := rgb(0xff3040)
+	r := math.Hypot(u, v)
+	a := math.Atan2(v, u)
+	turn := l.HudPhase * 2 * math.Pi
+	// Segmented outer ring, turning.
+	if w := cover(px*1.6-math.Abs(r-0.80), px); w > 0 {
+		seg := math.Mod((a+turn)/(2*math.Pi)*12+24, 1)
+		if seg < 0.62 {
+			c = mix(c, line, w*k)
+		}
+	}
+	// Ticks, turning the other way.
+	if r > 0.66 && r < 0.71 {
+		tick := math.Mod((a-turn*0.5)/(2*math.Pi)*36+72, 1)
+		if w := cover(px*0.9-math.Abs(tick-0.5)*0.17, px); w > 0 {
+			c = mix(c, line, w*k*0.8)
+		}
+	}
+	// Crosshair, with a gap around the pupil.
+	if r > 0.16 && r < 0.52 {
+		if w := cover(px*0.9-math.Min(math.Abs(u), math.Abs(v)), px); w > 0 {
+			c = mix(c, line, w*k*0.9)
+		}
+	}
+	// Corner brackets closing in on the center.
+	b := 0.88 - 0.42*clamp(l.Lock, 0, 1)
+	ax, ay := math.Abs(u), math.Abs(v)
+	onX := math.Abs(ax-b) < px*1.4 && ay > b-0.16 && ay < b+px
+	onY := math.Abs(ay-b) < px*1.4 && ax > b-0.16 && ax < b+px
+	if onX || onY {
+		c = mix(c, line, k)
+	}
+	// A bright dot at the very center: the aim.
+	if w := cover(0.03-r, px); w > 0 {
+		c = mix(c, rgb(0xffb0b4), w*k)
+	}
+	return c
 }

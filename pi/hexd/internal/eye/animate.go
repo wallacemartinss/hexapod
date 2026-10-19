@@ -25,6 +25,10 @@ const (
 	Sad                   // the app's signal was lost: droopy, looking down
 	Thinking              // connecting, switching Wi-Fi, updating: looks up, "..."
 	Tired                 // battery low: sleepy, faded, battery icon
+	Furious               // really angry: fiery red, squeezed lids, trembling
+	Scared                // almost tipping: wide, tiny shaking pupil, darting
+	Bored                 // nothing to do for a while: droopy, looks away, yawns
+	Hunter                // "eliminate target": red targeting visor locking on
 )
 
 // Inputs drive the animation; hexd fills them from the robot's state.
@@ -42,8 +46,9 @@ type Inputs struct {
 	Battery    float64 // charge 0..1 for the tired battery icon
 
 	// One-shot events: bump the number to play it once.
-	Wink  int // a happy "^" for a moment (a wave gesture)
-	Photo int // the aperture closes and opens, with a flash (photo taken)
+	Wink   int // a happy "^" for a moment (a wave gesture)
+	Photo  int // the aperture closes and opens, with a flash (photo taken)
+	Sneeze int // squeezing, trembling... "achoo!" (gas detected)
 }
 
 // Animator turns Inputs into a Look, frame by frame: blinks, glances
@@ -57,13 +62,15 @@ type Animator struct {
 	next  float64 // when to glance somewhere else
 	blink float64 // when the next blink starts
 
-	wink, photo     int     // last event numbers seen
-	winkAt, photoAt float64 // when they started (-1: none)
+	wink, photo, sneeze      int     // last event numbers seen
+	winkAt, photoAt, sneezAt float64 // when they started (-1: none)
+	yawnAt                   float64 // next yawn (bored)
+	lockFrom                 float64 // start of the current lock-on (hunter)
 }
 
 // NewAnimator starts with a neutral, open eye.
 func NewAnimator(seed uint64) *Animator {
-	a := &Animator{rng: rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)), look: Neutral(), winkAt: -1, photoAt: -1}
+	a := &Animator{rng: rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)), look: Neutral(), winkAt: -1, photoAt: -1, sneezAt: -1, yawnAt: 6}
 	a.blink = 2 + a.rng.Float64()*3
 	return a
 }
@@ -88,6 +95,16 @@ func (a *Animator) Step(dt time.Duration, in Inputs) Look {
 		a.gaze = [2]float64{0.15 * math.Sin(a.t*0.4), 0.65}
 	case in.Mood == Dozing:
 		a.gaze = [2]float64{0, 0.2}
+	case in.Mood == Bored:
+		a.gaze = [2]float64{0.62 + 0.1*math.Sin(a.t*0.3), 0.3}
+	case in.Mood == Hunter:
+		if a.t-a.lockFrom > 4 { // next target
+			a.lockFrom = a.t
+			a.gaze = [2]float64{(a.rng.Float64()*2 - 1) * 0.7, (a.rng.Float64()*2 - 1) * 0.45}
+		}
+	case in.Mood == Scared && a.t >= a.next:
+		a.gaze = [2]float64{(a.rng.Float64()*2 - 1) * 0.85, (a.rng.Float64()*2 - 1) * 0.4}
+		a.next = a.t + 0.25 + a.rng.Float64()*0.35
 	case in.Steering:
 		a.gaze = [2]float64{clamp(in.LookX, -1, 1), clamp(in.LookY, -1, 1)}
 		a.next = a.t + 1.5
@@ -123,8 +140,20 @@ func (a *Animator) Step(dt time.Duration, in Inputs) Look {
 		target.Pupil = 1.25 + 0.25*(pulse(beat, 0.08)+0.7*pulse(beat, 0.32))
 		target.Glow = 1 + 0.2*pulse(beat, 0.08)
 	}
-	target.Swirl, target.Zzz, target.Dots = -1, -1, -1
+	target.Swirl, target.Zzz, target.Dots, target.Fire = -1, -1, -1, -1
+	tremble := 0.0
 	switch in.Mood {
+	case Furious:
+		target.Fire = math.Mod(a.t*0.5, 1)
+		target.Glow = 1.1 + 0.25*(0.5+0.5*math.Sin(a.t*2*math.Pi*1.8))
+		tremble = 0.010
+	case Scared:
+		tremble = 0.007
+	case Hunter:
+		lt := a.t - a.lockFrom
+		target.HudPhase = math.Mod(a.t*0.12, 1)
+		target.Lock = smooth(0.2, 1.6, lt) * (1 - smooth(3.3, 3.9, lt))
+		target.Locked = lt > 1.6 && lt < 3.3 && math.Mod(lt, 0.5) < 0.3
 	case Dizzy:
 		target.Swirl = math.Mod(a.t*0.8, 1)
 	case Dozing:
@@ -156,11 +185,18 @@ func (a *Animator) Step(dt time.Duration, in Inputs) Look {
 	l.Desat = ease(l.Desat, target.Desat, 4)
 	l.Swirl, l.Zzz, l.Dots, l.Battery = target.Swirl, target.Zzz, target.Dots, target.Battery
 	l.Heart = target.Heart
+	l.Squint = ease(l.Squint, target.Squint, 6)
+	l.Hud = ease(l.Hud, target.Hud, 5)
+	l.HudPhase, l.Lock, l.Locked, l.Fire = target.HudPhase, target.Lock, target.Locked, target.Fire
 	l.Dim = ease(l.Dim, target.Dim, 4)
 	a.look = l
 
 	// Blink on top (not stored: the eased lid stays where it was).
 	out := l
+	busy := a.sneezAt >= 0 || (in.Mood == Bored && a.t >= a.yawnAt && a.t < a.yawnAt+2.4)
+	if busy && a.t >= a.blink {
+		a.blink = a.t + 1 // no blink in the middle of a yawn or a sneeze
+	}
 	if in.Mood != Sleeping && in.Mood != Dozing && a.t >= a.blink {
 		dur := blinkDuration
 		if in.Mood == Tired {
@@ -174,6 +210,23 @@ func (a *Animator) Step(dt time.Duration, in Inputs) Look {
 			}
 		} else {
 			out.Open = l.Open * math.Abs(1-2*p)
+		}
+	}
+	// Trembling: a small random jitter every frame.
+	if tremble > 0 {
+		out.ShakeX = (a.rng.Float64()*2 - 1) * tremble
+		out.ShakeY = (a.rng.Float64()*2 - 1) * tremble
+	}
+	// Bored: a big yawn now and then.
+	if in.Mood == Bored {
+		if a.t >= a.yawnAt+2.4 {
+			a.yawnAt = a.t + 5 + a.rng.Float64()*4
+		}
+		if p := (a.t - a.yawnAt) / 2.4; p >= 0 && p < 1 {
+			k := math.Sin(p * math.Pi)
+			out.Open *= 1 - 0.55*k // a long squeeze, a slit left open
+			out.Squint = math.Max(out.Squint, 0.30*k)
+			out.Y += 0.3 * k
 		}
 	}
 	// One-shot events on top.
@@ -191,6 +244,33 @@ func (a *Animator) Step(dt time.Duration, in Inputs) Look {
 			k := math.Sin(p * math.Pi)              // in and out
 			out.Open = out.Open * (1 - 0.3*k)       // the upper lid barely moves
 			out.Smile = math.Max(out.Smile, 1.05*k) // the lower one rises: "^"
+		}
+	}
+	if in.Sneeze != a.sneeze {
+		a.sneeze, a.sneezAt = in.Sneeze, a.t
+	}
+	if a.sneezAt >= 0 {
+		t := a.t - a.sneezAt
+		switch {
+		case t < 1.2: // building up: squeezing, trembling more and more
+			k := t / 1.2
+			out.Open *= 1 - 0.45*k
+			out.Squint = math.Max(out.Squint, 0.28*k)
+			out.Pupil *= 1 - 0.3*k
+			out.ShakeX += (a.rng.Float64()*2 - 1) * 0.012 * k
+			out.ShakeY += (a.rng.Float64()*2 - 1) * 0.012 * k
+		case t < 1.5: // achoo! shut, the whole eye jolts
+			k := 1 - (t-1.2)/0.3
+			out.Open, out.Squint = 0, 0.5
+			out.ShakeX += (a.rng.Float64()*2 - 1) * 0.07 * k
+			out.ShakeY += 0.06 * k
+			out.Flash = math.Max(out.Flash, 0.25*k)
+		case t < 2.1: // back
+			k := (t - 1.5) / 0.6
+			out.Open *= k
+			out.Squint = math.Max(out.Squint, 0.5*(1-k))
+		default:
+			a.sneezAt = -1
 		}
 	}
 	if a.photoAt >= 0 {
@@ -248,6 +328,14 @@ func moodLook(m Mood) Look {
 		l.Pupil, l.Open = 0.9, 0.92
 	case Tired:
 		l.Open, l.Desat, l.Dim, l.Pupil, l.Glow = 0.45, 0.55, 0.75, 1.1, 0.8
+	case Furious:
+		l.Iris, l.Frown, l.Squint, l.Pupil, l.Open = Red, 1.15, 0.36, 0.5, 0.95
+	case Scared:
+		l.IrisScale, l.Pupil, l.Sad, l.Desat, l.Open = 0.92, 0.32, 0.35, 0.35, 1
+	case Bored:
+		l.Open, l.Pupil, l.Desat, l.Glow = 0.55, 1.05, 0.25, 0.85
+	case Hunter:
+		l.Iris, l.Hud, l.Pupil, l.Frown, l.Open = Red, 1, 0.5, 0.35, 0.9
 	}
 	return l
 }
