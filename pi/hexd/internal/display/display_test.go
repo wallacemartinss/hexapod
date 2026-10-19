@@ -154,13 +154,13 @@ func TestPanelProtocol(t *testing.T) {
 	if err := p.Init(); err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.HasPrefix(bus.writes[0], []byte{0x00, 0xAE}) || !bytes.HasSuffix(bus.writes[0], []byte{0xAF}) {
-		t.Fatalf("init: % x", bus.writes[0])
+	if !bytes.Equal(bus.writes[0], []byte{0x00, 0xAE}) || !bytes.HasSuffix(bus.writes[1], []byte{0xAF}) {
+		t.Fatalf("init: % x / % x", bus.writes[0], bus.writes[1])
 	}
 	if err := p.Show(Render(seated(), PageStatus, 0)); err != nil {
 		t.Fatal(err)
 	}
-	data := bus.writes[2:]
+	data := bus.writes[3:]
 	if len(data) != pages {
 		t.Fatalf("%d data writes, want %d", len(data), pages)
 	}
@@ -334,5 +334,19 @@ func TestShutdownMessages(t *testing.T) {
 	s.Shutdown = "reboot"
 	if got := Lines(s, PageStatus)[0]; !strings.Contains(got, "REINICIANDO") {
 		t.Errorf("reboot: %s", got)
+	}
+}
+
+func TestWakeNeverBlanks(t *testing.T) {
+	bus := &fakeBus{}
+	if err := NewPanel(bus).Wake(); err != nil {
+		t.Fatal(err)
+	}
+	w := bus.writes[0]
+	if bytes.IndexByte(w[1:], 0xAE) >= 0 || !bytes.HasSuffix(w, []byte{0xAF}) {
+		t.Fatalf("wake must turn on, never off: % x", w)
+	}
+	if !bytes.Contains(w, []byte{0x20, 0x00}) || !bytes.Contains(w, []byte{0x8D, 0x14}) {
+		t.Fatalf("wake must restore addressing and the charge pump: % x", w)
 	}
 }
