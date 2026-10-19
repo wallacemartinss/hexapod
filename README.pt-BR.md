@@ -44,7 +44,7 @@ São duas portas de entrada, de propósito:
 
 **Dados e saúde**
 - Tela de dados em abas: resumo, orientação (horizonte artificial), distância, **posição GPS**, ambiente (temperatura, umidade, pressão, **alarme de gás e fumaça**), ângulos das pernas, saúde do ESP32 e **saúde do próprio Raspberry Pi** (CPU, temperatura, memória, cartão, quedas de energia).
-- **Um olho de ciclope:** uma tela colorida de 1,54" atrás de uma janela redonda na "cara" do robô, com a câmera como "nariz" e um farol de cada lado. Mostra expressões, o progresso do boot e o código de pareamento. *(O olho está em andamento; até lá, uma OLED de 0,96" dentro do corpo mostra o estado e o código de pareamento.)*
+- **Um olho de ciclope:** uma tela colorida de 1,54" atrás de uma janela redonda na "cara" do robô, com a câmera como "nariz" e um farol de cada lado. Mostra expressões, o progresso do boot e o código de pareamento. *(O software do olho está pronto e espera a tela; até lá, uma OLED de 0,96" dentro do corpo mostra o estado e o código de pareamento.)*
 - Métricas para o Prometheus em `/metrics`, para quem quiser montar painéis.
 
 **Segurança e atualizações**
@@ -59,6 +59,11 @@ São duas portas de entrada, de propósito:
 ## Telas
 
 Geradas a partir do app com um robô simulado (`cd app && make screenshots`), por isso aparecem todos os sensores instalados. Versões em inglês: [docs/screenshots/en](docs/screenshots/en).
+
+**O olho de ciclope** (26 expressões, cada uma em imagem e vídeo em [docs/eye](docs/eye)):
+
+<p align="center"><img src="docs/eye/ready.gif" width="200" alt="Pronto"> <img src="docs/eye/love.gif" width="200" alt="Apaixonado"> <img src="docs/eye/hunter.gif" width="200" alt="Caçador"></p>
+<p align="center"><img src="docs/eye/moods.png" width="640" alt="Todas as expressões"></p>
 
 | | |
 |---|---|

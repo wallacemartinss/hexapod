@@ -44,7 +44,7 @@ There are two ways in, on purpose:
 
 **Data and health**
 - Data screen in tabs: summary, orientation (artificial horizon), distance, **GPS position**, environment (temperature, humidity, pressure, **gas/smoke alarm**), leg angles, ESP32 health and the **Raspberry Pi's own health** (CPU, temperature, memory, SD card, power dips).
-- **A cyclops eye:** a 1.54" color screen behind a round window on the robot's face, with the camera as its "nose" and a headlight on each side. It shows expressions, boot progress and the pairing code. *(The eye is in progress; until then a 0.96" OLED inside the body shows status and the pairing code.)*
+- **A cyclops eye:** a 1.54" color screen behind a round window on the robot's face, with the camera as its "nose" and a headlight on each side. It shows expressions, boot progress and the pairing code. *(The eye's software is ready and waits for the panel; until then a 0.96" OLED inside the body shows status and the pairing code.)*
 - Prometheus metrics at `/metrics` for makers who want dashboards.
 
 **Safety and updates**
@@ -59,6 +59,11 @@ There are two ways in, on purpose:
 ## Screens
 
 Rendered from the app with a simulated robot (`cd app && make screenshots`), so they show every sensor fitted. Portuguese versions: [docs/screenshots/pt](docs/screenshots/pt).
+
+**The cyclops eye** (26 expressions, each as a picture and a clip in [docs/eye](docs/eye)):
+
+<p align="center"><img src="docs/eye/ready.gif" width="200" alt="Ready"> <img src="docs/eye/love.gif" width="200" alt="Love"> <img src="docs/eye/hunter.gif" width="200" alt="Hunter"></p>
+<p align="center"><img src="docs/eye/moods.png" width="640" alt="Every expression"></p>
 
 | | |
 |---|---|
