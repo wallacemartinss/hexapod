@@ -56,6 +56,24 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(len(got), 1, "lost the person between detections")
         self.assertAlmostEqual(got[0].box[0], x, delta=12)
 
+    def test_box_stays_inside_and_holds_when_the_fast_tracker_loses(self):
+        finder = SlowFinder()
+        p = PeoplePipeline(finder, PeopleTracker())
+        now = 0.0
+        for _ in range(MIN_HITS):
+            p.step(frame(100), now)
+            finder.go.release()
+            time.sleep(0.05)
+            now += 0.1
+        self.assertEqual(len(p.step(frame(100), now)), 1)
+        # The person vanishes (the fast tracker has nothing to follow) while
+        # the detector is stalled: the box holds for a while, then goes.
+        got = p.step(BACKGROUND.copy(), now + 0.5)
+        self.assertEqual(len(got), 1)
+        x0, y0, x1, y1 = got[0].box
+        self.assertTrue(0 <= x0 < x1 <= W and 0 <= y0 < y1 <= H)
+        self.assertEqual(p.step(BACKGROUND.copy(), now + 2.0), [])
+
 
 if __name__ == "__main__":
     unittest.main()

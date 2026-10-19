@@ -17,7 +17,10 @@ import cv2
 
 TRACK_HEIGHT = 64  # px: each person is tracked on an image scaled to make them this tall
 MAX_SCALE = 0.5
-FRESH_S = 0.3  # a box not updated for this long is not reported
+# A box keeps being reported this long after its last update (by the
+# detector or the fast tracker): long enough to bridge the fast tracker
+# losing a person until the next detection, so the box does not blink.
+HOLD_S = 1.2
 
 
 def _scaled(image, scale, cache):
@@ -87,7 +90,11 @@ class PeoplePipeline:
             k, scale = entry
             ok, (x, y, w, h) = k.update(_scaled(image, scale, cache))
             if ok:
-                t.box, t.seen = (x / scale, y / scale, (x + w) / scale, (y + h) / scale), now
+                ih, iw = image.shape[:2]  # inside the image, however far it drifted
+                x0, y0 = max(0.0, x / scale), max(0.0, y / scale)
+                x1, y1 = min(float(iw), (x + w) / scale), min(float(ih), (y + h) / scale)
+                if x1 - x0 > 4 and y1 - y0 > 4:
+                    t.box, t.seen = (x0, y0, x1, y1), now
             else:
                 del self._fast[t.id]  # lost until the next detection
-        return [t for t in self.tracker.tracks if t.confirmed and now - t.seen <= FRESH_S]
+        return [t for t in self.tracker.tracks if t.confirmed and now - t.seen <= HOLD_S]
