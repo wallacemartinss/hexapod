@@ -44,8 +44,12 @@ type Config struct {
 	// Position is the latest GPS reading and whether the GPS is talking
 	// (nil: no GPS). Sent to every app once a second.
 	Position func() (*pb.Position, bool)
-	// Identity of the robot; when set, /ws requires its key (pairing).
+	// Identity of the robot; when set, /ws and /api require its key (pairing).
 	Identity *pairing.Identity
+	// WiFi runs the robot's Wi-Fi for the setup API (nil: not managed).
+	WiFi WiFi
+	// Rename saves a new robot name (nil: no pairing).
+	Rename func(name string) error
 }
 
 // Server is created once and serves until its context ends.
@@ -55,6 +59,7 @@ type Server struct {
 	log *slog.Logger
 
 	mu           sync.Mutex
+	name         string // robot name, changed by /api/name
 	lastAppCmd   time.Time
 	deadmanFired bool
 	deadmanTrips uint64
@@ -75,7 +80,11 @@ func New(cfg Config, dev *device.Device, log *slog.Logger) *Server {
 	if cfg.HealthMaxAge == 0 {
 		cfg.HealthMaxAge = 2 * time.Second
 	}
-	return &Server{cfg: cfg, dev: dev, log: log, profile: pb.LinkProfile_LINK_PROFILE_WIFI}
+	s := &Server{cfg: cfg, dev: dev, log: log, profile: pb.LinkProfile_LINK_PROFILE_WIFI}
+	if cfg.Identity != nil {
+		s.name = cfg.Identity.Name
+	}
+	return s
 }
 
 // Clients is the number of apps connected over the WebSocket.
@@ -90,6 +99,12 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ws", s.handleWS)
 	mux.HandleFunc("GET /identity", s.handleIdentity)
+	mux.HandleFunc("GET /api/wifi", s.handleWiFiStatus)
+	mux.HandleFunc("GET /api/wifi/scan", s.handleWiFiScan)
+	mux.HandleFunc("POST /api/wifi/join", s.handleWiFiJoin)
+	mux.HandleFunc("POST /api/wifi/mode", s.handleWiFiMode)
+	mux.HandleFunc("POST /api/wifi/forget", s.handleWiFiForget)
+	mux.HandleFunc("POST /api/name", s.handleName)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /version", s.handleVersion)
 	mux.HandleFunc("GET /status", s.handleStatus)
@@ -167,8 +182,7 @@ func (s *Server) forward(cmd *pb.Command, profile pb.LinkProfile) error {
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	// Only paired apps: the key comes from the QR on the robot's screen.
-	if id := s.cfg.Identity; id != nil && !id.Allowed(r) {
-		http.Error(w, "pairing key required", http.StatusUnauthorized)
+	if !s.authorized(w, r) {
 		return
 	}
 	// Default options reject cross-origin browsers: a web page opened on the
@@ -359,7 +373,9 @@ func (s *Server) handleStatus(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleIdentity(w http.ResponseWriter, _ *http.Request) {
 	v := map[string]any{"hexd_version": s.cfg.HexdVersion, "pairing": s.cfg.Identity != nil}
 	if id := s.cfg.Identity; id != nil {
-		v["id"], v["name"] = id.ID, id.Name
+		s.mu.Lock()
+		v["id"], v["name"] = id.ID, s.name
+		s.mu.Unlock()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)

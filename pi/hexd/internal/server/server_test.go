@@ -17,6 +17,7 @@ import (
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 	"github.com/wallacemartinss/hexapod/pi/internal/sim"
 	"google.golang.org/protobuf/proto"
 )
@@ -350,5 +351,70 @@ func TestIdentityNeverShowsTheKey(t *testing.T) {
 	}
 	if strings.Contains(body, id.Token) {
 		t.Fatal("/identity leaks the pairing key")
+	}
+}
+
+type fakeWiFi struct {
+	joined []string
+	mode   wifi.Mode
+}
+
+func (f *fakeWiFi) Status() wifi.Status {
+	return wifi.Status{Mode: f.mode, State: wifi.StateOwn, APSSID: "Hexapode-7F3A", Saved: []string{}}
+}
+func (f *fakeWiFi) Scan(context.Context) ([]wifi.Network, error) {
+	return []wifi.Network{{SSID: "Casa", Signal: 80, Secure: true}}, nil
+}
+func (f *fakeWiFi) Join(ssid, _ string) error { f.joined = append(f.joined, ssid); return nil }
+func (f *fakeWiFi) SetMode(m wifi.Mode) error { f.mode = m; return nil }
+func (f *fakeWiFi) Forget(string) error       { return nil }
+
+func TestSetupAPI(t *testing.T) {
+	id, _ := pairing.New()
+	wf := &fakeWiFi{mode: wifi.ModeHome}
+	var renamed string
+	r := newRig(t, Config{Identity: &id, WiFi: wf, Rename: func(n string) error { renamed = n; return nil }})
+	call := func(method, path, body, key string) (int, string) {
+		req, _ := http.NewRequest(method, r.http.URL+path, strings.NewReader(body))
+		if key != "" {
+			req.Header.Set("Authorization", "Bearer "+key)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	for _, p := range []struct{ m, path string }{{"GET", "/api/wifi"}, {"GET", "/api/wifi/scan"}, {"POST", "/api/wifi/join"}, {"POST", "/api/name"}} {
+		if code, _ := call(p.m, p.path, `{}`, ""); code != http.StatusUnauthorized {
+			t.Errorf("%s %s without key: %d, want 401", p.m, p.path, code)
+		}
+	}
+	if code, body := call("GET", "/api/wifi", "", id.Token); code != 200 || !strings.Contains(body, `"ap_ssid":"Hexapode-7F3A"`) {
+		t.Fatalf("status: %d %s", code, body)
+	}
+	if code, body := call("GET", "/api/wifi/scan", "", id.Token); code != 200 || !strings.Contains(body, `"ssid":"Casa"`) {
+		t.Fatalf("scan: %d %s", code, body)
+	}
+	if code, _ := call("POST", "/api/wifi/join", `{"ssid":"Casa","password":"senha-certa"}`, id.Token); code != http.StatusAccepted || wf.joined[0] != "Casa" {
+		t.Fatalf("join: %d %v", code, wf.joined)
+	}
+	if code, _ := call("POST", "/api/wifi/mode", `{"mode":"direct"}`, id.Token); code != http.StatusAccepted || wf.mode != wifi.ModeDirect {
+		t.Fatalf("mode: %d %v", code, wf.mode)
+	}
+	if code, _ := call("POST", "/api/wifi/join", `not json`, id.Token); code != http.StatusBadRequest {
+		t.Fatalf("bad body: %d", code)
+	}
+	if code, _ := call("POST", "/api/name", `{"name":"Aranha do Zezinho"}`, id.Token); code != 200 || renamed != "Aranha do Zezinho" {
+		t.Fatalf("rename: %d %q", code, renamed)
+	}
+	if _, body := get(t, r.http.URL+"/identity"); !strings.Contains(body, "Aranha do Zezinho") {
+		t.Fatalf("/identity keeps the old name: %s", body)
+	}
+	if code, _ := call("POST", "/api/name", `{"name":"   "}`, id.Token); code != http.StatusBadRequest {
+		t.Fatalf("blank name: %d", code)
 	}
 }

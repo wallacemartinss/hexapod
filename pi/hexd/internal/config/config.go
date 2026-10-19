@@ -36,6 +36,12 @@ type Config struct {
 		Required bool   `yaml:"required"` // apps must present the pairing key (QR on the OLED)
 		Identity string `yaml:"identity"` // robot id, name and key; created on first start
 	} `yaml:"auth"`
+	WiFi struct {
+		Enabled       bool          `yaml:"enabled"`        // own network + home networks from the app
+		Interface     string        `yaml:"interface"`      // wlan0
+		Settings      string        `yaml:"settings"`       // mode (home/direct), on the data partition
+		FallbackAfter time.Duration `yaml:"fallback_after"` // no home network this long: own network
+	} `yaml:"wifi"`
 	GPS struct {
 		Enabled  bool    `yaml:"enabled"`
 		Device   string  `yaml:"device"`
@@ -75,6 +81,10 @@ func Default() Config {
 	c.Metrics.WifiInterface = "wlan0"
 	c.Auth.Required = true
 	c.Auth.Identity = "/opt/hexapod/shared/config/identity.json"
+	c.WiFi.Enabled = true // needs the pairing key (the own network's password comes from it)
+	c.WiFi.Interface = "wlan0"
+	c.WiFi.Settings = "/opt/hexapod/shared/config/network.json"
+	c.WiFi.FallbackAfter = 45 * time.Second
 	c.GPS.Enabled = true // a missing GPS is only logged
 	c.GPS.Device = "/dev/serial0"
 	c.GPS.Baud = 9600

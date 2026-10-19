@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 )
 
 // Set at build time: -ldflags "-X main.version=... -X main.gitHash=...".
@@ -109,7 +111,38 @@ func main() {
 		position = func() (*pb.Position, bool) { return reader.Latest(3 * time.Second) }
 	}
 
-	srv := server.New(server.Config{
+	// Wi-Fi: the robot's own network (password from the pairing key) and
+	// the home networks the app saves. srv is set below, before Run starts.
+	var srv *server.Server
+	var wifiMgr *wifi.Manager
+	if cfg.WiFi.Enabled && identity != nil {
+		ssid, pass := identity.OwnNetwork()
+		wifiMgr = wifi.New(wifi.Options{
+			NM:     wifi.NM{Run: wifi.Nmcli, Iface: cfg.WiFi.Interface},
+			APSSID: ssid, APPassword: pass,
+			SettingsPath:   cfg.WiFi.Settings,
+			FallbackAfter:  cfg.WiFi.FallbackAfter,
+			RetryHomeEvery: 2 * time.Minute,
+			JoinWait:       30,
+			Tick:           5 * time.Second,
+			Apps:           func() int { return srv.Clients() },
+			Log:            log.With("component", "wifi"),
+		})
+	}
+	// Renaming from the app rewrites the identity file (nil without pairing).
+	var rename func(name string) error
+	if identity != nil {
+		var mu sync.Mutex
+		rename = func(name string) error {
+			mu.Lock()
+			defer mu.Unlock()
+			id := *identity
+			id.Name = name
+			return pairing.Save(cfg.Auth.Identity, id)
+		}
+	}
+
+	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
 		CellularInterfaces: cfg.Deadman.CellularInterfaces,
@@ -121,7 +154,12 @@ func main() {
 		WifiInterface:      cfg.Metrics.WifiInterface,
 		Position:           position,
 		Identity:           identity,
+		WiFi:               wifiAPI(wifiMgr),
+		Rename:             rename,
 	}, dev, log.With("component", "server"))
+	if wifiMgr != nil {
+		go wifiMgr.Run(ctx)
+	}
 	go srv.Run(ctx)
 
 	if cfg.Shutdown.Enabled {
@@ -136,7 +174,7 @@ func main() {
 	if cfg.Display.Enabled {
 		go func() {
 			defer close(displayDone)
-			runDisplay(ctx, cfg, dev, srv, position, identity, log.With("component", "display"))
+			runDisplay(ctx, cfg, dev, srv, position, identity, wifiMgr, log.With("component", "display"))
 		}()
 	} else {
 		close(displayDone)
@@ -163,12 +201,18 @@ func main() {
 // runDisplay keeps the OLED status screen up to date. The network is looked
 // up every 10 s (it shells out to iw), the rest every refresh.
 func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
-	position func() (*pb.Position, bool), identity *pairing.Identity, log *slog.Logger) {
+	position func() (*pb.Position, bool), identity *pairing.Identity, wifiMgr *wifi.Manager, log *slog.Logger) {
 	var label, ip, ts string
 	var netAt time.Time
 	status := func() display.Status {
 		if now := time.Now(); now.Sub(netAt) > 10*time.Second {
 			label, ip, ts = display.Network(cfg.Metrics.WifiInterface, cfg.Display.Wired, cfg.Display.Tailnet)
+			// In its own network iw shows no SSID: say which network it is.
+			if wifiMgr != nil {
+				if w := wifiMgr.Status(); w.State == wifi.StateOwn {
+					label, ip = "Rede própria", w.IP
+				}
+			}
 			netAt = now
 		}
 		snap := dev.Snapshot()
@@ -247,4 +291,12 @@ func gpsLine(position func() (*pb.Position, bool)) string {
 	default:
 		return fmt.Sprintf("GPS: procurando (%d)", p.SatellitesInView)
 	}
+}
+
+// wifiAPI keeps a nil manager a nil interface (no Wi-Fi API).
+func wifiAPI(m *wifi.Manager) server.WiFi {
+	if m == nil {
+		return nil
+	}
+	return m
 }

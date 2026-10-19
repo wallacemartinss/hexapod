@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +81,17 @@ func TestBrokenFileIsAnError(t *testing.T) {
 	}
 	if _, err := LoadOrCreate(path); err == nil {
 		t.Fatal("a truncated identity must not be used (or silently replaced)")
+	}
+}
+
+func TestOwnNetwork(t *testing.T) {
+	id := Identity{ID: "7F3A", Token: "ABCDEFGHJKLMNPQRSTUV"}
+	ssid, pass := id.OwnNetwork()
+	// Pinned: the app computes the same (app/test/pairing_test.dart).
+	if ssid != "Hexapode-7F3A" || pass != "KCGBVTPAD3HK" {
+		t.Fatalf("%q %q", ssid, pass)
+	}
+	if strings.Contains(id.Token, pass) {
+		t.Fatal("the Wi-Fi password must not reveal the key")
 	}
 }

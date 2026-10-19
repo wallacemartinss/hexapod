@@ -25,6 +25,12 @@ auth:
   required: true               # apps must pair (QR on the OLED); false only for development
   identity: /opt/hexapod/shared/config/identity.json   # id, name, key (created on first start)
 
+wifi:                          # own network "Hexapode-<id>" + home networks set from the app
+  enabled: true                # needs auth.required (the own network's password comes from the key)
+  interface: wlan0
+  settings: /opt/hexapod/shared/config/network.json   # mode: home or direct
+  fallback_after: 45s          # no home network this long: open the own network
+
 gps:                           # NEO-6M on the Pi's UART (firmware/PINOUT.md)
   enabled: true                # without a GPS hexd only logs it and retries
   device: /dev/serial0

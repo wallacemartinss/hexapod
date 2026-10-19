@@ -5,6 +5,7 @@ package pairing
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base32"
 	"encoding/json"
@@ -139,4 +140,12 @@ func TerminalQR(text string) string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+// OwnNetwork is the robot's own Wi-Fi: "Hexapode-<id>" and a WPA2 password
+// derived one way from the key (the app derives the same from the QR).
+// Someone given the Wi-Fi password does not learn the pairing key.
+func (id Identity) OwnNetwork() (ssid, password string) {
+	sum := sha256.Sum256([]byte("hexapod-ap:" + id.Token))
+	return "Hexapode-" + id.ID, encoding.EncodeToString(sum[:])[:12]
 }
