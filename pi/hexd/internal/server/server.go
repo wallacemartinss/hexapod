@@ -50,6 +50,12 @@ type Config struct {
 	WiFi WiFi
 	// Rename saves a new robot name (nil: no pairing).
 	Rename func(name string) error
+	// Codes is the short code on the robot's screen that /pair trades for
+	// the key (nil: no short-code pairing).
+	Codes *pairing.Codes
+	// OnPaired runs whenever an app proves it has the key (/pair or an
+	// authorized /ws): the robot's own Wi-Fi then needs a password.
+	OnPaired func()
 }
 
 // Server is created once and serves until its context ends.
@@ -59,7 +65,8 @@ type Server struct {
 	log *slog.Logger
 
 	mu           sync.Mutex
-	name         string // robot name, changed by /api/name
+	name         string     // robot name, changed by /api/name
+	pairMu       sync.Mutex // /pair tries go one at a time
 	lastAppCmd   time.Time
 	deadmanFired bool
 	deadmanTrips uint64
@@ -105,6 +112,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/wifi/mode", s.handleWiFiMode)
 	mux.HandleFunc("POST /api/wifi/forget", s.handleWiFiForget)
 	mux.HandleFunc("POST /api/name", s.handleName)
+	mux.HandleFunc("POST /pair", s.handlePair)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /version", s.handleVersion)
 	mux.HandleFunc("GET /status", s.handleStatus)
@@ -181,9 +189,12 @@ func (s *Server) forward(cmd *pb.Command, profile pb.LinkProfile) error {
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
-	// Only paired apps: the key comes from the QR on the robot's screen.
+	// Only paired apps: the key comes from pairing (code on the robot's screen).
 	if !s.authorized(w, r) {
 		return
+	}
+	if s.cfg.Identity != nil && s.cfg.OnPaired != nil {
+		s.cfg.OnPaired()
 	}
 	// Default options reject cross-origin browsers: a web page opened on the
 	// LAN must not be able to drive the robot. The app sends no Origin header.

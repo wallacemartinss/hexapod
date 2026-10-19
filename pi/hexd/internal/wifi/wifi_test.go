@@ -119,16 +119,13 @@ func (f *fakeNM) run(_ context.Context, args ...string) (string, error) {
 func manager(t *testing.T, f *fakeNM, apps int) *Manager {
 	t.Helper()
 	m := New(Options{
-		NM: NM{Run: f.run, Iface: "wlan0"}, APSSID: "Hexapode-7F3A", APPassword: "SECRETPASS12",
+		NM: NM{Run: f.run, Iface: "wlan0"}, Own: func() (string, string) { return "Hexapode-7F3A", "SECRETPASS12" },
 		SettingsPath:  filepath.Join(t.TempDir(), "network.json"),
 		FallbackAfter: 45 * time.Second, RetryHomeEvery: 2 * time.Minute, JoinWait: 30, Tick: time.Hour,
 		Apps: func() int { return apps }, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	ctx := context.Background()
 	m.home = time.Now()
-	if err := m.opt.NM.EnsureAP(ctx, m.opt.APSSID, m.opt.APPassword); err != nil {
-		t.Fatal(err)
-	}
 	m.refreshSaved(ctx)
 	return m
 }
@@ -288,7 +285,7 @@ func TestNoInterfaceTouchesNoProfile(t *testing.T) {
 	f := newFake()
 	f.present = false
 	m := New(Options{
-		NM: NM{Run: f.run, Iface: "wlan0"}, APSSID: "Hexapode-7F3A", APPassword: "SECRETPASS12",
+		NM: NM{Run: f.run, Iface: "wlan0"}, Own: func() (string, string) { return "Hexapode-7F3A", "SECRETPASS12" },
 		SettingsPath: filepath.Join(t.TempDir(), "network.json"), FallbackAfter: time.Second,
 		RetryHomeEvery: time.Minute, JoinWait: 5, Tick: time.Hour, Apps: func() int { return 0 },
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -298,5 +295,38 @@ func TestNoInterfaceTouchesNoProfile(t *testing.T) {
 	m.Run(ctx)
 	if len(f.profiles) != 0 {
 		t.Fatalf("no Wi-Fi interface (a dev PC): no profile may be created, got %v", f.profiles)
+	}
+}
+
+func TestOwnNetworkOpenThenProtectedWhenNobodyIsOn(t *testing.T) {
+	f := newFake()
+	paired := false
+	apps := 1
+	m := New(Options{
+		NM: NM{Run: f.run, Iface: "wlan0"},
+		Own: func() (string, string) {
+			if paired {
+				return "Hexapode-7F3A", "SECRETPASS12"
+			}
+			return "Hexapode-7F3A", ""
+		},
+		SettingsPath: filepath.Join(t.TempDir(), "network.json"), FallbackAfter: time.Second,
+		RetryHomeEvery: time.Hour, JoinWait: 5, Tick: time.Hour,
+		Apps: func() int { return apps }, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	ctx := context.Background()
+	m.step(ctx, time.Now())
+	if p := f.profiles[apName]; p == nil || p["psk"] != "" {
+		t.Fatalf("never paired: open own network expected, %v", p)
+	}
+	paired = true // the phone on the open network just paired
+	m.step(ctx, time.Now())
+	if f.profiles[apName]["psk"] != "" {
+		t.Fatal("switched security under a connected app (it would drop it mid-pairing)")
+	}
+	apps = 0
+	m.step(ctx, time.Now())
+	if f.profiles[apName]["psk"] != "SECRETPASS12" || f.active != apName {
+		t.Fatalf("after pairing, with nobody on: WPA2 own network expected, %v", f.profiles[apName])
 	}
 }

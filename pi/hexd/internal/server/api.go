@@ -155,3 +155,31 @@ func (s *Server) handleName(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]string{"name": name})
 }
+
+// handlePair trades the short code shown on the robot's screen for the key.
+// Tries are serialized and a wrong one costs a second; with 5-character
+// codes that change after 5 misses, guessing is hopeless.
+func (s *Server) handlePair(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Identity == nil || s.cfg.Codes == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "robô sem pareamento"})
+		return
+	}
+	var req struct{ Code string }
+	if !readJSON(w, r, &req) {
+		return
+	}
+	s.pairMu.Lock()
+	defer s.pairMu.Unlock()
+	if !s.cfg.Codes.Check(strings.ToUpper(strings.TrimSpace(req.Code))) {
+		time.Sleep(time.Second)
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "código errado ou vencido: use o que está na tela do robô agora"})
+		return
+	}
+	if s.cfg.OnPaired != nil {
+		s.cfg.OnPaired()
+	}
+	s.mu.Lock()
+	name := s.name
+	s.mu.Unlock()
+	writeJSON(w, http.StatusOK, map[string]string{"id": s.cfg.Identity.ID, "name": name, "token": s.cfg.Identity.Token})
+}

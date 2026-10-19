@@ -42,8 +42,11 @@ func (f *Frame) Text(line, x int, s string, inverted bool) {
 
 // Big draws s twice the size over lines line and line+1, centered.
 func (f *Frame) Big(line int, s string, inverted bool) {
-	n := len([]rune(s))
-	x := (Width - n*charWidth*2) / 2
+	f.BigAt(line, (Width-len([]rune(s))*charWidth*2)/2, s, inverted)
+}
+
+// BigAt draws s twice the size over lines line and line+1 from column x.
+func (f *Frame) BigAt(line, x int, s string, inverted bool) {
 	for _, r := range s {
 		for _, c := range glyph(r) {
 			var tall uint16 // each source row becomes two
@@ -95,8 +98,9 @@ type Status struct {
 	Stopped   bool          // hexd is shutting down
 	Shutdown  string        // with Stopped: \"poweroff\", \"reboot\" or \"\" (only hexd)
 	GPS       string        // status-page GPS row, \"\" without a GPS
-	Pairing   string        // QR text while no app is connected (\"\" without pairing)
+	Pairing   string        // QR text while no app is connected ("" without pairing)
 	RobotID   string        // short id, printed next to the QR
+	PairCode  string        // short code typed in the app, shown big next to the QR
 }
 
 // Page is one screen of the rotation.
@@ -286,10 +290,12 @@ func Render(s Status, p Page, shift int) *Frame {
 	var f Frame
 	if p == PagePairing && !s.Stopped && s.Pairing != "" {
 		if w := f.QR(s.Pairing); w > 0 {
-			x := w + 4
-			for i, line := range []string{"Parear:", "abra o app", "e escaneie", "este QR", "", "ID " + s.RobotID} {
-				f.Text(i+1, x, line, false)
-			}
+			x := w + 2
+			f.Text(0, x, "Código:", false)
+			f.BigAt(1, x, s.PairCode, false)
+			f.Text(4, x, "ID "+s.RobotID, false)
+			f.Text(6, x, "No app:", false)
+			f.Text(7, x, "Novo robô", false)
 			return &f
 		}
 	}

@@ -365,7 +365,7 @@ func TestWakeNeverBlanks(t *testing.T) {
 func paired() Status {
 	s := seated()
 	s.Apps = 0
-	s.Pairing, s.RobotID = "HXP1 7F3A ABCDEFGHJKLMNPQRSTUV", "7F3A"
+	s.Pairing, s.RobotID, s.PairCode = "HXP2 7F3A K7F2Q", "7F3A", "K7F2Q"
 	return s
 }
 

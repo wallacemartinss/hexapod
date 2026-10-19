@@ -184,21 +184,23 @@ func (n NM) Scan(ctx context.Context) ([]Network, error) {
 	return list, nil
 }
 
-// EnsureAP creates or updates the robot's own network profile (WPA2, NAT
-// and DHCP from NetworkManager, robot at 10.42.0.1). It does not start it.
+// EnsureAP (re)writes the robot's own network profile (NAT and DHCP from
+// NetworkManager, robot at 10.42.0.1): WPA2 with password, open without.
+// Rewritten from scratch, since open <-> WPA2 does not modify cleanly. It
+// does not start it.
 func (n NM) EnsureAP(ctx context.Context, ssid, password string) error {
-	settings := []string{
+	_, _ = n.Run(ctx, "connection", "delete", apName)
+	args := []string{
+		"connection", "add", "type", "wifi", "con-name", apName,
 		"ifname", n.Iface, "ssid", ssid,
 		"802-11-wireless.mode", "ap", "802-11-wireless.band", "bg",
 		"ipv4.method", "shared", "ipv6.method", "disabled",
-		"wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", password,
 		"connection.autoconnect", "no",
 	}
-	if _, err := n.Run(ctx, "-t", "-g", "connection.id", "connection", "show", apName); err == nil {
-		_, err = n.Run(ctx, append([]string{"connection", "modify", apName}, settings...)...)
-		return err
+	if password != "" {
+		args = append(args, "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", password)
 	}
-	_, err := n.Run(ctx, append([]string{"connection", "add", "type", "wifi", "con-name", apName}, settings...)...)
+	_, err := n.Run(ctx, args...)
 	return err
 }
 

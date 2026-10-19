@@ -85,7 +85,7 @@ func TestBrokenFileIsAnError(t *testing.T) {
 }
 
 func TestOwnNetwork(t *testing.T) {
-	id := Identity{ID: "7F3A", Token: "ABCDEFGHJKLMNPQRSTUV"}
+	id := Identity{ID: "7F3A", Token: "ABCDEFGHJKLMNPQRSTUV", Paired: true}
 	ssid, pass := id.OwnNetwork()
 	// Pinned: the app computes the same (app/test/pairing_test.dart).
 	if ssid != "Hexapode-7F3A" || pass != "KCGBVTPAD3HK" {

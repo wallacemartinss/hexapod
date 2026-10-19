@@ -111,15 +111,49 @@ func main() {
 		position = func() (*pb.Position, bool) { return reader.Latest(3 * time.Second) }
 	}
 
-	// Wi-Fi: the robot's own network (password from the pairing key) and
-	// the home networks the app saves. srv is set below, before Run starts.
+	// The identity's name and "paired" flag change at run time (rename,
+	// first pairing): idMu guards them and every save of the file.
+	var idMu sync.Mutex
+	update := func(change func(*pairing.Identity) bool) error {
+		idMu.Lock()
+		defer idMu.Unlock()
+		if !change(identity) {
+			return nil
+		}
+		return pairing.Save(cfg.Auth.Identity, *identity)
+	}
+	// Short code on the screen, traded for the key by /pair.
+	var codes *pairing.Codes
+	if identity != nil {
+		codes = &pairing.Codes{TTL: 10 * time.Minute}
+	}
+	// An app proved it has the key: from now on the own network needs a password.
+	var onPaired func()
+	if identity != nil {
+		onPaired = func() {
+			if err := update(func(id *pairing.Identity) bool {
+				was := id.Paired
+				id.Paired = true
+				return !was
+			}); err != nil {
+				log.Warn("saving paired flag", "err", err)
+			}
+		}
+	}
+
+	// Wi-Fi: the robot's own network (open until the first pairing, then a
+	// password from the key) and the home networks the app saves. srv is
+	// set below, before Run starts.
 	var srv *server.Server
 	var wifiMgr *wifi.Manager
 	if cfg.WiFi.Enabled && identity != nil {
-		ssid, pass := identity.OwnNetwork()
 		wifiMgr = wifi.New(wifi.Options{
-			NM:     wifi.NM{Run: wifi.Nmcli, Iface: cfg.WiFi.Interface},
-			APSSID: ssid, APPassword: pass,
+			NM: wifi.NM{Run: wifi.Nmcli, Iface: cfg.WiFi.Interface},
+			Own: func() (string, string) {
+				idMu.Lock()
+				defer idMu.Unlock()
+				return identity.OwnNetwork()
+			},
 			SettingsPath:   cfg.WiFi.Settings,
 			FallbackAfter:  cfg.WiFi.FallbackAfter,
 			RetryHomeEvery: 2 * time.Minute,
@@ -132,13 +166,8 @@ func main() {
 	// Renaming from the app rewrites the identity file (nil without pairing).
 	var rename func(name string) error
 	if identity != nil {
-		var mu sync.Mutex
 		rename = func(name string) error {
-			mu.Lock()
-			defer mu.Unlock()
-			id := *identity
-			id.Name = name
-			return pairing.Save(cfg.Auth.Identity, id)
+			return update(func(id *pairing.Identity) bool { id.Name = name; return true })
 		}
 	}
 
@@ -156,6 +185,8 @@ func main() {
 		Identity:           identity,
 		WiFi:               wifiAPI(wifiMgr),
 		Rename:             rename,
+		Codes:              codes,
+		OnPaired:           onPaired,
 	}, dev, log.With("component", "server"))
 	if wifiMgr != nil {
 		go wifiMgr.Run(ctx)
@@ -174,7 +205,7 @@ func main() {
 	if cfg.Display.Enabled {
 		go func() {
 			defer close(displayDone)
-			runDisplay(ctx, cfg, dev, srv, position, identity, wifiMgr, log.With("component", "display"))
+			runDisplay(ctx, cfg, dev, srv, position, identity, codes, wifiMgr, log.With("component", "display"))
 		}()
 	} else {
 		close(displayDone)
@@ -201,7 +232,8 @@ func main() {
 // runDisplay keeps the OLED status screen up to date. The network is looked
 // up every 10 s (it shells out to iw), the rest every refresh.
 func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
-	position func() (*pb.Position, bool), identity *pairing.Identity, wifiMgr *wifi.Manager, log *slog.Logger) {
+	position func() (*pb.Position, bool), identity *pairing.Identity, codes *pairing.Codes,
+	wifiMgr *wifi.Manager, log *slog.Logger) {
 	var label, ip, ts string
 	var netAt time.Time
 	status := func() display.Status {
@@ -229,8 +261,9 @@ func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv 
 			Version:   version,
 			GPS:       gpsLine(position),
 		}
-		if identity != nil {
-			st.Pairing, st.RobotID = identity.QR(), identity.ID
+		if identity != nil && codes != nil {
+			code := codes.Current()
+			st.Pairing, st.RobotID, st.PairCode = identity.PairingQR(code), identity.ID, code
 		}
 		return st
 	}

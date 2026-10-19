@@ -24,6 +24,9 @@ type Identity struct {
 	ID    string `json:"id"`    // 4 characters, e.g. "7F3A": names the robot's own Wi-Fi
 	Name  string `json:"name"`  // shown in the app, changed from the app
 	Token string `json:"token"` // 20 base32 characters (100 bits)
+	// Paired: some app has paired at least once. Until then the robot's own
+	// Wi-Fi is open, so a phone can reach it to type the short code.
+	Paired bool `json:"paired"`
 }
 
 // QR payload prefix; the version lets the format change later.
@@ -143,9 +146,14 @@ func TerminalQR(text string) string {
 }
 
 // OwnNetwork is the robot's own Wi-Fi: "Hexapode-<id>" and a WPA2 password
-// derived one way from the key (the app derives the same from the QR).
-// Someone given the Wi-Fi password does not learn the pairing key.
+// derived one way from the key (the app derives the same). Someone given
+// the Wi-Fi password does not learn the key. Open ("") until the first
+// pairing, so a new phone can reach the robot to type the short code.
 func (id Identity) OwnNetwork() (ssid, password string) {
+	ssid = "Hexapode-" + id.ID
+	if !id.Paired {
+		return ssid, ""
+	}
 	sum := sha256.Sum256([]byte("hexapod-ap:" + id.Token))
-	return "Hexapode-" + id.ID, encoding.EncodeToString(sum[:])[:12]
+	return ssid, encoding.EncodeToString(sum[:])[:12]
 }

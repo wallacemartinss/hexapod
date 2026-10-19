@@ -48,9 +48,10 @@ type Status struct {
 
 // Options for the Manager.
 type Options struct {
-	NM             NM
-	APSSID         string
-	APPassword     string
+	NM NM
+	// Own is the robot's own network now: SSID and WPA2 password ("" =
+	// open, before the first pairing).
+	Own            func() (ssid, password string)
 	SettingsPath   string        // network.json (mode), on the data partition
 	FallbackAfter  time.Duration // without a home network this long: own network
 	RetryHomeEvery time.Duration // while on its own network, look for saved ones
@@ -66,13 +67,14 @@ type join struct{ ssid, password string }
 
 // Manager keeps the Wi-Fi in the wanted mode. Safe for concurrent use.
 type Manager struct {
-	opt   Options
-	mu    sync.Mutex
-	st    Status
-	saved map[string]string // profile -> SSID
-	work  chan any          // join | Mode | forget
-	home  time.Time         // last time a home network worked (or start)
-	retry time.Time         // last look for home networks
+	opt    Options
+	mu     sync.Mutex
+	st     Status
+	saved  map[string]string // profile -> SSID
+	work   chan any          // join | Mode | forget
+	home   time.Time         // last time a home network worked (or start)
+	retry  time.Time         // last look for home networks
+	apPass *string           // password the running own network was set up with
 }
 
 type forget string
@@ -80,7 +82,8 @@ type forget string
 // New loads the saved mode; Run does the rest.
 func New(opt Options) *Manager {
 	m := &Manager{opt: opt, work: make(chan any, 4), saved: map[string]string{}}
-	m.st = Status{Mode: ModeHome, APSSID: opt.APSSID, State: StateConnecting, Saved: []string{}}
+	ssid, _ := opt.Own()
+	m.st = Status{Mode: ModeHome, APSSID: ssid, State: StateConnecting, Saved: []string{}}
 	if b, err := os.ReadFile(opt.SettingsPath); err == nil {
 		var s struct{ Mode Mode }
 		if json.Unmarshal(b, &s) == nil && (s.Mode == ModeHome || s.Mode == ModeDirect) {
@@ -105,9 +108,10 @@ func (m *Manager) Scan(ctx context.Context) ([]Network, error) {
 	if err != nil {
 		return nil, err
 	}
+	own, _ := m.opt.Own()
 	out := list[:0]
 	for _, n := range list {
-		if n.SSID != m.opt.APSSID { // not its own network
+		if n.SSID != own { // not its own network
 			out = append(out, n)
 		}
 	}
@@ -192,7 +196,8 @@ func (m *Manager) refreshSaved(ctx context.Context) {
 // are only touched once the Wi-Fi interface exists (step checks), so hexd
 // on a development PC never adds one to that PC.
 func (m *Manager) startOwn(ctx context.Context) {
-	if err := m.opt.NM.EnsureAP(ctx, m.opt.APSSID, m.opt.APPassword); err != nil {
+	ssid, pass := m.opt.Own()
+	if err := m.opt.NM.EnsureAP(ctx, ssid, pass); err != nil {
 		m.opt.Log.Warn("own network profile", "err", err)
 		return
 	}
@@ -200,8 +205,9 @@ func (m *Manager) startOwn(ctx context.Context) {
 		m.opt.Log.Warn("own network did not start", "err", err)
 		return
 	}
-	m.opt.Log.Info("own network up", "ssid", m.opt.APSSID)
-	m.set(func(s *Status) { s.State, s.SSID, s.IP = StateOwn, m.opt.APSSID, APAddress })
+	m.apPass = &pass
+	m.opt.Log.Info("own network up", "ssid", ssid, "open", pass == "")
+	m.set(func(s *Status) { s.State, s.SSID, s.IP, s.APSSID = StateOwn, ssid, APAddress, ssid })
 }
 
 // step brings the Wi-Fi to what the mode asks for.
@@ -232,7 +238,15 @@ func (m *Manager) step(ctx context.Context, now time.Time) {
 			}
 		})
 	case own:
-		m.set(func(s *Status) { s.State, s.SSID, s.IP = StateOwn, m.opt.APSSID, APAddress })
+		ssid, pass := m.opt.Own()
+		m.set(func(s *Status) { s.State, s.SSID, s.IP = StateOwn, ssid, APAddress })
+		// First pairing done: the open network gets its password, but only
+		// once nobody is connected (it drops everyone).
+		if m.apPass != nil && *m.apPass != pass && m.opt.Apps() == 0 {
+			_ = m.opt.NM.Down(ctx, apName)
+			m.startOwn(ctx)
+			return
+		}
 		if now.Sub(m.retry) >= m.opt.RetryHomeEvery && m.opt.Apps() == 0 && len(m.saved) > 0 {
 			m.retry = now
 			m.tryHome(ctx)

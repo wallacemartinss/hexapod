@@ -418,3 +418,35 @@ func TestSetupAPI(t *testing.T) {
 		t.Fatalf("blank name: %d", code)
 	}
 }
+
+func TestPairWithTheShortCode(t *testing.T) {
+	id, _ := pairing.New()
+	codes := &pairing.Codes{TTL: time.Minute}
+	paired := 0
+	r := newRig(t, Config{Identity: &id, Codes: codes, OnPaired: func() { paired++ }})
+	post := func(code string) (int, string) {
+		resp, err := http.Post(r.http.URL+"/pair", "application/json", strings.NewReader(`{"code":"`+code+`"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	start := time.Now()
+	if code, _ := post("ZZZZZ"); code != http.StatusForbidden {
+		t.Fatalf("wrong code: %d", code)
+	}
+	if time.Since(start) < 900*time.Millisecond {
+		t.Fatal("a wrong code must cost time")
+	}
+	good := codes.Current()
+	code, body := post(strings.ToLower(good)) // typed in lower case
+	if code != 200 || !strings.Contains(body, id.Token) || paired != 1 {
+		t.Fatalf("right code: %d %s paired=%d", code, body, paired)
+	}
+	if code, _ := post(good); code != http.StatusForbidden {
+		t.Fatal("a code works once")
+	}
+}
