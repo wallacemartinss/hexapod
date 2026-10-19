@@ -20,10 +20,10 @@ There are two ways in, on purpose:
 - [Parts list](#parts-list)
 - [Install: simple path](#install-simple-path)
 - [Install: maker path](#install-maker-path)
-- [How it works](#how-it-works)
+- [Architecture](#architecture)
 - [Development](#development)
 - [Safety](#safety)
-- [Languages](#languages) · [License](#license)
+- [Languages](#languages) · [Credits](#credits) · [License](#license)
 
 ## Features
 
@@ -78,9 +78,13 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 
 | Qty | Part | Notes |
 |---|---|---|
-| 1 set | 3D-printed body and legs | Based on *Hexapod Spider Robot with Servo & Arduino* by Emre Kalem (MakerWorld), with the body adapted for the electronics. See [`cad/`](cad/README.md) |
-| 18 | MG996R servo | 3 per leg (coxa, femur, tibia) |
-| — | Screws, servo horns and bearings | As in the original model |
+| 1 set | 3D-printed body and legs | From [*Hexapod Spider Robot with Servo & Arduino*](https://makerworld.com/en/models/1973965-hexapod-spider-robot-with-servo-arduino) by Emre Kalem (MakerWorld), with the body adapted for the electronics. See [`cad/`](cad/README.md) |
+| 18 | MG996R servo | 3 per leg (coxa, femur, tibia), with their horns |
+| 90 | M3 × 6 mm screw | |
+| 90 | M3 × 10 mm screw | |
+| 18 | 695 bearing (5 × 13 × 4 mm) | One per joint |
+
+> **Our parts are modified.** The body is being reworked to hold this project's electronics and sensors (Raspberry Pi, ESP32, camera, the 4 distance sensors, IMU, screen, GPS). Those STLs are not published yet; they will go into [`cad/`](cad/README.md). Until then, the original model prints and assembles, but the electronics need your own mounts.
 
 **Electronics**
 
@@ -169,7 +173,7 @@ The deploy flashes the ESP32, restarts `hexd`, checks both versions answer withi
 
 **5. Build the SD card image yourself:** `sudo pi/image/build-image.sh dist/hexapod-<version>.tar.gz dist/image` (on an ARM machine, or x86 with `qemu-user-binfmt`). The same image is built by CI for every `v*` tag.
 
-## How it works
+## Architecture
 
 ```
 Android app ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, OLED, GPS)
@@ -183,10 +187,39 @@ Android app ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, OL
                                                   BME280, INA226, MQ-2)
 ```
 
-- **ESP32-S3:** 50 Hz motion loop (tripod gait, 3-DoF inverse kinematics, per-joint limits stored in NVS), sensors and the failsafe (stop → safe sit → relax when commands stop arriving).
-- **Raspberry Pi:** `hexd`, a Go service: serial link with automatic reconnection, WebSocket for the app, dead-man relay, pairing, Wi-Fi management (NetworkManager), status screen, GPS, metrics, safe shutdown on critical battery. MediaMTX streams the camera and microphone.
-- **App:** Flutter (Riverpod), sends commands at 20 Hz even with the sticks still.
-- **One contract:** every message is defined once in [`proto/`](proto/README.md) and generated for Go, C (nanopb) and Dart.
+### Two brains, on purpose
+
+A walking robot needs two very different things: **hard real time** (servo pulses every 20 ms, a stop that never waits) and **a full computer** (camera, Wi-Fi, networking, updates). One board doing both would let a slow SD card write, a Wi-Fi driver hiccup or a reboot freeze the legs mid-step. So the work is split, and **the robot stays safe even if the Pi crashes**: the ESP32 notices the silence and sits down on its own.
+
+| ESP32-S3: the body (real time) | Raspberry Pi: the brain (Linux) | App: the pilot |
+|---|---|---|
+| 50 Hz motion loop: tripod gait, 3-DoF inverse kinematics, body pose | `hexd`: bridge between the app and the ESP32 (serial with automatic reconnection, WebSocket, command sequencing) | Driving: sticks, PS5 controller, modes, gestures |
+| Servo output through 2× PCA9685, per-joint limits and calibration stored in NVS | Dead-man relay: no app for 150 ms → zero-speed command | Commands at 20 Hz, even with the sticks still |
+| Emergency cut (PCA9685 output enable) | Pairing and keys; Wi-Fi (own network, home network); Tailscale login | Live video and audio |
+| **Failsafe** state machine: stop → safe sit → relax when commands stop; tilt, obstacle and low-battery protection | Video and audio: MediaMTX, H.264 by the Pi's hardware encoder, WebRTC | Telemetry, data screens, warnings in plain words |
+| Sensors: IMU, 4 distance, environment, battery, gas | Status screen (OLED), GPS, Pi health, Prometheus metrics | Pairing, Wi-Fi and remote access setup |
+| Task watchdog: a stuck task resets the chip, which boots with the servos off | Safe shutdown on critical battery; updates with ESP32 flashing and rollback; read-only SD card | Several robots, two languages |
+
+**The ESP32 never trusts the Pi for safety:** a command is only valid with a correct CRC and a growing sequence number, and the failsafe cannot be turned off remotely. Recovery is never automatic: the pilot has to hold STAND UP.
+
+### Why Go on the Pi
+
+`hexd` is written in Go because the bridge has to be dependable on a small board and easy for anyone to install:
+
+- **One static binary**, cross-compiled for arm64 from any PC in seconds. Nothing to install on the Pi (no interpreter, no packages), so an update is copying one file and switching a link, and a rollback is switching it back.
+- **Light on a Pi 3** (1 GB of RAM, shared with video encoding): it starts in milliseconds and stays small.
+- **Concurrency that fits the job:** the serial link, each app's WebSocket, the dead-man timer, GPS, the status screen and the Wi-Fi manager each run in their own goroutine, with no callback maze.
+- **Batteries included:** HTTP, JSON and testing in the standard library, first-class Protobuf, and a race detector that runs in CI.
+- **Readable:** a small language that newcomers can follow and contribute to.
+
+Real time is not Go's job here (its garbage collector can pause briefly), and that is fine: everything time-critical lives on the ESP32. We also considered Python (easiest to read, but slower, heavier on the Pi 3 and harder to ship as one file) and Rust (great, but a steeper climb for a maker community).
+
+### The other choices
+
+- **Protobuf, one contract:** every message is defined once in [`proto/`](proto/README.md) and generated for Go, C (nanopb, no dynamic memory on the ESP32) and Dart, so the three sides cannot drift apart.
+- **COBS + CRC16 on the USB serial:** frames that survive noise and resync after a cut; corrupted frames are dropped, never acted on.
+- **Flutter for the app:** one code base, smooth enough for video with overlays, Android today and iOS possible later.
+- **MediaMTX + WebRTC:** low-latency video straight from the Pi's hardware H.264 encoder, playable in the app and in any browser.
 
 ## Development
 
@@ -227,6 +260,15 @@ This is a ~2.5 kg robot with 18 strong servos and a lithium battery.
 
 The app speaks English and Brazilian Portuguese. Adding a language is one file: copy `app/lib/l10n/app_en.arb` to `app_<code>.arb` and translate the values. Pull requests welcome.
 
+## Credits
+
+- **Mechanical design:** [*Hexapod Spider Robot with Servo & Arduino*](https://makerworld.com/en/models/1973965-hexapod-spider-robot-with-servo-arduino) by **Emre Kalem**, on MakerWorld. The body was adapted here to hold the electronics; the original model keeps its own license (see its page).
+- **Open source we stand on:** Flutter, Go, PlatformIO and the Arduino core for ESP32, nanopb, Protobuf, MediaMTX, Tailscale, and the libraries listed in each part's manifest.
+
 ## License
 
-To be defined before the public release.
+**PolyForm Noncommercial 1.0.0** ([`LICENSE`](LICENSE)): free for personal, hobby, educational and research use. You may use, study, change and share it for any **noncommercial** purpose, keeping the license and the copyright notice.
+
+**Commercial use is not allowed** without written permission: selling robots, kits or the app, or using the code in a paid product or service. Want to do something commercial? Open an issue and let's talk.
+
+The 3D model is under its author's own terms on MakerWorld (see [Credits](#credits)).

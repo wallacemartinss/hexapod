@@ -20,10 +20,10 @@ São duas portas de entrada, de propósito:
 - [Lista de peças](#lista-de-peças)
 - [Instalação: caminho simples](#instalação-caminho-simples)
 - [Instalação: caminho maker](#instalação-caminho-maker)
-- [Como funciona](#como-funciona)
+- [Arquitetura](#arquitetura)
 - [Desenvolvimento](#desenvolvimento)
 - [Segurança](#segurança)
-- [Idiomas](#idiomas) · [Licença](#licença)
+- [Idiomas](#idiomas) · [Créditos](#créditos) · [Licença](#licença)
 
 ## Funcionalidades
 
@@ -78,9 +78,13 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 
 | Qtd | Peça | Observação |
 |---|---|---|
-| 1 jogo | Corpo e pernas impressos em 3D | Baseado no *Hexapod Spider Robot with Servo & Arduino*, de Emre Kalem (MakerWorld), com o corpo adaptado para a eletrônica. Ver [`cad/`](cad/README.md) |
-| 18 | Servo MG996R | 3 por perna (coxa, fêmur, tíbia) |
-| — | Parafusos, braços dos servos e rolamentos | Como no modelo original |
+| 1 jogo | Corpo e pernas impressos em 3D | Do projeto [*Hexapod Spider Robot with Servo & Arduino*](https://makerworld.com/pt/models/1973965-hexapod-spider-robot-with-servo-arduino), de Emre Kalem (MakerWorld), com o corpo adaptado para a eletrônica. Ver [`cad/`](cad/README.md) |
+| 18 | Servo MG996R | 3 por perna (coxa, fêmur, tíbia), com os braços |
+| 90 | Parafuso M3 × 6 mm | |
+| 90 | Parafuso M3 × 10 mm | |
+| 18 | Rolamento 695 (5 × 13 × 4 mm) | Um por junta |
+
+> **As nossas peças são modificadas.** O corpo está sendo refeito para receber a eletrônica e os sensores deste projeto (Raspberry Pi, ESP32, câmera, os 4 sensores de distância, IMU, tela, GPS). Esses STLs ainda não foram publicados; vão para [`cad/`](cad/README.md). Até lá, o modelo original imprime e monta, mas a eletrônica precisa de suportes seus.
 
 **Eletrônica**
 
@@ -169,7 +173,7 @@ O deploy grava o ESP32, reinicia o `hexd`, confere se as duas versões respondem
 
 **5. Gere a imagem do cartão você mesmo:** `sudo pi/image/build-image.sh dist/hexapod-<versão>.tar.gz dist/image` (numa máquina ARM, ou x86 com `qemu-user-binfmt`). A mesma imagem é gerada pela esteira a cada tag `v*`.
 
-## Como funciona
+## Arquitetura
 
 ```
 App Android ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, OLED, GPS)
@@ -183,10 +187,39 @@ App Android ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, OL
                                                   BME280, INA226, MQ-2)
 ```
 
-- **ESP32-S3:** laço de movimento a 50 Hz (marcha tripé, cinemática inversa de 3 graus de liberdade, limites por junta gravados na NVS), sensores e o failsafe (parar → sentar com segurança → relaxar quando os comandos param de chegar).
-- **Raspberry Pi:** `hexd`, serviço em Go: link serial com reconexão automática, WebSocket para o app, repasse com homem-morto, pareamento, Wi-Fi (NetworkManager), tela de estado, GPS, métricas, desligamento seguro com bateria crítica. O MediaMTX transmite a câmera e o microfone.
-- **App:** Flutter (Riverpod), envia comandos a 20 Hz mesmo com os joysticks parados.
-- **Um contrato só:** cada mensagem é definida uma vez em [`proto/`](proto/README.md) e gerada para Go, C (nanopb) e Dart.
+### Dois cérebros, de propósito
+
+Um robô que anda precisa de duas coisas bem diferentes: **tempo real de verdade** (pulso dos servos a cada 20 ms, uma parada que nunca espera) e **um computador completo** (câmera, Wi-Fi, rede, atualizações). Uma placa só fazendo as duas deixaria uma gravação lenta no cartão, um soluço do driver de Wi-Fi ou um reboot congelar as patas no meio do passo. Então o trabalho é dividido, e **o robô continua seguro mesmo se o Pi travar**: o ESP32 percebe o silêncio e senta sozinho.
+
+| ESP32-S3: o corpo (tempo real) | Raspberry Pi: o cérebro (Linux) | App: o piloto |
+|---|---|---|
+| Laço de movimento a 50 Hz: marcha tripé, cinemática inversa de 3 graus de liberdade, pose do corpo | `hexd`: ponte entre o app e o ESP32 (serial com reconexão automática, WebSocket, sequência dos comandos) | Pilotagem: joysticks, controle PS5, modos, gestos |
+| Saída dos servos pelas 2× PCA9685, limites e calibração por junta gravados na NVS | Homem-morto: app mudo por 150 ms → comando de velocidade zero | Comandos a 20 Hz, mesmo com os joysticks parados |
+| Corte de emergência (OE das PCA9685) | Pareamento e chaves; Wi-Fi (rede própria, rede de casa); login do Tailscale | Vídeo e áudio ao vivo |
+| **Failsafe** (máquina de estados): parar → sentar com segurança → relaxar quando os comandos param; proteção de inclinação, obstáculo e bateria baixa | Vídeo e áudio: MediaMTX, H.264 pelo codificador de hardware do Pi, WebRTC | Telemetria, telas de dados, avisos em palavras simples |
+| Sensores: IMU, 4 de distância, ambiente, bateria, gás | Tela de estado (OLED), GPS, saúde do Pi, métricas Prometheus | Configuração de pareamento, Wi-Fi e acesso remoto |
+| Watchdog de tarefas: uma tarefa travada reinicia o chip, que liga com os servos desligados | Desligamento seguro com bateria crítica; atualizações com gravação do ESP32 e rollback; cartão somente leitura | Vários robôs, dois idiomas |
+
+**O ESP32 nunca confia no Pi para a segurança:** um comando só vale com o CRC certo e o número de sequência crescente, e o failsafe não pode ser desligado remotamente. A recuperação nunca é automática: o piloto precisa segurar LEVANTAR.
+
+### Por que Go no Pi
+
+O `hexd` é escrito em Go porque a ponte precisa ser confiável numa placa pequena e fácil de instalar para qualquer um:
+
+- **Um binário estático só**, compilado para arm64 a partir de qualquer PC em segundos. Nada para instalar no Pi (nem interpretador, nem pacotes): atualizar é copiar um arquivo e trocar um link, e o rollback é trocar de volta.
+- **Leve no Pi 3** (1 GB de RAM, dividido com a codificação do vídeo): liga em milissegundos e ocupa pouco.
+- **Concorrência sob medida:** a serial, o WebSocket de cada app, o temporizador do homem-morto, o GPS, a tela de estado e o gerenciador de Wi-Fi rodam cada um na sua goroutine, sem um emaranhado de callbacks.
+- **Pilhas incluídas:** HTTP, JSON e testes na biblioteca padrão, Protobuf de primeira, e um detector de condições de corrida que roda na esteira.
+- **Fácil de ler:** uma linguagem pequena que quem chega consegue acompanhar e contribuir.
+
+Tempo real não é trabalho do Go aqui (o coletor de lixo pode pausar por um instante), e tudo bem: tudo o que é crítico no tempo mora no ESP32. Também avaliamos Python (o mais fácil de ler, mas mais lento, pesado no Pi 3 e difícil de entregar num arquivo só) e Rust (ótimo, mas uma subida mais íngreme para uma comunidade maker).
+
+### As outras escolhas
+
+- **Protobuf, um contrato só:** cada mensagem é definida uma vez em [`proto/`](proto/README.md) e gerada para Go, C (nanopb, sem memória dinâmica no ESP32) e Dart, então os três lados não se desencontram.
+- **COBS + CRC16 na serial USB:** quadros que sobrevivem a ruído e se ressincronizam depois de um corte; quadro corrompido é descartado, nunca executado.
+- **Flutter no app:** um código só, fluido o bastante para vídeo com sobreposições, Android hoje e iOS possível depois.
+- **MediaMTX + WebRTC:** vídeo com pouco atraso direto do codificador H.264 de hardware do Pi, que toca no app e em qualquer navegador.
 
 ## Desenvolvimento
 
@@ -227,6 +260,15 @@ Sem robô: o [`hexsim`](pi/hexsim) fala o protocolo do ESP32, então a cadeia in
 
 O app fala português do Brasil e inglês. Para incluir um idioma, basta um arquivo: copie `app/lib/l10n/app_en.arb` para `app_<código>.arb` e traduza os valores. Contribuições são bem-vindas.
 
+## Créditos
+
+- **Projeto mecânico:** [*Hexapod Spider Robot with Servo & Arduino*](https://makerworld.com/pt/models/1973965-hexapod-spider-robot-with-servo-arduino), de **Emre Kalem**, no MakerWorld. O corpo foi adaptado aqui para receber a eletrônica; o modelo original mantém a sua própria licença (veja a página dele).
+- **Código aberto em que nos apoiamos:** Flutter, Go, PlatformIO e o core Arduino do ESP32, nanopb, Protobuf, MediaMTX, Tailscale e as bibliotecas listadas no manifesto de cada parte.
+
 ## Licença
 
-A definir antes do lançamento público.
+**PolyForm Noncommercial 1.0.0** ([`LICENSE`](LICENSE)): livre para uso pessoal, hobby, educação e pesquisa. Você pode usar, estudar, modificar e compartilhar para qualquer fim **não comercial**, mantendo a licença e o aviso de copyright.
+
+**Uso comercial não é permitido** sem autorização por escrito: vender robôs, kits ou o app, ou usar o código num produto ou serviço pago. Quer fazer algo comercial? Abra uma issue e vamos conversar.
+
+O modelo 3D segue os termos do autor no MakerWorld (ver [Créditos](#créditos)).
