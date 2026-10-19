@@ -165,7 +165,9 @@ func (g *Gallery) StartRecording() error {
 	part := filepath.Join(g.opt.Dir, name+".part")
 	args := []string{"-hide_banner", "-loglevel", "error", "-y",
 		"-rtsp_transport", "tcp", "-i", g.opt.Source, "-c", "copy",
-		"-movflags", "+faststart", "-f", "mp4"}
+		// Fragmented MP4: playable up to the last second written, even when
+		// a power cut ends the recording without closing the file.
+		"-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4"}
 	if g.opt.MaxRecord > 0 {
 		args = append(args, "-t", fmt.Sprintf("%.0f", g.opt.MaxRecord.Seconds()))
 	}
@@ -235,8 +237,8 @@ func (g *Gallery) finish(err error, stderr string) {
 	g.opt.Log.Info("recording saved", "name", name)
 }
 
-// StopRecording ends the recording cleanly (ffmpeg writes the MP4 index on
-// "q") and waits for the file.
+// StopRecording ends the recording cleanly ("q" makes ffmpeg flush the last
+// fragment) and waits for the file.
 func (g *Gallery) StopRecording() (Item, error) {
 	g.mu.Lock()
 	cmd, stdin, done, name := g.rec, g.stdin, g.done, g.final

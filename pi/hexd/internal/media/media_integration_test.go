@@ -55,3 +55,37 @@ func TestRealCamera(t *testing.T) {
 		t.Errorf("video: %+v", video)
 	}
 }
+
+// TestRealCameraPowerCut: a recording killed without warning (power cut)
+// must still play up to where it was.
+func TestRealCameraPowerCut(t *testing.T) {
+	src := os.Getenv("HEXAPOD_TEST_RTSP")
+	if src == "" {
+		t.Skip("HEXAPOD_TEST_RTSP not set")
+	}
+	dir := t.TempDir()
+	g, err := New(Options{Dir: dir, Source: src, MaxRecord: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := g.StartRecording(); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(4 * time.Second)
+	// What is on the card at this instant is what a power cut leaves.
+	g.mu.Lock()
+	part := g.part
+	g.mu.Unlock()
+	b, err := os.ReadFile(part)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cut := filepath.Join(t.TempDir(), "cut.mp4")
+	_ = os.WriteFile(cut, b, 0o644)
+	_, _ = g.StopRecording()
+	out, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", cut).CombinedOutput()
+	if err != nil || strings.TrimSpace(string(out)) == "N/A" {
+		t.Fatalf("cut recording does not play: %v %s", err, out)
+	}
+	t.Logf("cut recording plays: %ss", strings.TrimSpace(string(out)))
+}
