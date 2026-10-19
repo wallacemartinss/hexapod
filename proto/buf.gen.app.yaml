@@ -1,0 +1,5 @@
+# Dart only: used to build the app (`dart pub global activate protoc_plugin`).
+version: v2
+plugins:
+  - local: protoc-gen-dart
+    out: ../app/lib/gen

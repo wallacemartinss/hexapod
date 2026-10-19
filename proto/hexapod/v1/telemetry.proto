@@ -31,6 +31,7 @@ enum Fault {
   FAULT_BATTERY_CRITICAL = 256; // < 3.3 V/cell: shutdown requested
   FAULT_LOOP_OVERRUN = 512; // motion loop missed its 50 Hz deadline
   FAULT_NVS = 1024; // calibration not loaded
+  FAULT_GAS_SENSOR = 2048; // MQ-2 not fitted or not read
 }
 
 // Sent by the ESP32 at 10 Hz.
@@ -67,4 +68,11 @@ message Telemetry {
   // Commanded joint angles, leg-major: [leg0 coxa, femur, tibia, leg1 coxa, ...].
   // Sent even with servos off, so gaits can be checked "on paper".
   repeated float joint_angles_deg = 21;
+
+  // MQ-2 smoke/gas sensor. Relative, not ppm: the level is the analog output
+  // as a percentage of full scale, and the alarm compares it with the clean-air
+  // baseline taken after warm-up. Informative only: it never moves the robot.
+  float gas_level_pct = 22;
+  bool gas_warming = 23; // heater still warming up: level not reliable yet
+  bool gas_alarm = 24; // level well above the clean-air baseline
 }

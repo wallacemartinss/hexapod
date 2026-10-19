@@ -125,10 +125,10 @@ void test_body_leg_frames() {
 }
 
 void test_body_rotation() {
-  // Pitch nose-up 10 deg: a point ahead of the body appears lower in it.
+  // Pitch +10 deg is nose-down: a point ahead of the body appears higher in it.
   const Vec3 ahead =
       RotateIntoBody(Vec3{100.0f, 0.0f, 0.0f}, 0.0f, 10.0f, 0.0f);
-  TEST_ASSERT_TRUE(ahead.z > 0.0f || ahead.z < 0.0f);
+  TEST_ASSERT_TRUE(ahead.z > 0.0f);
   // Rotations preserve length and invert with the opposite angles.
   const Vec3 p{120.0f, -40.0f, -90.0f};
   const Vec3 r = RotateIntoBody(p, 7.0f, -5.0f, 12.0f);

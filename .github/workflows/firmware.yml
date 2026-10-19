@@ -3,7 +3,7 @@ name: firmware
 
 on:
   push:
-    branches: [main, "phase-*"]
+    branches: [main, "phase-**"]  # ** also matches the slash in phase-N/name
     paths: ["firmware/**", "proto/**", ".github/workflows/firmware.yml"]
   pull_request:
     paths: ["firmware/**", "proto/**", ".github/workflows/firmware.yml"]

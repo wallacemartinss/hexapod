@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+// GPS position (u-blox NEO-6M on the Pi's UART). hexd sends it to the app
+// about once a second; it never crosses the ESP32 serial link (the Envelope
+// field is ignored by nanopb, see envelope.options).
+message Position {
+  bool fix = 1; // false: no position yet (needs open sky; first fix can take minutes)
+  double latitude_deg = 2; // WGS84, + north
+  double longitude_deg = 3; // WGS84, + east
+  float altitude_m = 4; // above mean sea level
+  float speed_mps = 5; // over ground
+  float course_deg = 6; // over ground, 0 = north, clockwise
+  uint32 satellites_used = 7;
+  uint32 satellites_in_view = 8;
+  float hdop = 9; // horizontal dilution of precision: < 2 good, > 5 poor
+  uint64 utc_ms = 10; // GPS time (Unix ms), 0 until the GPS knows it
+}

@@ -17,6 +17,17 @@ enum Mode {
   MODE_STAND = 2; // also the only way to leave a failsafe state
   MODE_WALK = 3;
   MODE_CALIBRATE = 4; // only accepted while sitting
+  // Stands on the 4 rear legs with the body shifted back and the 2 front legs
+  // raised, driven by Command.front_legs and Command.gesture.
+  MODE_FRONT_LEGS = 5;
+}
+
+// Pre-programmed front-leg motions, available in MODE_FRONT_LEGS.
+enum Gesture {
+  GESTURE_UNSPECIFIED = 0; // none: the front legs follow Command.front_legs
+  GESTURE_WAVE = 1; // right front leg waves
+  GESTURE_GUARD = 2; // both front legs up, close to the body
+  GESTURE_STRIKE = 3; // both front legs strike forward once
 }
 
 // Leg joint, from body to foot.

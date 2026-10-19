@@ -6,6 +6,23 @@
   hosts: hexapod
   become: true
 
+  pre_tasks:
+    # Under a read-only root every change here would vanish at reboot.
+    - name: Root filesystem type
+      ansible.builtin.command: findmnt -no FSTYPE /
+      register: root_fstype
+      changed_when: false
+      tags: [always]
+
+    - name: Refuse to provision a read-only root
+      ansible.builtin.assert:
+        that: root_fstype.stdout != 'overlay'
+        fail_msg: >-
+          The root is read-only (overlay): changes would vanish at reboot.
+          On the Pi: sudo hexapod-readonly off && sudo reboot; provision;
+          then sudo hexapod-readonly on && sudo reboot.
+      tags: [always]
+
   tasks:
     - name: Base packages
       ansible.builtin.import_tasks: tasks/base.yml
@@ -38,6 +55,10 @@
     - name: Hardware watchdog
       ansible.builtin.import_tasks: tasks/watchdog.yml
       tags: [watchdog]
+
+    - name: Read-only root
+      ansible.builtin.import_tasks: tasks/readonly.yml
+      tags: [readonly]
 
   handlers:
     - name: Reload udev

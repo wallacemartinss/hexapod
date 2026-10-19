@@ -6,7 +6,7 @@
     create_home: false
     home: "{{ hexapod_root }}"
     shell: /usr/sbin/nologin
-    groups: [dialout, video, audio]
+    groups: [dialout, video, audio, i2c]
     append: true
 
 # /opt/hexapod/releases/<version>/, current -> releases/<version>, shared/{config,logs,firmware}

@@ -21,6 +21,22 @@ metrics:
   wireless_path: /proc/net/wireless
   wifi_interface: wlan0
 
+gps:                           # NEO-6M on the Pi's UART (firmware/PINOUT.md)
+  enabled: true                # without a GPS hexd only logs it and retries
+  device: /dev/serial0
+  baud: 9600
+  simulate: false              # true: fake positions around sim_latitude/longitude (no module)
+  sim_latitude: -23.5505
+  sim_longitude: -46.6333
+
+display:                       # SSD1306 OLED on the Pi's I2C (firmware/PINOUT.md)
+  enabled: true                # without a panel hexd only logs it and retries
+  bus: /dev/i2c-1
+  address: 0x3c
+  page_time: 5s                # each page (status, network, alert) stays this long
+  wired_interface: eth0        # Wi-Fi is metrics.wifi_interface
+  tailnet_interface: tailscale0
+
 shutdown:
   enabled: true                # power off on LOW_BATTERY (robot already seated)
   delay: 10s                   # condition must hold this long

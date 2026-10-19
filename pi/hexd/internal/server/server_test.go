@@ -117,13 +117,35 @@ func (a *app) waitState(want pb.State) {
 	}
 }
 
+func (a *app) waitHello(ok func(*pb.Hello) bool) {
+	a.t.Helper()
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case env, open := <-a.in:
+			if !open {
+				a.t.Fatal("websocket closed")
+			}
+			if h := env.GetHello(); h != nil && ok(h) {
+				return
+			}
+		case <-deadline:
+			a.t.Fatal("expected hello never arrived")
+		}
+	}
+}
+
 func TestAppDrivesTheBoardThroughHexd(t *testing.T) {
-	r := newRig(t, Config{})
+	r := newRig(t, Config{HexdVersion: "v-app"})
 	a := connectApp(t, r)
 
-	first := <-a.in
-	if h := first.GetHello(); h == nil || h.FirmwareVersion != "fw-test" {
-		t.Fatalf("first message should be the firmware hello, got %v", first)
+	h := (<-a.in).GetHello()
+	if h == nil || h.HexdVersion != "v-app" {
+		t.Fatalf("first message should be a hello with hexd's version, got %v", h)
+	}
+	if h.FirmwareVersion != "fw-test" {
+		// The firmware's version follows as soon as the ESP32 introduced itself.
+		a.waitHello(func(h *pb.Hello) bool { return h.FirmwareVersion == "fw-test" && h.HexdVersion == "v-app" })
 	}
 	// The app sends commands at 20 Hz, seq left at 0: hexd stamps it.
 	stop := make(chan struct{})
@@ -145,13 +167,16 @@ func TestAppDrivesTheBoardThroughHexd(t *testing.T) {
 	a.waitState(pb.State_STATE_NORMAL) // still fine while the app talks
 
 	// App goes silent: hexd sends ONE zero command, then the ESP32 escalates.
+	// Counted inside hexd: telemetry lags up to 100 ms behind 20 Hz commands,
+	// which made a seq comparison flaky on a busy machine.
 	close(stop)
-	before := r.dev.Snapshot().Telemetry.LastCommandSeq
+	time.Sleep(100 * time.Millisecond) // commands already on the wire land
+	forwarded := func() uint64 { r.srv.mu.Lock(); defer r.srv.mu.Unlock(); return r.srv.commands }
+	before := forwarded()
 	a.waitState(pb.State_STATE_STOPPING)
 	a.waitState(pb.State_STATE_SAFE_SIT)
-	after := r.dev.Snapshot().Telemetry.LastCommandSeq
-	if after-before > 2 { // the deadman command, maybe one in-flight app command
-		t.Fatalf("hexd kept forwarding after the app went silent: seq %d -> %d", before, after)
+	if after := forwarded(); after != before {
+		t.Fatalf("hexd kept forwarding app commands after the app went silent: %d -> %d", before, after)
 	}
 	r.srv.mu.Lock()
 	trips := r.srv.deadmanTrips
@@ -247,5 +272,42 @@ func TestProfileFromInterface(t *testing.T) {
 	s.cfg.CellularInterfaces = []string{"lo"}
 	if p := s.ProfileFor(lo); p != pb.LinkProfile_LINK_PROFILE_CELLULAR {
 		t.Fatalf("lo as cellular -> %v", p)
+	}
+}
+
+func TestAppGetsThePosition(t *testing.T) {
+	r := newRig(t, Config{Position: func() (*pb.Position, bool) {
+		return &pb.Position{Fix: true, LatitudeDeg: -23.55, SatellitesUsed: 7}, true
+	}})
+	a := connectApp(t, r)
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case env := <-a.in:
+			if p := env.GetPosition(); p != nil {
+				if !p.Fix || p.SatellitesUsed != 7 {
+					t.Fatalf("position: %v", p)
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("no Position over the websocket")
+		}
+	}
+}
+
+func TestNoPositionWithoutGPS(t *testing.T) {
+	r := newRig(t, Config{Position: func() (*pb.Position, bool) { return &pb.Position{}, false }})
+	a := connectApp(t, r)
+	deadline := time.After(2500 * time.Millisecond)
+	for {
+		select {
+		case env := <-a.in:
+			if env.GetPosition() != nil {
+				t.Fatal("a silent GPS must not send positions")
+			}
+		case <-deadline:
+			return
+		}
 	}
 }

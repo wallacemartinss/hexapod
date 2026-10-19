@@ -46,6 +46,44 @@ else
   warn "/dev/hexapod-esp32 absent (ESP32 not connected?)"
 fi
 
+echo "== OLED (I2C)"
+if [[ ! -e /dev/i2c-1 ]]; then
+  fail "/dev/i2c-1 absent (enable_i2c, then reboot)"
+# -r: probe with a read. Some SSD1306 clones ignore i2cdetect's default
+# quick-write probe and look absent. Output captured first: with pipefail,
+# grep -q quitting early would SIGPIPE i2cdetect and turn a match into a miss.
+elif bus=$(i2cdetect -y -r 1 2>/dev/null) && grep -qE '^30:.* 3c' <<<"$bus"; then
+  ok "SSD1306 answers at 0x3C"
+else
+  warn "nothing at 0x3C (OLED not wired? some boards use 0x3D)"
+fi
+
+echo "== GPS (UART)"
+if [[ ! -e /dev/serial0 ]]; then
+  fail "/dev/serial0 absent (enable_gps_uart, then reboot)"
+else
+  stty -F /dev/serial0 9600 raw -echo 2>/dev/null
+  nmea=$(timeout 3 cat /dev/serial0 2>/dev/null | tr -d '\r' | grep -m1 -aE '^\$G[PN]RMC')
+  if [[ -z $nmea ]]; then
+    warn "no NMEA on /dev/serial0 in 3 s (GPS not wired? TX of the GPS goes to pin 10)"
+  elif [[ $(cut -d, -f3 <<<"$nmea") == A ]]; then
+    ok "GPS has a fix: $nmea"
+  else
+    warn "GPS talking, no fix yet (needs open sky; first fix can take minutes)"
+  fi
+fi
+
+echo "== Read-only root"
+if ! command -v hexapod-readonly >/dev/null; then
+  warn "hexapod-readonly not installed (ansible --tags readonly)"
+elif findmnt -no FSTYPE / | grep -q overlay; then
+  ok "root is read-only; /opt/hexapod on $(findmnt -no SOURCE /opt/hexapod 2>/dev/null || echo '?')"
+elif mountpoint -q /opt/hexapod; then
+  warn "root is writable (sudo hexapod-readonly on && sudo reboot to protect the card)"
+else
+  warn "root is writable and /opt/hexapod has no partition of its own (make-data-partition.sh)"
+fi
+
 echo "== Tailscale"
 if tailscale status >/dev/null 2>&1; then
   ok "tailscale up: $(tailscale ip -4 2>/dev/null | head -1)"

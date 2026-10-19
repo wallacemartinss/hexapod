@@ -75,6 +75,17 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 		m.gauge("hexapod_ambient_temperature_celsius", "BME280 temperature", float64(t.TemperatureC))
 		m.gauge("hexapod_ambient_humidity_percent", "BME280 humidity", float64(t.HumidityPct))
 		m.gauge("hexapod_ambient_pressure_hpa", "BME280 pressure", float64(t.PressureHpa))
+		m.gauge("hexapod_gas_level_percent", "MQ-2 level, % of ADC full scale (relative, not ppm)",
+			float64(t.GasLevelPct))
+		m.gauge("hexapod_gas_alarm", "1 while the MQ-2 level is well above its clean-air baseline",
+			boolGauge(t.GasAlarm))
+	}
+	if s.cfg.Position != nil {
+		if p, ok := s.cfg.Position(); ok {
+			m.gauge("hexapod_gps_fix", "1 while the GPS has a position", boolGauge(p.Fix))
+			m.gauge("hexapod_gps_satellites_used", "satellites in the position fix", float64(p.SatellitesUsed))
+			m.gauge("hexapod_gps_satellites_in_view", "satellites the GPS sees", float64(p.SatellitesInView))
+		}
 	}
 	if v, ok := readPiTemperature(s.cfg.PiTemperaturePath); ok {
 		m.gauge("hexapod_pi_temperature_celsius", "Raspberry Pi SoC temperature", v)
@@ -150,4 +161,11 @@ func readRSSI(path, iface string) (float64, bool) {
 		return v, err == nil
 	}
 	return 0, false
+}
+
+func boolGauge(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
 }

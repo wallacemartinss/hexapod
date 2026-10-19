@@ -40,6 +40,9 @@ type Config struct {
 	PiTemperaturePath string // /sys/class/thermal/thermal_zone0/temp
 	WirelessPath      string // /proc/net/wireless
 	WifiInterface     string // wlan0
+	// Position is the latest GPS reading and whether the GPS is talking
+	// (nil: no GPS). Sent to every app once a second.
+	Position func() (*pb.Position, bool)
 }
 
 // Server is created once and serves until its context ends.
@@ -70,6 +73,13 @@ func New(cfg Config, dev *device.Device, log *slog.Logger) *Server {
 		cfg.HealthMaxAge = 2 * time.Second
 	}
 	return &Server{cfg: cfg, dev: dev, log: log, profile: pb.LinkProfile_LINK_PROFILE_WIFI}
+}
+
+// Clients is the number of apps connected over the WebSocket.
+func (s *Server) Clients() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.clients
 }
 
 // Handler returns the HTTP routes.
@@ -182,8 +192,25 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer wcancel()
 		return conn.Write(wctx, websocket.MessageBinary, b)
 	}
-	if h := s.dev.Snapshot().Hello; h != nil {
-		_ = write(&pb.Envelope{Payload: &pb.Envelope_Hello{Hello: h}})
+	// The app gets a Hello right away (hexd's version, plus the firmware's
+	// once the ESP32 introduced itself) and again whenever the ESP32 sends a
+	// new one, e.g. after a reset or a flash.
+	var helloSent bool
+	var fwHello *pb.Hello
+	sendHello := func() error {
+		h := s.dev.Snapshot().Hello
+		if helloSent && h == fwHello {
+			return nil
+		}
+		helloSent, fwHello = true, h
+		return write(&pb.Envelope{Payload: &pb.Envelope_Hello{Hello: s.appHello(h)}})
+	}
+	_ = sendHello()
+	var gpsTick <-chan time.Time
+	if s.cfg.Position != nil {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		gpsTick = t.C
 	}
 	go func() {
 		defer cancel()
@@ -191,8 +218,14 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			select {
 			case <-ctx.Done():
 				return
+			case <-gpsTick:
+				if p, ok := s.cfg.Position(); ok {
+					if write(&pb.Envelope{Payload: &pb.Envelope_Position{Position: p}}) != nil {
+						return
+					}
+				}
 			case t := <-tel:
-				if write(&pb.Envelope{Payload: &pb.Envelope_Telemetry{Telemetry: t}}) != nil {
+				if sendHello() != nil || write(&pb.Envelope{Payload: &pb.Envelope_Telemetry{Telemetry: t}}) != nil {
 					return
 				}
 			}
@@ -218,6 +251,17 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// appHello is the Hello the app gets: the firmware's, with hexd's own version
+// stamped in, or hexd's alone until the ESP32 introduced itself.
+func (s *Server) appHello(fw *pb.Hello) *pb.Hello {
+	h := &pb.Hello{ProtocolVersion: device.ProtocolVersion}
+	if fw != nil {
+		h = proto.CloneOf(fw)
+	}
+	h.HexdVersion = s.cfg.HexdVersion
+	return h
 }
 
 func localAddr(r *http.Request) net.Addr {

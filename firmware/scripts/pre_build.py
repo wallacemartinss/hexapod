@@ -33,7 +33,8 @@ def generate_proto():
     if buf is None:
         raise SystemExit("pre_build: `buf` not found (go install github.com/bufbuild/buf/cmd/buf)")
     print("pre_build: buf generate")
-    subprocess.run([buf, "generate"], cwd=PROTO, check=True, env={**os.environ, "PATH": path})
+    subprocess.run([buf, "generate", "--template", "buf.gen.firmware.yaml"], cwd=PROTO, check=True,
+                   env={**os.environ, "PATH": path})
 
 
 def git(*args, default):

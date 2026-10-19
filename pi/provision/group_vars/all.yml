@@ -15,6 +15,7 @@ base_packages:
   - python3-venv
   - python3-packaging  # required by the Ansible pip module
   - polkitd           # lets hexd power the Pi off (see tasks/layout.yml)
+  - i2c-tools         # i2cdetect: checks the OLED (0x3C)
 
 # --- Boot config (/boot/firmware/config.txt, cmdline.txt) ---
 # Set true if the OV5647 is not auto-detected (rpicam-hello --list-cameras is empty).
@@ -24,6 +25,15 @@ camera_force_ov5647: false
 disable_bluetooth: true      # dtoverlay=disable-bt: BT is unused
 disable_onboard_audio: true  # dtparam=audio=off: the mic is USB, no speaker on the Pi
 disable_hdmi: true           # video=HDMI-A-1:d: headless robot
+
+# Peripherals on the Pi's own header (firmware/PINOUT.md, section "Raspberry Pi").
+enable_i2c: true       # dtparam=i2c_arm=on: SSD1306 OLED on GPIO2/3 (pins 3/5)
+enable_gps_uart: true  # enable_uart=1, no serial console: NEO-6M GPS on GPIO14/15 (pins 8/10)
+
+# Read-only root (overlay in RAM). Needs /opt/hexapod on its own partition:
+# split the card once with make-data-partition.sh, then set true. Toggle by
+# hand on the Pi with: sudo hexapod-readonly on|off|status (then reboot).
+readonly_root: false
 
 # Reboot automatically when boot config changes.
 provision_reboot: true

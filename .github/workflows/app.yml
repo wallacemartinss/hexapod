@@ -1,0 +1,62 @@
+# Flutter app: analyze, test (incl. against real hexd + hexsim), Android build.
+name: app
+
+on:
+  push:
+    branches: [main, "phase-**"]  # ** also matches the slash in phase-N/name
+    paths: ["app/**", "proto/**", "pi/**", ".github/workflows/app.yml"]
+  pull_request:
+    paths: ["app/**", "proto/**", "pi/**", ".github/workflows/app.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          # buf 1.74 needs Go >= 1.26.7; Go also builds hexd/hexsim for the
+          # integration test.
+          go-version: "1.26"
+          cache-dependency-path: pi/go.sum
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.0
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Code from the contract (Dart for the app, Go for hexd/hexsim)
+        run: |
+          go install github.com/bufbuild/buf/cmd/buf@v1.74.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          dart pub global activate protoc_plugin 25.1.0
+          export PATH="$PATH:$HOME/.pub-cache/bin:$HOME/go/bin"
+          cd ../proto
+          buf generate --template buf.gen.app.yaml
+          buf generate --template buf.gen.pi.yaml
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - name: Tests (unit, gamepad, hexd + hexsim integration)
+        run: flutter test --exclude-tags golden
+      - name: Android APK (arm64)
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-${{ github.sha }}
+          path: app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          retention-days: 14

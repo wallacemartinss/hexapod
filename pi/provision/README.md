@@ -57,6 +57,39 @@ Tudo controlado em `group_vars/all.yml`; cada item exige reboot.
 
 **Não** ativa o sistema de arquivos somente leitura (overlay): isso fica para a Fase 5.
 
+## Somente leitura (proteger o cartão)
+
+Com a raiz só leitura, o sistema roda numa camada em memória (`overlayroot`): desligar o robô de qualquer jeito não corrompe o cartão, e mudanças no sistema somem ao reiniciar. O que precisa persistir fica numa **partição própria**, gravável: `/opt/hexapod` (versões, configuração, firmware anterior) e o login do Tailscale.
+
+**Uma vez só, com o cartão no PC** (faça antes uma imagem de backup do cartão):
+
+```bash
+lsblk                                              # ache o cartão (ex.: /dev/sdb, ~119 GB, partições bootfs e rootfs)
+sudo pi/provision/make-data-partition.sh /dev/sdX  # raiz vai para 24 GB, cria "hexdata" com o resto
+```
+
+O script confere se é um cartão do Pi (rótulos `bootfs`/`rootfs`, removível, nada montado), mostra o plano e só segue com **SIM**. Nada é apagado: o `/opt/hexapod` antigo fica em `/opt/hexapod.before-data`.
+
+**Depois, com o cartão de volta no Pi:**
+
+```bash
+ansible-playbook site.yml --tags readonly -e readonly_root=true   # liga e reinicia
+```
+
+**No dia a dia, no Pi:**
+
+| Comando | Para quê |
+|---|---|
+| `hexapod-readonly status` | Como está agora e no próximo boot |
+| `sudo hexapod-readonly off && sudo reboot` | **Antes** de `apt`, Ansible ou qualquer mudança no sistema |
+| `sudo hexapod-readonly on && sudo reboot` | Proteger de novo |
+
+- O playbook **recusa rodar** com a raiz só leitura (as mudanças sumiriam).
+- O `deploy.sh` continua funcionando: só escreve em `/opt/hexapod`.
+- Não use a opção de overlay do `raspi-config`: ela congela também o `/opt/hexapod` (falta o `recurse=0`).
+- Os logs ficam em memória (até 32 MB) e somem ao reiniciar.
+- Sem relógio de bateria, a hora salva também não persiste: depois de ligar, o relógio fica errado até o NTP responder (ou, no futuro, o GPS).
+
 ## Pendências de hardware
 
 - `mic_alsa_device`: confirmar o nome com `arecord -L` quando o microfone USB estiver plugado.

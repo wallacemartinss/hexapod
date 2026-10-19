@@ -19,15 +19,29 @@ message Command {
   float yaw_rate = 5; // counter-clockwise(+), -1..1
 
   float body_height = 6; // 0 = lowest allowed, 1 = highest allowed
-  float body_roll = 7; // -1..1 of the max roll in config.h
-  float body_pitch = 8; // -1..1 of the max pitch in config.h
-  float body_yaw = 9; // -1..1 of the max yaw in config.h
+  float body_roll = 7; // -1..1 of the max roll in config.h; + = right side down
+  float body_pitch = 8; // -1..1 of the max pitch in config.h; + = nose down
+  float body_yaw = 9; // -1..1 of the max yaw in config.h; + = counter-clockwise
 
   Gait gait = 10;
   Mode mode = 11;
 
   // Cuts servo power at once (PCA9685 OE high). Never ignored, whatever the seq.
   bool estop = 12;
+
+  // MODE_FRONT_LEGS only.
+  FrontLegs front_legs = 13;
+  // A gesture plays once when this changes from UNSPECIFIED to a value; send
+  // UNSPECIFIED again before repeating it.
+  Gesture gesture = 14;
+}
+
+// Raised front feet, normalized: 0 = the raised rest pose of each foot.
+message FrontLegs {
+  float left_reach = 1; // -1 (towards the body) .. 1 (forward)
+  float left_lift = 2; // -1 (lower) .. 1 (higher)
+  float right_reach = 3;
+  float right_lift = 4;
 }
 
 // Sent by hexd. The ESP32 only applies it while sitting or relaxed.
