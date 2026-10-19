@@ -180,7 +180,11 @@ func main() {
 	// Remote access: the app logs the robot in to the owner's tailnet.
 	var remote server.Tailscale
 	if cfg.Tailscale.Enabled && identity != nil {
-		remote = &tailscale.Client{Run: tailscale.CLI, Hostname: "hexapod-" + strings.ToLower(identity.ID)}
+		remote = &tailscale.Client{
+			Run:      tailscale.CLI,
+			Hostname: "hexapod-" + strings.ToLower(identity.ID),
+			Prepare:  tailscale.RestoreOperator,
+		}
 	}
 
 	srv = server.New(server.Config{

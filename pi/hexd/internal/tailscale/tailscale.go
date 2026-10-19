@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -38,10 +39,25 @@ func CLI(ctx context.Context, args ...string) ([]byte, error) {
 	return cmd.Output()
 }
 
+// RestoreOperator starts hexapod-tailscale-operator.service (allowed to the
+// service user by polkit), which runs `tailscale set --operator=hexapod`.
+func RestoreOperator(ctx context.Context) error {
+	out, err := exec.CommandContext(ctx, "systemctl", "start", "hexapod-tailscale-operator.service").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // Client drives tailscale for the setup API. Safe for concurrent use.
 type Client struct {
 	Run      Runner
 	Hostname string // machine name to log in with
+
+	// Prepare runs before each login: `tailscale logout` clears the
+	// operator setting that lets hexd run tailscale, so it is restored first
+	// (RestoreOperator). Nil: nothing to do.
+	Prepare func(ctx context.Context) error
 
 	// LoginWait: how long Login waits for the login link (default 15 s).
 	LoginWait time.Duration
@@ -50,6 +66,7 @@ type Client struct {
 
 	mu       sync.Mutex
 	upCancel context.CancelFunc // a `tailscale up` waiting for the login
+	upErr    error              // why the last `tailscale up` ended early
 }
 
 // Status asks tailscaled.
@@ -112,6 +129,11 @@ func (c *Client) Login(ctx context.Context) (Status, error) {
 	if s, err := c.Status(ctx); err != nil || s.State == "running" || s.State == "absent" {
 		return s, err
 	}
+	if c.Prepare != nil {
+		if err := c.Prepare(ctx); err != nil {
+			return Status{}, fmt.Errorf("restoring the tailscale operator: %w", err)
+		}
+	}
 	c.mu.Lock()
 	if c.upCancel == nil {
 		upCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -120,9 +142,13 @@ func (c *Client) Login(ctx context.Context) (Status, error) {
 		if c.Hostname != "" {
 			args = append(args, "--hostname="+c.Hostname)
 		}
+		c.upErr = nil
 		go func() {
-			_, _ = c.Run(upCtx, args...)
+			out, err := c.Run(upCtx, args...)
 			c.mu.Lock()
+			if err != nil && upCtx.Err() == nil {
+				c.upErr = fmt.Errorf("tailscale up: %w: %s", err, strings.TrimSpace(string(out)))
+			}
 			cancel()
 			c.upCancel = nil
 			c.mu.Unlock()
@@ -142,6 +168,12 @@ func (c *Client) Login(ctx context.Context) (Status, error) {
 		s, err := c.Status(ctx)
 		if err == nil && (s.AuthURL != "" || s.State == "running") {
 			return s, nil
+		}
+		c.mu.Lock()
+		upErr := c.upErr
+		c.mu.Unlock()
+		if upErr != nil {
+			return s, upErr
 		}
 		if time.Now().After(deadline) {
 			if err == nil {

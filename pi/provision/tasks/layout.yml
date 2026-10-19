@@ -79,3 +79,20 @@
         }
       });
     mode: "0644"
+
+# `tailscale logout` (Disconnect in the app) clears tailscaled's prefs,
+# operator included: hexd re-applies it before each login by starting this
+# one unit. Only that unit, only start, only the service user.
+- name: Allow the service user to restore its tailscale operator
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/50-hexapod-tailscale.rules
+    content: |
+      polkit.addRule(function (action, subject) {
+        if (subject.user === "{{ hexapod_user }}" &&
+            action.id === "org.freedesktop.systemd1.manage-units" &&
+            action.lookup("unit") === "hexapod-tailscale-operator.service" &&
+            action.lookup("verb") === "start") {
+          return polkit.Result.YES;
+        }
+      });
+    mode: "0644"

@@ -53,6 +53,7 @@ func (s *Server) handleTailscaleLogin(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	st, err := ts.Login(ctx)
 	if err != nil {
+		s.log.Warn("tailscale login", "err", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "tailscale gave no login link"})
 		return
 	}

@@ -2,6 +2,7 @@ package tailscale
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 	"sync"
@@ -65,7 +66,9 @@ func (f *fakeTS) run(ctx context.Context, args ...string) ([]byte, error) {
 
 func TestLoginHandsTheLinkThenRuns(t *testing.T) {
 	f := &fakeTS{loggedIn: make(chan struct{})}
-	c := &Client{Run: f.run, Hostname: "hexapod-k7f2", Poll: time.Millisecond}
+	prepared := 0
+	c := &Client{Run: f.run, Hostname: "hexapod-k7f2", Poll: time.Millisecond,
+		Prepare: func(context.Context) error { prepared++; return nil }}
 	ctx := context.Background()
 
 	s, err := c.Login(ctx)
@@ -75,6 +78,9 @@ func TestLoginHandsTheLinkThenRuns(t *testing.T) {
 	// Asking again (the app retried) must not start a second `up`.
 	if _, err := c.Login(ctx); err != nil {
 		t.Fatal(err)
+	}
+	if prepared == 0 {
+		t.Error("the operator was not restored before logging in")
 	}
 	f.mu.Lock()
 	if len(f.ups) != 1 || f.ups[0] != "up --hostname=hexapod-k7f2" {
@@ -117,5 +123,22 @@ func TestNoTailscale(t *testing.T) {
 	s, err := c.Login(context.Background())
 	if err != nil || s.State != "absent" {
 		t.Errorf("without tailscale: %+v %v", s, err)
+	}
+}
+
+func TestLoginReportsWhyUpFailed(t *testing.T) {
+	c := &Client{
+		Run: func(ctx context.Context, args ...string) ([]byte, error) {
+			if args[0] == "up" {
+				return []byte("Access denied: checkprefs access denied"), errors.New("exit status 1")
+			}
+			return []byte(`{"BackendState":"NeedsLogin","AuthURL":""}`), nil
+		},
+		Poll:      time.Millisecond,
+		LoginWait: time.Second,
+	}
+	_, err := c.Login(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "Access denied") {
+		t.Errorf("error: %v", err)
 	}
 }
