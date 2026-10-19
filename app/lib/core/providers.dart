@@ -7,9 +7,11 @@ import '../features/video/video_view.dart';
 
 import 'control/command_mapper.dart';
 import 'control/control_state.dart';
+import 'link/discovery.dart';
 import 'link/host_resolver.dart';
 import 'link/robot_link.dart';
 import 'proto.dart';
+import 'robots.dart';
 import 'settings.dart';
 
 /// Commands per second, also when the sticks are idle (dead man's switch:
@@ -38,8 +40,28 @@ class SettingsNotifier extends Notifier<Settings> {
 
 /// The robot's address: the configured host resolved (mDNS fallback for
 /// `.local` on phones that do not resolve it). Raw host until resolved.
-final robotAddressProvider = FutureProvider<String>((ref) {
-  return resolveHost(ref.watch(settingsProvider.select((s) => s.host)));
+/// The active robot's id and key: the only robot fields that reconnect
+/// (a record, so equal values do not notify).
+final activeRobotKeyProvider = Provider<({String id, String token})?>((ref) {
+  final r = ref.watch(
+    robotsProvider.select((s) => s.active == null ? null : (id: s.active!.id, token: s.active!.token)),
+  );
+  return r;
+});
+
+/// Where to reach the robot: the paired robot found on the network (its
+/// last address first), else the manual address from the settings.
+final robotAddressProvider = FutureProvider<String>((ref) async {
+  final host = ref.watch(settingsProvider.select((s) => s.host));
+  final robot = ref.watch(activeRobotKeyProvider);
+  if (robot == null) return resolveHost(host);
+  final last = ref.read(robotsProvider).active?.address;
+  final found = await findRobot(robot.id, lastAddress: last);
+  if (found != null) {
+    unawaited(ref.read(robotsProvider.notifier).seenAt(robot.id, found.address));
+    return found.address;
+  }
+  return last ?? resolveHost(host);
 });
 
 String _address(Ref ref) =>
@@ -50,7 +72,7 @@ final linkProvider = Provider<RobotLink>((ref) {
   // Only the address and port matter: other settings must not reconnect.
   final port = ref.watch(settingsProvider.select((s) => s.port));
   final uri = Uri(scheme: 'ws', host: _address(ref), port: port, path: '/ws');
-  final link = RobotLink(uri);
+  final link = RobotLink(uri, token: ref.watch(activeRobotKeyProvider)?.token);
   unawaited(link.start());
   ref.onDispose(link.close);
   return link;

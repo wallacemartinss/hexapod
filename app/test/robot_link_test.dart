@@ -3,7 +3,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hexapod_app/core/link/discovery.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart';
 
@@ -22,6 +25,8 @@ void main() {
   final bin = Directory.systemTemp.createTempSync('hexapod_app_test').path;
   final processes = <Process>[];
   final hasGo = Process.runSync('which', ['go']).exitCode == 0;
+  // Pairing as on the robot: hexd creates the identity on first start.
+  late String token, robotId;
 
   setUpAll(() async {
     if (!hasGo) return;
@@ -29,7 +34,12 @@ void main() {
       final r = await Process.run('go', ['build', '-o', '$bin/$out', pkg], workingDirectory: pi);
       if (r.exitCode != 0) throw StateError('go build $pkg: ${r.stderr}');
     }
-    File('$bin/hexd.yaml').writeAsStringSync('shutdown:\n  enabled: false\n');
+    File('$bin/hexd.yaml').writeAsStringSync(
+      'shutdown:\n  enabled: false\n'
+      'auth:\n  identity: $bin/identity.json\n'
+      'gps:\n  enabled: false\n'
+      'display:\n  enabled: false\n',
+    );
     processes.add(
       await _start('$bin/hexsim', ['-listen', 'tcp://127.0.0.1:$_simPort', '-firmware', 'sim-app']),
     );
@@ -45,6 +55,9 @@ void main() {
       ]),
     );
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    final identity = jsonDecode(File('$bin/identity.json').readAsStringSync()) as Map<String, Object?>;
+    token = identity['token']! as String;
+    robotId = identity['id']! as String;
   });
 
   tearDownAll(() {
@@ -54,7 +67,7 @@ void main() {
   });
 
   test('connects, receives hello and telemetry, and drives the robot', () async {
-    final link = RobotLink(Uri.parse('ws://127.0.0.1:$_httpPort/ws'));
+    final link = RobotLink(Uri.parse('ws://127.0.0.1:$_httpPort/ws'), token: token);
     final hello = link.hello.first.timeout(const Duration(seconds: 5));
     final relaxed = link.telemetry.firstWhere((t) => t.state == State.STATE_RELAXED);
     await link.start();
@@ -88,5 +101,27 @@ void main() {
     link.send(Command()); // dropped silently while disconnected
     await sub.cancel();
     await link.close();
+  });
+
+  test('a wrong or missing key is refused, and the app can tell', () async {
+    if (!hasGo) return;
+    for (final key in [null, 'WRONGKEYWRONGKEYWRON']) {
+      final link = RobotLink(Uri.parse('ws://127.0.0.1:$_httpPort/ws'), token: key);
+      final refused = link.status.firstWhere((s) => s == LinkStatus.unauthorized);
+      await link.start();
+      await refused.timeout(const Duration(seconds: 5));
+      await link.close();
+    }
+  });
+
+  test('identifies the robot without its key, and finds it by id', () async {
+    if (!hasGo) return;
+    final found = await identify('127.0.0.1', port: _httpPort);
+    expect(found?.id, robotId);
+    final again = await findRobot(robotId, lastAddress: '127.0.0.1', port: _httpPort);
+    expect(again?.address, '127.0.0.1');
+    final r = await HttpClient().getUrl(Uri.parse('http://127.0.0.1:$_httpPort/identity'));
+    final body = await (await r.close()).transform(utf8.decoder).join();
+    expect(body.contains(token), isFalse, reason: '/identity must never show the key');
   });
 }

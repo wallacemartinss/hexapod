@@ -9,7 +9,10 @@ import '../../core/input/gamepad_service.dart';
 import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
+import '../../core/robots.dart';
 import '../data/data_screen.dart';
+import '../robots/pair_screen.dart';
+import '../robots/robots_sheet.dart';
 import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
@@ -55,6 +58,10 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
   DateTime? _lastTelemetry;
   late final Timer _clock;
   bool _wasLost = true;
+
+  /// While the robot is lost, look for it again on the network now and then
+  /// (it may have changed address or network).
+  DateTime? _rediscoverAt;
 
   /// Height slider and mode bar stay on screen for this long after the last
   /// tap (counted down by [_clock], see [_revealBars]).
@@ -113,6 +120,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     ref.listen(controlProvider.select((c) => c.scheme), (_, _) => _revealBars());
 
     final settings = ref.watch(settingsProvider);
+    final robots = ref.watch(robotsProvider);
     final media = ref.watch(mediaUrisProvider);
     final gamepad = ref.watch(gamepadNameProvider);
     final control = ref.watch(controlProvider);
@@ -123,6 +131,17 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final fresh = link == LinkStatus.connected && age != null && age < const Duration(seconds: 1);
     final lost = link != LinkStatus.connected || age == null || age > const Duration(seconds: 3);
     if (lost && !_wasLost && settings.haptics) HapticFeedback.vibrate(); // signal just dropped
+    if (lost && robots.active != null) {
+      final now = DateTime.now();
+      if (_rediscoverAt == null) {
+        _rediscoverAt = now.add(const Duration(seconds: 15));
+      } else if (now.isAfter(_rediscoverAt!)) {
+        _rediscoverAt = now.add(const Duration(seconds: 15));
+        Future.microtask(() => ref.invalidate(robotAddressProvider));
+      }
+    } else {
+      _rediscoverAt = null;
+    }
     _wasLost = lost;
 
     final robotState = fresh ? telemetry?.state : null;
@@ -295,7 +314,12 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
               ),
             ),
             const CenterFeedback(), // over the camera, never over the alerts below
-            if (lost) _ConnectionOverlay(host: settings.host, status: link),
+            if (lost)
+              _ConnectionOverlay(
+                target: robots.active?.name ?? settings.host,
+                status: link,
+                paired: robots.robots.isNotEmpty,
+              ),
             if (!settings.onboarded)
               _Onboarding(
                 onDone: () => ref.read(settingsProvider.notifier).update(settings.copyWith(onboarded: true)),
@@ -519,42 +543,81 @@ class _GestureRow extends StatelessWidget {
 }
 
 class _ConnectionOverlay extends StatelessWidget {
-  const _ConnectionOverlay({required this.host, required this.status});
+  const _ConnectionOverlay({required this.target, required this.status, required this.paired});
 
-  final String host;
+  /// What is being looked for: the paired robot's name, or the manual host.
+  final String target;
   final LinkStatus status;
+
+  /// At least one robot is paired.
+  final bool paired;
 
   @override
   Widget build(BuildContext context) {
+    final (Widget icon, String title, String text, String primary, VoidCallback onPrimary) = switch ((
+      paired,
+      status,
+    )) {
+      (false, _) => (
+        const Icon(Icons.qr_code_2_rounded, size: 40, color: Color(0xFF4FD1FF)),
+        'Nenhum robô pareado',
+        'Ligue o robô: quando nenhum app está conectado, a tela dele mostra um QR.',
+        'Parear um robô',
+        () => showPairScreen(context),
+      ),
+      (_, LinkStatus.unauthorized) => (
+        const Icon(Icons.key_off_rounded, size: 40, color: Color(0xFFFF5A5F)),
+        'O robô recusou a chave',
+        'A chave de pareamento mudou. Escaneie de novo o QR da tela do robô.',
+        'Parear de novo',
+        () => showPairScreen(context),
+      ),
+      _ => (
+        const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
+        'Sem conexão com o robô',
+        status == LinkStatus.connected ? 'Conectado, aguardando o ESP32…' : 'Procurando $target na rede…',
+        'Meus robôs',
+        () => showRobotsSheet(context),
+      ),
+    };
     return Positioned.fill(
       child: Container(
         color: Colors.black.withValues(alpha: 0.45),
         alignment: Alignment.center,
         child: Glass(
           padding: const EdgeInsets.fromLTRB(28, 22, 28, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
-              const SizedBox(height: 14),
-              const Text(
-                'Sem conexão com o robô',
-                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                status == LinkStatus.connected
-                    ? 'Conectado ao hexd, aguardando o ESP32…'
-                    : 'Procurando $host…',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 14),
-              TextButton.icon(
-                onPressed: () => showSettingsSheet(context),
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Ajustes de conexão'),
-              ),
-            ],
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                icon,
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilledButton(onPressed: onPrimary, child: Text(primary)),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () => showSettingsSheet(context),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Ajustes'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

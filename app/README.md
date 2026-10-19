@@ -17,6 +17,18 @@ No celular: **Depuração USB** ligada e cabo de dados. Alguns aparelhos (Redmi/
 
 Para testar sem o robô: `hexsim` + `hexd -serial tcp://127.0.0.1:7777` (ver `pi/`) e, nos ajustes do app, endereço `127.0.0.1`.
 
+## Parear um robô
+
+Cada robô cria, no primeiro boot, uma **chave de pareamento** própria. Sem ela o robô recusa o app (ninguém na mesma rede pilota o robô de outro).
+
+1. Com nenhum app conectado, a **tela OLED do robô mostra um QR**.
+2. No app: **Novo robô** (aparece sozinho quando não há robô pareado; também em Ajustes → Meus robôs) e aponte a câmera para o QR.
+3. O app procura o robô na rede (serviço `_hexapod._tcp`, confirmado por `GET /identity`), **testa a chave** e só então salva.
+
+Sem câmera (ou no PC), digite o código: `HXP1 <ID> <CHAVE>`. No modo maker, ele sai no terminal do Pi, com o QR desenhado: `sudo -u hexapod /opt/hexapod/current/bin/hexd -pairing`.
+
+Vários robôs: **Meus robôs** escolhe qual pilotar. Se o robô recusar a chave (foi trocada), o app pede para parear de novo.
+
 ## Testes
 
 ```bash

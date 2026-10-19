@@ -5,6 +5,7 @@ import '../../core/link/robot_link.dart';
 import '../../core/proto.dart';
 import '../../core/providers.dart';
 import '../../core/settings.dart';
+import '../robots/robots_sheet.dart';
 import 'controller_sheet.dart';
 
 Future<void> showSettingsSheet(BuildContext context) => showModalBottomSheet<void>(
@@ -140,6 +141,20 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                 ),
                 value: _s.autoHideBars,
                 onChanged: (v) => setState(() => _s = _s.copyWith(autoHideBars: v)),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.smart_toy_rounded, color: Colors.white70),
+                title: const Text('Meus robôs', style: TextStyle(color: Colors.white)),
+                subtitle: const Text(
+                  'Parear um robô novo ou escolher qual pilotar',
+                  style: TextStyle(color: Colors.white54),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+                onTap: () {
+                  final nav = Navigator.of(context)..pop();
+                  showRobotsSheet(nav.context);
+                },
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

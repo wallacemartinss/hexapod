@@ -51,6 +51,7 @@ class StatusBar extends StatelessWidget {
       LinkStatus.connected => ('Sinal fraco', severityColor(Severity.warning)),
       LinkStatus.connecting => ('Conectando…', severityColor(Severity.info)),
       LinkStatus.disconnected => ('Sem conexão', severityColor(Severity.danger)),
+      LinkStatus.unauthorized => ('Pareie de novo', severityColor(Severity.danger)),
     };
     final state = t != null && !stale ? describeState(t.state) : null;
     final faults = t == null ? const <String>[] : describeFaults(t.faultFlags);

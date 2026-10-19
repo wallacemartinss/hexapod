@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'core/robots.dart';
 import 'core/providers.dart';
 import 'core/settings.dart';
 import 'features/pilot/pilot_screen.dart';
@@ -18,9 +19,13 @@ Future<void> main() async {
   // The screen must not sleep while piloting.
   await WakelockPlus.enable().catchError((_) {});
   final settings = await Settings.load();
+  final robots = await RobotsNotifier.load();
   runApp(
     ProviderScope(
-      overrides: [settingsProvider.overrideWith(() => SettingsNotifier(settings))],
+      overrides: [
+        settingsProvider.overrideWith(() => SettingsNotifier(settings)),
+        robotsProvider.overrideWith(() => RobotsNotifier(robots)),
+      ],
       child: const HexapodApp(),
     ),
   );

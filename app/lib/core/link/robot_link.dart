@@ -1,16 +1,31 @@
 import 'dart:async';
 
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../proto.dart';
 
-enum LinkStatus { disconnected, connecting, connected }
+enum LinkStatus {
+  disconnected,
+  connecting,
+  connected,
+
+  /// The robot refused the pairing key (HTTP 401): pair again.
+  unauthorized,
+}
 
 /// WebSocket to hexd (`ws://<host>:8080/ws`), one Envelope per binary message.
 /// Reconnects by itself with backoff until [close].
 class RobotLink {
-  RobotLink(this.uri, {WebSocketChannel Function(Uri)? connector})
-    : _connect = connector ?? WebSocketChannel.connect;
+  /// [token] is the pairing key from the robot's QR (null: robot without
+  /// pairing, e.g. hexsim in development).
+  RobotLink(this.uri, {String? token, WebSocketChannel Function(Uri)? connector})
+    : _connect =
+          connector ??
+          ((u) => IOWebSocketChannel.connect(
+            u,
+            headers: token == null ? null : {'Authorization': 'Bearer $token'},
+          ));
 
   final Uri uri;
   final WebSocketChannel Function(Uri) _connect;
@@ -56,8 +71,9 @@ class RobotLink {
     _channel = channel;
     try {
       await channel.ready.timeout(const Duration(seconds: 3));
-    } catch (_) {
-      _scheduleRetry();
+    } catch (e) {
+      // dart:io: "... not upgraded to websocket, HTTP status code: 401"
+      _scheduleRetry(refused: e.toString().contains('status code: 401'));
       return;
     }
     if (_closed) {
@@ -85,10 +101,10 @@ class RobotLink {
     );
   }
 
-  void _scheduleRetry() {
+  void _scheduleRetry({bool refused = false}) {
     _channel = null;
     if (_closed) return;
-    _set(LinkStatus.disconnected);
+    _set(refused ? LinkStatus.unauthorized : LinkStatus.disconnected);
     _retry?.cancel();
     _retry = Timer(_backoff, _open);
     _backoff = Duration(milliseconds: (_backoff.inMilliseconds * 2).clamp(250, 3000));
