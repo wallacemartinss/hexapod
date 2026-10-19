@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/link/discovery.dart';
 import 'package:hexapod_app/core/link/robot_wifi.dart';
 import 'package:hexapod_app/core/robots.dart';
@@ -81,7 +82,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: c,
-          child: MaterialApp(
+          child: testApp(
             home: PairScreen(
               camera: false,
               wifi: wifi,
@@ -150,7 +151,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: c,
-          child: const MaterialApp(home: PairScreen(camera: false)),
+          child: testApp(home: const PairScreen(camera: false)),
         ),
       );
       await tester.enterText(find.byType(TextField), 'K7F');

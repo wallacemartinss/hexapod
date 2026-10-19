@@ -1,0 +1,8 @@
+# App translations (flutter gen-l10n, run by `flutter pub get` / build).
+# English is the template and the fallback; add a language with a new
+# lib/l10n/app_<code>.arb holding the same keys.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

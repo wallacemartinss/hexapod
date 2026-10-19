@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
 import 'package:hexapod_app/core/providers.dart';
@@ -114,8 +115,7 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry, {p
           ),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
+      child: testApp(
         theme: ThemeData(brightness: Brightness.dark, fontFamily: 'Roboto'),
         home: const DataScreen(),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/control/control_state.dart';
 import 'package:hexapod_app/core/input/gamepad_interpreter.dart';
 import 'package:hexapod_app/core/input/gamepad_service.dart';
@@ -59,7 +60,7 @@ Future<ProviderContainer> _pump(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: PilotScreen()),
+      child: testApp(home: const PilotScreen()),
     ),
   );
   await tester.pump(const Duration(milliseconds: 300));
@@ -98,7 +99,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: Scaffold(body: ControllerSheet())),
+        child: testApp(home: const Scaffold(body: ControllerSheet())),
       ),
     );
     expect(find.text('Nenhum controle conectado'), findsOneWidget);

@@ -17,6 +17,7 @@ class Settings {
     this.autoHideBars = true,
     this.hideSticksWithPad = true,
     this.onboarded = false,
+    this.language = '',
   });
 
   final String host;
@@ -42,6 +43,9 @@ class Settings {
   /// The first-run tips were dismissed.
   final bool onboarded;
 
+  /// App language code ('en', 'pt'); empty: follow the phone.
+  final String language;
+
   /// URIs for an already resolved [address] (see host_resolver.dart).
   Uri wsUri(String address) => Uri(scheme: 'ws', host: address, port: port, path: '/ws');
   Uri whepUri(String address) => Uri(scheme: 'http', host: address, port: videoPort, path: '/cam/whep');
@@ -62,6 +66,7 @@ class Settings {
     bool? autoHideBars,
     bool? hideSticksWithPad,
     bool? onboarded,
+    String? language,
   }) => Settings(
     host: host ?? this.host,
     port: port ?? this.port,
@@ -75,6 +80,7 @@ class Settings {
     autoHideBars: autoHideBars ?? this.autoHideBars,
     hideSticksWithPad: hideSticksWithPad ?? this.hideSticksWithPad,
     onboarded: onboarded ?? this.onboarded,
+    language: language ?? this.language,
   );
 
   static Future<Settings> load() async {
@@ -93,6 +99,7 @@ class Settings {
       autoHideBars: p.getBool('autoHideBars') ?? d.autoHideBars,
       hideSticksWithPad: p.getBool('hideSticksWithPad') ?? d.hideSticksWithPad,
       onboarded: p.getBool('onboarded') ?? d.onboarded,
+      language: p.getString('language') ?? d.language,
     );
   }
 
@@ -110,5 +117,6 @@ class Settings {
     await p.setBool('autoHideBars', autoHideBars);
     await p.setBool('hideSticksWithPad', hideSticksWithPad);
     await p.setBool('onboarded', onboarded);
+    await p.setString('language', language);
   }
 }

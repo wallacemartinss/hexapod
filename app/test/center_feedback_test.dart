@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/control/control_state.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
@@ -46,7 +47,7 @@ Future<void> _pump(WidgetTester tester, ControlState control, pb.State state) as
         settingsProvider.overrideWith(() => SettingsNotifier(const Settings(onboarded: true))),
         robotAddressProvider.overrideWith((ref) async => '127.0.0.1'),
       ],
-      child: const MaterialApp(home: PilotScreen()),
+      child: testApp(home: const PilotScreen()),
     ),
   );
   await tester.pump(const Duration(milliseconds: 300));

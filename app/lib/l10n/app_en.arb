@@ -1,0 +1,9 @@
+{
+  "@@locale": "en",
+  "appTitle": "Hexapod",
+  "@appTitle": {
+    "description": "App name (launcher, task switcher)"
+  },
+  "settingsLanguage": "Language",
+  "settingsLanguageSystem": "Phone language"
+}

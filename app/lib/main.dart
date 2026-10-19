@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -8,6 +9,7 @@ import 'core/providers.dart';
 import 'core/settings.dart';
 import 'features/brand/brand.dart';
 import 'features/pilot/pilot_screen.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,14 +34,23 @@ Future<void> main() async {
   );
 }
 
-class HexapodApp extends StatelessWidget {
+class HexapodApp extends ConsumerWidget {
   const HexapodApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(settingsProvider.select((s) => s.language));
     return MaterialApp(
-      title: 'Hexápode',
+      onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
+      locale: localeFor(language),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(seedColor: Brand.cyan, brightness: Brightness.dark),

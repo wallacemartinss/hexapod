@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/features/brand/brand.dart';
 
 Future<void> _loadFonts() async {
@@ -20,8 +21,7 @@ Future<void> _pump(WidgetTester tester) async {
   tester.view.devicePixelRatio = 2.625;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
+    testApp(
       theme: ThemeData(fontFamily: 'Roboto'),
       home: const BrandSplash(child: Text('pilot')),
     ),
