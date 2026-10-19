@@ -188,7 +188,7 @@ func OpenLinuxBus(spiDev string, mode uint8, hz uint32, gpioChip string, dc, res
 	}
 	pins, err := OpenPins(gpioChip, dc, reset, backlight)
 	if err != nil {
-		s.Close()
+		_ = s.Close()
 		return nil, err
 	}
 	return &LinuxBus{spi: s, pins: pins}, nil
@@ -231,6 +231,6 @@ func (b *LinuxBus) Reset() error {
 func (b *LinuxBus) Backlight(on bool) error { return b.pins.Set(pinBacklight, on) }
 
 func (b *LinuxBus) Close() error {
-	b.pins.Close()
+	_ = b.pins.Close()
 	return b.spi.Close()
 }

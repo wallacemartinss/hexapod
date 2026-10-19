@@ -42,7 +42,7 @@ func Run(ctx context.Context, opt Options, inputs func() Inputs) {
 					closeEye(panel, anim, opt.FPS)
 				}
 			}
-			bus.Close()
+			_ = bus.Close()
 		}
 		if err != nil && ctx.Err() == nil {
 			if !failing {
