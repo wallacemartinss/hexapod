@@ -32,17 +32,25 @@ class Robot {
   );
 }
 
-/// What a pairing QR (or the code typed by hand) carries.
-typedef PairingCode = ({String id, String token});
+/// What pairing starts from: the robot id when known, and either the short
+/// code from the robot's screen or the long key (maker mode).
+typedef PairingInput = ({String? id, String? code, String? token});
 
-/// Reads "HXP1 7F3A ABCD..." (the robot's QR, also printed by
-/// `hexd -pairing`). Tolerates extra spaces and lower case typed by hand.
-PairingCode? parsePairingCode(String text) {
+final _id = RegExp(r'^[A-Z2-7]{4}$');
+// The robot's codes skip look-alikes: no 0, 1, I, L, O.
+final _code = RegExp(r'^[2-9ABCDEFGHJKMNPQRSTUVWXYZ]{5}$');
+final _token = RegExp(r'^[A-Z2-7]{16,}$');
+
+/// Reads the robot's QR (`HXP2 <id> <code>`), the 5-character code typed by
+/// hand, or the maker's `HXP1 <id> <key>` (hexd -pairing). Tolerates extra
+/// spaces and lower case.
+PairingInput? parsePairingInput(String text) {
   final f = text.trim().toUpperCase().split(RegExp(r'\s+'));
-  if (f.length != 3 || f[0] != 'HXP1') return null;
-  final id = f[1], token = f[2];
-  if (!RegExp(r'^[A-Z2-7]{4}$').hasMatch(id) || !RegExp(r'^[A-Z2-7]{16,}$').hasMatch(token)) return null;
-  return (id: id, token: token);
+  if (f.length == 1 && _code.hasMatch(f[0])) return (id: null, code: f[0], token: null);
+  if (f.length != 3 || !_id.hasMatch(f[1])) return null;
+  if (f[0] == 'HXP2' && _code.hasMatch(f[2])) return (id: f[1], code: f[2], token: null);
+  if (f[0] == 'HXP1' && _token.hasMatch(f[2])) return (id: f[1], code: null, token: f[2]);
+  return null;
 }
 
 /// The robot's own Wi-Fi: `Hexapode-<id>` and a WPA2 password derived one

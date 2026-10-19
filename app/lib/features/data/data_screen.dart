@@ -411,15 +411,25 @@ class _PositionTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Big((p.speedMps * 3.6).toStringAsFixed(1), 'km/h'),
-            _Row('Rumo', '${p.courseDeg.toStringAsFixed(0)}° ${_compass(p.courseDeg)}'),
-            const _Note('Abaixo de ~1 km/h o rumo do GPS não é confiável.'),
+            if (p.speedMps * 3.6 < _gpsNoiseKmh) ...[
+              const _Big('Parado', ''),
+              const _Note(
+                'Abaixo de ~3 km/h a velocidade do GPS é só ruído (parado, ele marca 1 a 4 km/h). '
+                'O robô anda mais devagar que isso.',
+              ),
+            ] else ...[
+              _Big((p.speedMps * 3.6).toStringAsFixed(1), 'km/h'),
+              _Row('Rumo', '${p.courseDeg.toStringAsFixed(0)}° ${_compass(p.courseDeg)}'),
+            ],
           ],
         ),
       ),
     ]);
   }
 }
+
+/// GPS speed below this is noise: standing still, a weak fix reads 1-4 km/h.
+const _gpsNoiseKmh = 3.0;
 
 /// 23°33'01.8" S
 String _dms(double deg, String positive, String negative) {

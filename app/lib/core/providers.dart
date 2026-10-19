@@ -72,10 +72,14 @@ final robotAddressProvider = FutureProvider<String>((ref) async {
   if (wifi != null && now.difference(_ownNetworkTried) > const Duration(minutes: 1)) {
     _ownNetworkTried = now;
     final own = ownNetwork(robot.id, robot.token);
-    if (await wifi.join(own.ssid, own.password)) {
-      final there = await identify(ownNetworkAddress);
-      if (there?.id == robot.id) return ownNetworkAddress;
-      await wifi.release();
+    // Its password, or still open: right after the first pairing the robot
+    // switches only once nobody is connected.
+    for (final password in [own.password, '']) {
+      if (await wifi.join(own.ssid, password)) {
+        final there = await identify(ownNetworkAddress);
+        if (there?.id == robot.id) return ownNetworkAddress;
+        await wifi.release();
+      }
     }
   }
   return last ?? resolveHost(host);
@@ -95,9 +99,12 @@ final linkProvider = Provider<RobotLink>((ref) {
   return link;
 });
 
-final linkStatusProvider = StreamProvider<LinkStatus>((ref) {
+final linkStatusProvider = StreamProvider<LinkStatus>((ref) async* {
   final link = ref.watch(linkProvider);
-  return link.status;
+  // A new link (after pairing...) starts from its own state, never from
+  // the old link's (a stale "refused" flashed right after pairing).
+  yield link.current;
+  yield* link.status;
 });
 
 final telemetryProvider = StreamProvider<Telemetry>((ref) => ref.watch(linkProvider).telemetry);

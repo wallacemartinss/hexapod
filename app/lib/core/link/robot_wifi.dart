@@ -7,7 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// the system asks "connect to Hexapode-XXXX?"). Tests replace it.
 abstract class RobotWifi {
   /// True once joined; the app's traffic then goes to the robot's network.
+  /// An empty [password] means an open network (a robot never paired).
   Future<bool> join(String ssid, String password);
+
+  /// Lets the user pick a network whose name starts with [prefix] (Android
+  /// shows the list); for a code typed without the robot's id.
+  Future<bool> joinPrefix(String prefix);
 
   /// Back to the phone's usual network.
   Future<void> release();
@@ -20,6 +25,15 @@ class AndroidRobotWifi implements RobotWifi {
   Future<bool> join(String ssid, String password) async {
     try {
       return await _channel.invokeMethod<bool>('join', {'ssid': ssid, 'password': password}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> joinPrefix(String prefix) async {
+    try {
+      return await _channel.invokeMethod<bool>('joinPrefix', {'prefix': prefix}) ?? false;
     } catch (_) {
       return false;
     }

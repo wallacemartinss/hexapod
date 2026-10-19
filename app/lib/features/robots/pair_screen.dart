@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:web_socket_channel/io.dart';
 
@@ -14,12 +16,47 @@ import '../../core/robots.dart';
 const _bg = Color(0xFF0E1013);
 const _ok = Color(0xFF3DDC97);
 const _accent = Color(0xFF4FD1FF);
+const _bad = Color(0xFFFF5A5F);
 
 Future<void> showPairScreen(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PairScreen()));
 
-/// Checks a found robot accepts the key (the WebSocket opens), so the app
-/// never saves a pairing that would not work.
+/// Robots that may be the one being paired (tests replace it): the one at
+/// [address], or robot [id] on the network, or every robot found.
+typedef RobotSearch = Future<List<FoundRobot>> Function(String? id, String? address);
+
+Future<List<FoundRobot>> _search(String? id, String? address) async {
+  if (address != null) {
+    final r = await identify(address.trim());
+    return [if (r != null && (id == null || r.id == id)) r];
+  }
+  if (id != null) {
+    final r = await findRobot(id);
+    return [?r];
+  }
+  return discoverRobots();
+}
+
+/// Trades the short code for the key (POST /pair); null when refused.
+typedef CodeTrade = Future<String?> Function(String address, int port, String code);
+
+Future<String?> _trade(String address, int port, String code) async {
+  try {
+    final r = await http
+        .post(
+          Uri(scheme: 'http', host: address, port: port, path: '/pair'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'code': code}),
+        )
+        .timeout(const Duration(seconds: 5));
+    if (r.statusCode != 200) return null;
+    return (jsonDecode(r.body) as Map)['token'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Checks a key opens the WebSocket (maker path, key typed directly).
 typedef KeyCheck = Future<bool> Function(String address, int port, String token);
 
 Future<bool> _checkKey(String address, int port, String token) async {
@@ -37,40 +74,38 @@ Future<bool> _checkKey(String address, int port, String token) async {
   }
 }
 
-/// Finds a robot by id (tests replace it).
-typedef RobotFinder = Future<FoundRobot?> Function(String id, String? address);
-
-Future<FoundRobot?> _find(String id, String? address) async {
-  if (address != null) {
-    final r = await identify(address.trim());
-    return r?.id == id ? r : null;
-  }
-  return findRobot(id);
-}
-
-/// "Novo robô": scan the QR on the robot's screen (or type the code), find
-/// the robot on the network, check the key, save.
+/// "Novo robô": scan the QR on the robot's screen or type the 5-character
+/// code shown next to it; the app finds the robot (on this network, or on
+/// the robot's own Wi-Fi), trades the code for the key and saves it.
 class PairScreen extends ConsumerStatefulWidget {
-  const PairScreen({super.key, this.finder = _find, this.keyCheck = _checkKey, this.camera, this.wifi});
+  const PairScreen({
+    super.key,
+    this.search = _search,
+    this.trade = _trade,
+    this.keyCheck = _checkKey,
+    this.camera,
+    this.wifi,
+  });
 
-  final RobotFinder finder;
+  final RobotSearch search;
+  final CodeTrade trade;
   final KeyCheck keyCheck;
-
-  /// Joins the robot's own network (default: robotWifiProvider; null on the PC).
-  final RobotWifi? wifi;
 
   /// Show the camera (default: on Android only).
   final bool? camera;
+
+  /// Joins the robot's own network (default: robotWifiProvider; null on the PC).
+  final RobotWifi? wifi;
 
   @override
   ConsumerState<PairScreen> createState() => _PairScreenState();
 }
 
-enum _Step { scan, searching, joiningOwn, notFound, badKey, done }
+enum _Step { scan, searching, joiningOwn, notFound, refused, done }
 
 class _PairScreenState extends ConsumerState<PairScreen> {
   _Step _step = _Step.scan;
-  PairingCode? _code;
+  PairingInput? _input;
   String? _name;
   final _typed = TextEditingController();
   final _address = TextEditingController();
@@ -85,66 +120,75 @@ class _PairScreenState extends ConsumerState<PairScreen> {
     super.dispose();
   }
 
-  Future<void> _start(PairingCode code, {String? address}) async {
-    if (_step == _Step.searching) return;
+  Future<void> _start(PairingInput input, {String? address}) async {
+    if (_step == _Step.searching || _step == _Step.joiningOwn) return;
     HapticFeedback.mediumImpact();
     setState(() {
-      _code = code;
+      _input = input;
       _step = _Step.searching;
     });
     final wifi = widget.wifi ?? ref.read(robotWifiProvider);
     // The robot may still be booting: keep looking for a little while. With
     // its own network at hand, look less: a new robot is usually there.
-    FoundRobot? found;
+    var robots = <FoundRobot>[];
     final look = wifi != null && address == null ? 6 : 15;
     final deadline = DateTime.now().add(Duration(seconds: look));
-    while (found == null && DateTime.now().isBefore(deadline) && mounted) {
-      found = await widget.finder(code.id, address);
-      if (found == null && address != null) break; // a typed address answers or not
-      if (found == null) await Future<void>.delayed(const Duration(seconds: 1)); // no busy loop
+    while (robots.isEmpty && DateTime.now().isBefore(deadline) && mounted) {
+      robots = await widget.search(input.id, address);
+      if (robots.isEmpty && address != null) break; // a typed address answers or not
+      if (robots.isEmpty) await Future<void>.delayed(const Duration(seconds: 1)); // no busy loop
     }
     if (!mounted) return;
-    if (found == null && wifi != null && address == null) {
-      // First boot (or no home network): join "Hexapode-<id>" from here.
+    if (robots.isEmpty && wifi != null && address == null) {
+      // First boot (or no home network): the robot's own Wi-Fi, open until
+      // its first pairing. Without the id, Android lists "Hexapode-..." to pick.
       setState(() => _step = _Step.joiningOwn);
-      final own = ownNetwork(code.id, code.token);
-      if (await wifi.join(own.ssid, own.password)) {
-        found = await widget.finder(code.id, ownNetworkAddress);
-        if (found == null) await wifi.release();
+      final id = input.id;
+      final joined = id == null
+          ? await wifi.joinPrefix('Hexapode-')
+          : await wifi.join('Hexapode-$id', input.token == null ? '' : ownNetwork(id, input.token!).password);
+      if (joined) {
+        robots = await widget.search(input.id, ownNetworkAddress);
+        if (robots.isEmpty) await wifi.release();
       }
       if (!mounted) return;
     }
-    if (found == null) {
+    if (robots.isEmpty) {
       setState(() => _step = _Step.notFound);
       return;
     }
-    if (!await widget.keyCheck(found.address, found.port, code.token)) {
-      if (mounted) setState(() => _step = _Step.badKey);
+    for (final r in robots) {
+      final token = input.token != null
+          ? (await widget.keyCheck(r.address, r.port, input.token!) ? input.token : null)
+          : await widget.trade(r.address, r.port, input.code!);
+      if (token == null) continue;
+      await ref
+          .read(robotsProvider.notifier)
+          .pair(Robot(id: r.id, name: r.name, token: token, address: r.address));
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _name = r.name;
+        _step = _Step.done;
+      });
       return;
     }
-    await ref
-        .read(robotsProvider.notifier)
-        .pair(Robot(id: code.id, name: found.name, token: code.token, address: found.address));
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() {
-      _name = found!.name;
-      _step = _Step.done;
-    });
+    if (mounted) setState(() => _step = _Step.refused);
   }
 
   void _submitTyped() {
-    final code = parsePairingCode(_typed.text);
-    if (code == null) {
-      setState(() => _typedError = 'Código inválido: começa com HXP1, depois o ID e a chave');
+    final input = parsePairingInput(_typed.text);
+    if (input == null) {
+      setState(() => _typedError = 'Digite as 5 letras e números que aparecem na tela do robô');
       return;
     }
     setState(() => _typedError = null);
-    _start(code);
+    _start(input);
   }
 
   @override
   Widget build(BuildContext context) {
+    final id = _input?.id;
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(backgroundColor: _bg, foregroundColor: Colors.white, title: const Text('Novo robô')),
@@ -154,20 +198,22 @@ class _PairScreenState extends ConsumerState<PairScreen> {
           _Step.scan => _scanView(),
           _Step.searching => _message(
             const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
-            'Procurando o robô ${_code!.id}…',
-            'O celular precisa estar na mesma rede Wi-Fi que o robô.',
+            id == null ? 'Procurando o robô…' : 'Procurando o robô $id…',
+            'Na mesma rede Wi-Fi do celular.',
           ),
           _Step.joiningOwn => _message(
             const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
             'Conectando na rede do robô…',
-            'Rede Hexapode-${_code!.id}. Se o Android perguntar, toque em "Conectar".',
+            id == null
+                ? 'Escolha a rede "Hexapode-…" na lista do Android.'
+                : 'Rede Hexapode-$id. Se o Android perguntar, toque em "Conectar".',
           ),
           _Step.notFound => _notFound(),
-          _Step.badKey => _message(
-            const Icon(Icons.key_off_rounded, size: 48, color: Color(0xFFFF5A5F)),
-            'O robô recusou a chave',
-            'O QR é de outro robô, ou a chave foi trocada. Escaneie de novo o QR que está na tela do robô.',
-            action: ('Escanear de novo', () => setState(() => _step = _Step.scan)),
+          _Step.refused => _message(
+            const Icon(Icons.key_off_rounded, size: 48, color: _bad),
+            _input?.token != null ? 'O robô recusou a chave' : 'Código errado ou vencido',
+            'O código muda a cada 10 minutos e a cada uso. Use o que aparece agora na tela do robô.',
+            action: ('Tentar de novo', () => setState(() => _step = _Step.scan)),
           ),
           _Step.done => _message(
             const Icon(Icons.check_circle_rounded, size: 56, color: _ok),
@@ -188,18 +234,17 @@ class _PairScreenState extends ConsumerState<PairScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
-            'Na tela do robô aparece um QR quando nenhum app está conectado.',
+            'Quando nenhum app está conectado, a tela do robô mostra um QR e um código de 5 letras e números.',
             style: TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _typed,
-            style: const TextStyle(color: Colors.white, letterSpacing: 1),
+            style: const TextStyle(color: Colors.white, fontSize: 22, letterSpacing: 6),
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
-              labelText: 'Ou digite o código',
-              hintText: 'HXP1 7F3A ABCD…',
-              helperText: 'No modo maker: sudo -u hexapod hexd -pairing',
+              labelText: 'Código da tela do robô',
+              hintText: 'K7F2Q',
               errorText: _typedError,
             ),
             onSubmitted: (_) => _submitTyped(),
@@ -219,9 +264,9 @@ class _PairScreenState extends ConsumerState<PairScreen> {
               MobileScanner(
                 onDetect: (capture) {
                   for (final b in capture.barcodes) {
-                    final code = b.rawValue == null ? null : parsePairingCode(b.rawValue!);
-                    if (code != null) {
-                      _start(code);
+                    final input = b.rawValue == null ? null : parsePairingInput(b.rawValue!);
+                    if (input != null) {
+                      _start(input);
                       return;
                     }
                   }
@@ -246,6 +291,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
   }
 
   Widget _notFound() {
+    final id = _input?.id;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -254,12 +300,12 @@ class _PairScreenState extends ConsumerState<PairScreen> {
           const Icon(Icons.wifi_find_rounded, size: 48, color: Color(0xFFFFB547)),
           const SizedBox(height: 12),
           Text(
-            'Não achei o robô ${_code!.id} na rede',
+            id == null ? 'Não achei o robô' : 'Não achei o robô $id',
             style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           const Text(
-            '• O robô está ligado e a tela mostra o QR?\n'
+            '• O robô está ligado e a tela mostra o código?\n'
             '• O celular está no mesmo Wi-Fi que o robô?\n'
             '• Algumas redes bloqueiam a busca: informe o endereço (IP) que aparece na tela do robô.',
             style: TextStyle(color: Colors.white70, height: 1.5),
@@ -282,7 +328,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
             onPressed: () {
               final address = _address.text.trim();
               setState(() => _step = _Step.scan);
-              _start(_code!, address: address.isEmpty ? null : address);
+              _start(_input!, address: address.isEmpty ? null : address);
             },
             child: const Text('Tentar de novo'),
           ),

@@ -9,6 +9,7 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PatternMatcher
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
@@ -32,7 +33,11 @@ class RobotWifiChannel(context: Context, messenger: BinaryMessenger) {
                 "join" -> {
                     val ssid = call.argument<String>("ssid") ?: return@setMethodCallHandler result.success(false)
                     val password = call.argument<String>("password") ?: ""
-                    if (Build.VERSION.SDK_INT < 29) result.success(false) else join(ssid, password, result)
+                    if (Build.VERSION.SDK_INT < 29) result.success(false) else join(ssid, null, password, result)
+                }
+                "joinPrefix" -> {
+                    val prefix = call.argument<String>("prefix") ?: return@setMethodCallHandler result.success(false)
+                    if (Build.VERSION.SDK_INT < 29) result.success(false) else join(null, prefix, "", result)
                 }
                 "release" -> {
                     release()
@@ -43,9 +48,15 @@ class RobotWifiChannel(context: Context, messenger: BinaryMessenger) {
         }
     }
 
-    private fun join(ssid: String, password: String, result: MethodChannel.Result) {
+    // Exact SSID, or any SSID starting with prefix (the system lists them for
+    // the user to pick). Empty password: open network (robot never paired).
+    private fun join(ssid: String?, prefix: String?, password: String, result: MethodChannel.Result) {
         release()
-        val spec = WifiNetworkSpecifier.Builder().setSsid(ssid).setWpa2Passphrase(password).build()
+        val builder = WifiNetworkSpecifier.Builder()
+        if (ssid != null) builder.setSsid(ssid)
+        if (prefix != null) builder.setSsidPattern(PatternMatcher(prefix, PatternMatcher.PATTERN_PREFIX))
+        if (password.isNotEmpty()) builder.setWpa2Passphrase(password)
+        val spec = builder.build()
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
