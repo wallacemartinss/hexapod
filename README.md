@@ -237,6 +237,7 @@ Real time is not Go's job here (its garbage collector can pause briefly), and th
 - **Protobuf, one contract:** every message is defined once in [`proto/`](proto/README.md) and generated for Go, C (nanopb, no dynamic memory on the ESP32) and Dart, so the three sides cannot drift apart.
 - **COBS + CRC16 on the USB serial:** frames that survive noise and resync after a cut; corrupted frames are dropped, never acted on.
 - **Flutter for the app:** one code base, smooth enough for video with overlays, Android today and iOS possible later.
+- **Ansible to set up the Pi:** the Pi is not configured by hand. A playbook in [`pi/provision`](pi/provision/README.md) describes how it must be (packages, boot settings, I2C/SPI/UART, the service user and its narrow permissions, services, watchdog, the read-only card) and Ansible, from your PC over SSH, changes only what differs. The same playbook builds the ready-made SD card image, so every robot, flashed or provisioned, runs the same system.
 - **MediaMTX + WebRTC:** low-latency video straight from the Pi's hardware H.264 encoder, playable in the app and in any browser.
 
 ## Roadmap

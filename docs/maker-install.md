@@ -88,7 +88,7 @@ ssh <you>@hexapod.local 'sudo tailscale up --hostname=hexapod'   # opens a login
 
 ## 6. Protect the SD card (optional)
 
-A read-only root means pulling the power never corrupts the card; `/opt/hexapod` (releases, settings, pairing key) moves to its own partition. It needs the card in your PC once, to split it: [`pi/provision/README.md`](../pi/provision/README.md#somente-leitura-proteger-o-cartão).
+A read-only root means pulling the power never corrupts the card; `/opt/hexapod` (releases, settings, pairing key) moves to its own partition. It needs the card in your PC once, to split it: [`pi/provision/README.md`](../pi/provision/README.md#read-only-protecting-the-sd-card).
 
 ## Keeping it up to date
 

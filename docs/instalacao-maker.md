@@ -49,7 +49,7 @@ ansible-playbook site.yml -e ansible_user=<você>                  # aplica (rei
 ssh <você>@hexapod.local 'bash -s' < check.sh                     # validação
 ```
 
-O `check.sh` confere câmera, microfone, energia, ESP32, OLED (0x3C), GPS e Tailscale. Resolva o que ele apontar antes de seguir. Detalhes e opções: [`pi/provision/README.md`](../pi/provision/README.md).
+O `check.sh` confere câmera, microfone, energia, ESP32, OLED (0x3C), GPS e Tailscale. Resolva o que ele apontar antes de seguir. Detalhes e opções: [`pi/provision/README.pt-BR.md`](../pi/provision/README.pt-BR.md).
 
 ## 3. Gerar e instalar o software
 
@@ -88,7 +88,7 @@ ssh <você>@hexapod.local 'sudo tailscale up --hostname=hexapod'   # mostra um l
 
 ## 6. Proteger o cartão (opcional)
 
-Com a raiz somente leitura, tirar a energia nunca corrompe o cartão; o `/opt/hexapod` (versões, ajustes, chave de pareamento) vai para uma partição própria. Precisa do cartão no PC uma vez, para dividir: [`pi/provision/README.md`](../pi/provision/README.md#somente-leitura-proteger-o-cartão).
+Com a raiz somente leitura, tirar a energia nunca corrompe o cartão; o `/opt/hexapod` (versões, ajustes, chave de pareamento) vai para uma partição própria. Precisa do cartão no PC uma vez, para dividir: [`pi/provision/README.pt-BR.md`](../pi/provision/README.pt-BR.md#somente-leitura-proteger-o-cartão).
 
 ## Mantendo atualizado
 

@@ -168,7 +168,7 @@ ansible-playbook site.yml                  # câmera, MediaMTX, serviço hexd, u
 ssh wallace@hexapod.local 'bash -s' < check.sh   # validação
 ```
 
-Detalhes, o cartão somente leitura e o Tailscale: [`pi/provision/README.md`](pi/provision/README.md).
+Detalhes, o cartão somente leitura e o Tailscale: [`pi/provision/README.pt-BR.md`](pi/provision/README.pt-BR.md).
 
 **2. Gere e instale uma versão** (hexd + firmware do ESP32, num pacote só):
 
@@ -237,6 +237,7 @@ Tempo real não é trabalho do Go aqui (o coletor de lixo pode pausar por um ins
 - **Protobuf, um contrato só:** cada mensagem é definida uma vez em [`proto/`](proto/README.md) e gerada para Go, C (nanopb, sem memória dinâmica no ESP32) e Dart, então os três lados não se desencontram.
 - **COBS + CRC16 na serial USB:** quadros que sobrevivem a ruído e se ressincronizam depois de um corte; quadro corrompido é descartado, nunca executado.
 - **Flutter no app:** um código só, fluido o bastante para vídeo com sobreposições, Android hoje e iOS possível depois.
+- **Ansible para preparar o Pi:** o Pi não é configurado na mão. Um playbook em [`pi/provision`](pi/provision/README.pt-BR.md) descreve como ele deve ficar (pacotes, ajustes de boot, I2C/SPI/UART, o usuário de serviço e suas permissões mínimas, serviços, watchdog, o cartão somente leitura) e o Ansible, do seu PC pelo SSH, muda só o que estiver diferente. O mesmo playbook gera a imagem pronta do cartão, então todo robô, gravado ou provisionado, roda o mesmo sistema.
 - **MediaMTX + WebRTC:** vídeo com pouco atraso direto do codificador H.264 de hardware do Pi, que toca no app e em qualquer navegador.
 
 ## Roadmap

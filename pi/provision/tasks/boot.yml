@@ -49,6 +49,14 @@
     mode: "0644"
   when: enable_i2c | bool
 
+# The cyclops eye (ST7789) on SPI0: /dev/spidev0.0 (firmware/PINOUT.md).
+- name: SPI for the eye
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: '^dtparam=spi='
+    line: "dtparam=spi={{ 'on' if enable_spi | bool else 'off' }}"
+  notify: [Reboot, Reboot pending]
+
 # With Bluetooth disabled the PL011 UART is on GPIO14/15 (/dev/serial0).
 - name: UART for the GPS
   ansible.builtin.lineinfile:
