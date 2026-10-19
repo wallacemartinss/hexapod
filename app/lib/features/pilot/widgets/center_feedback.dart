@@ -6,16 +6,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/input/gamepad_service.dart';
 import '../../../core/providers.dart';
 import '../../../core/proto.dart' as pb;
+import '../../../l10n/l10n.dart';
 import 'controls.dart';
 
 const standColor = Color(0xFF3DDC97);
 const gestureColor = Color(0xFFC77DFF);
 
-/// Name and icon of each gesture, shared by the buttons and the feedback.
-const gestureTexts = {
-  pb.Gesture.GESTURE_WAVE: ('Acenar', Icons.waving_hand_rounded),
-  pb.Gesture.GESTURE_GUARD: ('Guarda', Icons.shield_rounded),
-  pb.Gesture.GESTURE_STRIKE: ('Golpe', Icons.flash_on_rounded),
+/// Icon of each gesture (in button order), shared by the buttons and the feedback.
+const gestureIcons = {
+  pb.Gesture.GESTURE_WAVE: Icons.waving_hand_rounded,
+  pb.Gesture.GESTURE_GUARD: Icons.shield_rounded,
+  pb.Gesture.GESTURE_STRIKE: Icons.flash_on_rounded,
+};
+
+/// Name of each gesture, shared by the buttons and the feedback.
+String gestureLabel(AppLocalizations l, pb.Gesture g) => switch (g) {
+  pb.Gesture.GESTURE_WAVE => l.pilotGestureWave,
+  pb.Gesture.GESTURE_GUARD => l.pilotGestureGuard,
+  pb.Gesture.GESTURE_STRIKE => l.pilotGestureStrike,
+  _ => '',
 };
 
 /// Feedback in the middle of the screen for actions whose button sits under
@@ -70,6 +79,7 @@ class _CenterFeedbackState extends ConsumerState<CenterFeedback> {
     final requested = ref.watch(controlProvider.select((c) => c.standRequested));
     final gesture = ref.watch(gestureFeedbackProvider);
 
+    final l = context.l10n;
     final Widget? card;
     if (hold > 0) {
       card = _Card(
@@ -77,47 +87,52 @@ class _CenterFeedbackState extends ConsumerState<CenterFeedback> {
         color: standColor,
         icon: Icons.keyboard_double_arrow_up_rounded,
         progress: hold,
-        title: 'Levantar',
-        subtitle: 'Continue segurando',
+        title: l.pilotStandUp,
+        subtitle: l.pilotKeepHolding,
       );
     } else if (requested) {
-      card = const _Card(
-        key: ValueKey('standing'),
+      card = _Card(
+        key: const ValueKey('standing'),
         color: standColor,
         icon: Icons.keyboard_double_arrow_up_rounded,
         progress: null, // spinning: waiting for the robot
-        title: 'Levantando…',
-        subtitle: 'Aguarde o robô ficar em pé',
+        title: l.pilotStandingUp,
+        subtitle: l.pilotStandingUpWait,
       );
     } else if (_stood) {
-      card = const _Card(
-        key: ValueKey('stood'),
+      card = _Card(
+        key: const ValueKey('stood'),
         color: standColor,
         icon: Icons.check_rounded,
         progress: 1,
-        title: 'Em pé',
+        title: l.pilotStood,
       );
     } else if (_pad != null) {
       card = _pad!.isEmpty
-          ? const _Card(
-              key: ValueKey('pad-off'),
-              color: Color(0xFFFFB020),
+          ? _Card(
+              key: const ValueKey('pad-off'),
+              color: const Color(0xFFFFB020),
               icon: Icons.sports_esports_rounded,
               progress: 1,
-              title: 'Controle desconectado',
-              subtitle: 'Os joysticks da tela voltaram',
+              title: l.pilotPadDisconnected,
+              subtitle: l.pilotPadDisconnectedText,
             )
           : _Card(
               key: const ValueKey('pad-on'),
               color: standColor,
               icon: Icons.sports_esports_rounded,
               progress: 1,
-              title: 'Controle conectado',
+              title: l.pilotPadConnected,
               subtitle: _pad,
             );
-    } else if (gesture != null && gestureTexts[gesture] != null) {
-      final (label, icon) = gestureTexts[gesture]!;
-      card = _Card(key: ValueKey(gesture), color: gestureColor, icon: icon, progress: 1, title: label);
+    } else if (gesture != null && gestureIcons[gesture] != null) {
+      card = _Card(
+        key: ValueKey(gesture),
+        color: gestureColor,
+        icon: gestureIcons[gesture]!,
+        progress: 1,
+        title: gestureLabel(l, gesture),
+      );
     } else {
       card = null;
     }

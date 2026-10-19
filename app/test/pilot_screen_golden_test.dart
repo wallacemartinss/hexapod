@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/control/control_state.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
@@ -48,14 +49,16 @@ Future<void> _pump(
   ControlState control,
   pb.Telemetry telemetry, {
   bool onboarded = true,
+  double pixelRatio = 2.625,
 }) async {
   tester.view.physicalSize = const Size(2400, 1080); // 20:9 phone, landscape
-  tester.view.devicePixelRatio = 2.625;
+  tester.view.devicePixelRatio = pixelRatio;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        piStatusProvider.overrideWith((ref) => const Stream.empty()),
         videoViewProvider.overrideWith(
           (ref) =>
               (_) => const VideoPlaceholder(),
@@ -69,12 +72,11 @@ Future<void> _pump(
         settingsProvider.overrideWith(() => SettingsNotifier(Settings(onboarded: onboarded))),
         robotAddressProvider.overrideWith((ref) async => '127.0.0.1'),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
+      child: testApp(
         theme: ThemeData(
           brightness: Brightness.dark,
           fontFamily: 'Roboto',
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4FD1FF), brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3FCDF5), brightness: Brightness.dark),
         ),
         home: const PilotScreen(),
       ),
@@ -113,6 +115,18 @@ void main() {
   testWidgets('first run tips', (tester) async {
     await _pump(tester, const ControlState(), _telemetry(pb.State.STATE_RELAXED), onboarded: false);
     await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/onboarding.png'));
+  });
+
+  // The densest phone we drive with (Redmi Note 14: 450 dpi, 853 x 384 dp):
+  // the top bar, the sticks and the side controls must not overlap.
+  testWidgets('dense phone, relaxed with warnings', (tester) async {
+    await _pump(
+      tester,
+      const ControlState(),
+      _telemetry(pb.State.STATE_RELAXED, faults: 4 | 8 | 16 | 32 | 2048)..batteryVoltageV = 0,
+      pixelRatio: 450 / 160,
+    );
+    await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/dense_phone.png'));
   });
 
   testWidgets('front legs mode with gestures', (tester) async {

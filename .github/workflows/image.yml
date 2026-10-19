@@ -1,0 +1,106 @@
+# The robot's SD card image (Actions tab -> image -> Run workflow, or a tag).
+#
+# Builds the release package (as the deploy workflow does), then the image on
+# an ARM runner with pi/image/build-image.sh: the pinned Raspberry Pi OS Lite
+# + the provisioning playbook (image mode) + the package. A tag v* also
+# publishes it as a GitHub Release, ready for Raspberry Pi Imager.
+name: image
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: Firmware target (esp32s3 is the robot; esp32dev the bench board)
+        type: choice
+        options: [esp32s3, esp32dev]
+        default: esp32s3
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+          cache-dependency-path: pi/go.sum
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Tools
+        run: |
+          pip install platformio==6.2.0 nanopb==0.4.9.1
+          go install github.com/bufbuild/buf/cmd/buf@v1.74.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+
+      - name: Package
+        env:
+          BOARD: ${{ inputs.board || 'esp32s3' }}
+        run: pi/deploy/package.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package
+          path: dist/hexapod-*.tar.gz
+
+  image:
+    needs: package
+    runs-on: ubuntu-24.04-arm # native arm64: the chroot runs without emulation
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: package
+          path: dist
+
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq parted e2fsprogs xz-utils jq python3-pip
+          sudo pip install --break-system-packages ansible-core==2.20.1
+          sudo ansible-galaxy collection install community.general
+
+      - name: Build the image
+        run: sudo pi/image/build-image.sh dist/hexapod-*.tar.gz dist/image
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image
+          path: dist/image/*
+          compression-level: 0 # already xz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: image
+          path: image
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" image/* --repo "$GITHUB_REPOSITORY" \
+            --title "Hexápode $GITHUB_REF_NAME" \
+            --notes "Imagem do cartão SD: grave com o Raspberry Pi Imager (Escolher SO → Usar personalizado). Guia: docs/instalar.md"

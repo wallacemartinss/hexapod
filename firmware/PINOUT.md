@@ -1,175 +1,177 @@
-# Pinagem do controlador
+# Controller pinout
 
-Mapa de cada pino do ESP32 e sua função, para as duas placas. A fonte para o código é [`include/pins.h`](include/pins.h): **mudou aqui, mude lá** (e vice-versa).
+**English** · [Português](PINOUT.pt-BR.md)
 
-| Placa | Uso | Ambiente PlatformIO |
+Every ESP32 pin and what it does, for both boards. The code's source of truth is [`include/pins.h`](include/pins.h): **change it here, change it there** (and the other way round).
+
+| Board | Use | PlatformIO environment |
 |---|---|---|
-| ESP32-S3 SuperMini | Robô final | `esp32s3` |
-| ESP32 DevKit 38 pinos (ESP-WROOM-32) | Testes de bancada, temporária | `esp32dev` |
+| ESP32-S3 SuperMini | The robot | `esp32s3` |
+| ESP32 DevKit, 38 pins (ESP-WROOM-32) | Bench tests, temporary | `esp32dev` |
 
-## Sinais (iguais nas duas placas)
+## Signals (the same on both boards)
 
-| Sinal | Direção | Liga em | Função |
+| Signal | Direction | Goes to | What for |
 |---|---|---|---|
-| `SERVO_SDA` / `SERVO_SCL` | I2C 0, 400 kHz | SDA/SCL das **duas** PCA9685 | Barramento dos servos |
-| `SENSOR_SDA` / `SENSOR_SCL` | I2C 1 | SDA/SCL de VL53L0X ×4, BNO085, BME280, INA226 | Barramento dos sensores |
-| `PCA_OE` | Saída | OE das **duas** PCA9685 (em paralelo) | **Corte de emergência.** Alto = todos os servos sem pulso |
-| `XSHUT0..3` | Saída | XSHUT de cada VL53L0X | Liga um sensor por vez no boot para trocar o endereço 0x29 → 0x30–0x33 |
-| `IMU_INT` | Entrada | INT do BNO085 | Avisa que há leitura nova (ativo em baixo) |
-| `IMU_RST` | Saída | RST do BNO085 | Reinicia a IMU se ela travar (ativo em baixo) |
-| `LED_DATA` | Saída | DIN do primeiro WS2812 | Fita de LEDs de estado |
-| `EYES_TX` / `EYES_RX` | UART | RX/TX do ESP32 dos olhos (cruzado) | Fase futura |
-| USB | — | Raspberry Pi | Protocolo (COBS + CRC16 + nanopb) e gravação do firmware |
+| `SERVO_SDA` / `SERVO_SCL` | I2C 0, 400 kHz | SDA/SCL of **both** PCA9685 | Servo bus |
+| `SENSOR_SDA` / `SENSOR_SCL` | I2C 1 | SDA/SCL of the 4 VL53L0X, BNO085, BME280, INA226 | Sensor bus |
+| `PCA_OE` | Output | OE of **both** PCA9685 (in parallel) | **Emergency cut.** High = no pulse on any servo |
+| `XSHUT0..3` | Output | XSHUT of each VL53L0X | Turns the sensors on one at a time at boot to move them from 0x29 to 0x30–0x33 |
+| `IMU_INT` | Input | BNO085 INT | New reading ready (active low) |
+| `IMU_RST` | Output | BNO085 RST | Resets the IMU if it hangs (active low) |
+| `LED_DATA` | Output | DIN of the first WS2812 | Status LED strip |
+| `EYES_TX` / `EYES_RX` | UART | RX/TX of the eyes' ESP32 (crossed) | Future phase |
+| USB | — | Raspberry Pi | Protocol (COBS + CRC16 + nanopb) and firmware flashing |
 
-## ESP32-S3 SuperMini (robô final)
+## ESP32-S3 SuperMini (the robot)
 
-| GPIO | Sinal | Observação |
+| GPIO | Signal | Notes |
 |---|---|---|
-| 1 | `PCA_OE` | Precisa de *pull-up* externo (ver abaixo) |
+| 1 | `PCA_OE` | Needs an external pull-up (see below) |
 | 2 | `LED_DATA` | |
 | 4 | `SERVO_SDA` | |
 | 5 | `SERVO_SCL` | |
 | 6 | `SENSOR_SDA` | |
 | 7 | `SENSOR_SCL` | |
-| 8 | `XSHUT0` | VL53L0X **frente** → 0x30 |
-| 9 | `XSHUT1` | VL53L0X **direita** → 0x31 |
-| 14 | `XSHUT2` | VL53L0X **trás** → 0x32 (saiu do GPIO10 para liberar um pino do ADC1) |
-| 11 | `XSHUT3` | VL53L0X **esquerda** → 0x33 |
+| 8 | `XSHUT0` | VL53L0X **front** → 0x30 |
+| 9 | `XSHUT1` | VL53L0X **right** → 0x31 |
+| 14 | `XSHUT2` | VL53L0X **rear** → 0x32 (moved off GPIO10 to free an ADC1 pin) |
+| 11 | `XSHUT3` | VL53L0X **left** → 0x33 |
 | 12 | `IMU_INT` | |
 | 13 | `IMU_RST` | |
-| 10 | `GAS_AO` | MQ-2, saída analógica, **pelo divisor 10 kΩ/15 kΩ** (ver abaixo). ADC1 |
-| 43 | `EYES_TX` | Também recebe o log da ROM no boot; o protocolo dos olhos precisa ignorar lixo |
+| 10 | `GAS_AO` | MQ-2 analog output, **through the 10 kΩ/15 kΩ divider** (see below). ADC1 |
+| 43 | `EYES_TX` | Also carries the ROM log at boot; the eyes' protocol must ignore garbage |
 | 44 | `EYES_RX` | |
-| 48 | LED RGB da placa | Estado do firmware |
-| 0 | — | Botão BOOT, não usar |
-| 3 | — | *Strapping*, livre mas evitado |
-| 19, 20 | — | USB nativa, **proibidos** |
+| 48 | On-board RGB LED | Firmware status |
+| 0 | — | BOOT button, do not use |
+| 3 | — | Strapping pin, free but avoided |
+| 19, 20 | — | Native USB, **off limits** |
 
-> **A conferir quando a placa chegar:** se o SuperMini comprado expõe GPIO1–13, 43 e 44 nesses pads. Os 14 sinais usam todos os GPIOs seguros disponíveis; não sobra pino livre.
+> **To check when the board arrives:** whether the SuperMini bought exposes GPIO1–13, 43 and 44 on those pads. The 14 signals use every safe GPIO available; no pin is left over.
 
-## ESP32 DevKit 38 pinos, ESP-WROOM-32 (bancada)
+## ESP32 DevKit, 38 pins, ESP-WROOM-32 (bench)
 
-| GPIO | Sinal | Observação |
+| GPIO | Signal | Notes |
 |---|---|---|
-| 27 | `PCA_OE` | Precisa de *pull-up* externo (ver abaixo) |
+| 27 | `PCA_OE` | Needs an external pull-up (see below) |
 | 23 | `LED_DATA` | |
-| 21 | `SERVO_SDA` | I2C padrão da placa |
+| 21 | `SERVO_SDA` | The board's default I2C |
 | 22 | `SERVO_SCL` | |
 | 32 | `SENSOR_SDA` | |
 | 33 | `SENSOR_SCL` | |
-| 18 | `XSHUT0` | VL53L0X **frente** → 0x30 |
-| 19 | `XSHUT1` | VL53L0X **direita** → 0x31 |
-| 13 | `XSHUT2` | VL53L0X **trás** → 0x32 |
-| 14 | `XSHUT3` | VL53L0X **esquerda** → 0x33. Oscila no boot (inofensivo: só reinicia o sensor) |
-| 34 | `IMU_INT` | Pino só de entrada, ideal para INT |
+| 18 | `XSHUT0` | VL53L0X **front** → 0x30 |
+| 19 | `XSHUT1` | VL53L0X **right** → 0x31 |
+| 13 | `XSHUT2` | VL53L0X **rear** → 0x32 |
+| 14 | `XSHUT3` | VL53L0X **left** → 0x33. Toggles at boot (harmless: it only resets the sensor) |
+| 34 | `IMU_INT` | Input-only pin, ideal for an interrupt |
 | 25 | `IMU_RST` | |
-| 35 | `GAS_AO` | MQ-2, saída analógica, **pelo divisor 10 kΩ/15 kΩ**. ADC1, só entrada |
+| 35 | `GAS_AO` | MQ-2 analog output, **through the 10 kΩ/15 kΩ divider**. ADC1, input only |
 | 17 | `EYES_TX` | UART2 |
 | 16 | `EYES_RX` | UART2 |
-| 1, 3 | USB (CP2102) | UART0 = link com o Pi. **Não usar** |
-| 6–11 | — | Memória flash, **proibidos** (SD0–SD3, CMD, CLK na placa) |
-| 0, 2, 5, 12, 15 | — | *Strapping*: afetam o boot, evitados |
-| 4, 26, 36 (VP), 39 (VN) | livres | 36/39 são só entrada |
+| 1, 3 | USB (CP2102) | UART0 = the link to the Pi. **Do not use** |
+| 6–11 | — | Flash memory, **off limits** (SD0–SD3, CMD, CLK on the board) |
+| 0, 2, 5, 12, 15 | — | Strapping pins: they affect boot, avoided |
+| 4, 26, 36 (VP), 39 (VN) | free | 36/39 are input only |
 
-## Raspberry Pi: GPS e tela OLED
+## Raspberry Pi: GPS and OLED screen
 
-Os dois ficam no Pi, não no ESP32: o quadro serial do ESP32 está cheio (250 de 254 bytes), o GPS não é tempo real, e só o Pi sabe IP, rede e se o app está conectado (a tela pode mostrar o QR de pareamento). Ativados pelo Ansible (`enable_i2c`, `enable_gps_uart`).
+Both live on the Pi, not on the ESP32: the ESP32's serial frame is full (250 of 254 bytes), GPS is not real time, and only the Pi knows the IP, the network and whether an app is connected (so the screen can show the pairing QR code). Turned on by Ansible (`enable_i2c`, `enable_gps_uart`).
 
-| Módulo | Pino do módulo | Pino físico do Pi | Observação |
+| Module | Module pin | Pi physical pin | Notes |
 |---|---|---|---|
-| OLED SSD1306 0,96" (I2C, 0x3C) | VCC | 1 (3,3 V) | |
+| SSD1306 0.96" OLED (I2C, 0x3C) | VCC | 1 (3.3 V) | |
 | | GND | 9 | |
 | | SDA | 3 (GPIO2) | `/dev/i2c-1` |
 | | SCL | 5 (GPIO3) | |
-| GPS GY-NEO6MV2 (UART, 9600) | VCC | 17 (3,3 V) | O módulo aceita 3,3–5 V |
+| GY-NEO6MV2 GPS (UART, 9600) | VCC | 17 (3.3 V) | The module takes 3.3–5 V |
 | | GND | 14 | |
-| | TX | 10 (GPIO15, RX do Pi) | `/dev/serial0` |
-| | RX | 8 (GPIO14, TX do Pi) | Opcional: só para configurar o GPS |
+| | TX | 10 (GPIO15, the Pi's RX) | `/dev/serial0` |
+| | RX | 8 (GPIO14, the Pi's TX) | Optional: only to configure the GPS |
 
-Os pinos 2 e 4 (5 V) e 6 (GND) alimentam o Pi a partir do Mini560 no robô. **Ligar e desligar módulos com o Pi desligado.**
+Pins 2 and 4 (5 V) and 6 (GND) power the Pi from the Mini560 on the robot. **Plug and unplug modules with the Pi off.** The same pins on a Pi 3 and a Pi 4.
 
-- **GPS:** só pega posição (*fix*) com o céu à vista. O primeiro *fix* pode levar minutos; a bateria do módulo guarda o almanaque para os próximos.
-- **Validar:** `ssh wallace@hexapod.local 'bash -s' < pi/provision/check.sh` (seções OLED e GPS).
+- **GPS:** it only gets a position (fix) with open sky. The first fix can take minutes; the module's backup battery keeps the almanac for the next ones.
+- **Check:** `ssh <you>@hexapod.local 'bash -s' < pi/provision/check.sh` (OLED and GPS sections).
 
-## MQ-2 (gás e fumaça)
+## MQ-2 (gas and smoke)
 
-O módulo é alimentado em **5 V** (Mini560) e o aquecedor consome **~150 mA**. A saída analógica `AO` vai de 0 a **5 V**, mas o pino do ESP32 aguenta no máximo 3,3 V. Por isso, **nunca ligue `AO` direto**:
+The module runs on **5 V** (Mini560) and its heater draws **~150 mA**. The analog output `AO` swings from 0 to **5 V**, but an ESP32 pin takes 3.3 V at most. So **never wire `AO` straight in**:
 
 ```
-AO ──[10 kΩ]──┬── GAS_AO (GPIO10 no S3, GPIO35 na bancada)
+AO ──[10 kΩ]──┬── GAS_AO (GPIO10 on the S3, GPIO35 on the bench board)
               │
            [15 kΩ]
               │
              GND
 ```
 
-Com 5 V em `AO`, o pino recebe 3,0 V. A saída digital `DO` (comparador do módulo, também em 5 V) não é usada: o alarme é feito no firmware, comparando com o ar limpo.
+With 5 V on `AO`, the pin sees 3.0 V. The digital output `DO` (the module's comparator, also 5 V) is not used: the firmware raises the alarm by comparing with clean air.
 
-- **Aquecimento:** alguns minutos a cada partida (o firmware ignora o alarme nos 3 primeiros) e **24–48 h** ligado na primeira vez, para o sensor estabilizar.
-- **Leitura relativa:** o nível é a porcentagem da escala do ADC, não ppm. O alarme dispara quando o nível sobe bem acima da linha de base do ar limpo (`config.h`, bloco MQ-2).
-- Enquanto `config::kGasSensorFitted` for `false`, o firmware nem lê o pino e informa `FAULT_GAS_SENSOR`.
+- **Warm-up:** a few minutes at every start (the firmware ignores the alarm for the first 3) and **24–48 h** powered the very first time, for the sensor to settle.
+- **Relative reading:** the level is a percentage of the ADC range, not ppm. The alarm goes off when the level climbs well above the clean-air baseline (`config.h`, MQ-2 block).
+- While `config::kGasSensorFitted` is `false`, the firmware does not even read the pin and reports `FAULT_GAS_SENSOR`.
 
-## Servos: canal de cada junta
+## Servos: the channel of each joint
 
-PCA9685 nº 1 (**0x40**) = pernas da **esquerda**; nº 2 (**0x41**) = pernas da **direita**. As duas placas usam o mesmo layout: **um bloco de 4 conectores por perna**, deixando o 4º livre.
+PCA9685 no. 1 (**0x40**) = the **left** legs; no. 2 (**0x41**) = the **right** legs. Both boards use the same layout: **one block of 4 connectors per leg**, leaving the 4th free.
 
 ```
-Vista de cima          PCA 0x40 (esquerda)       PCA 0x41 (direita)
-     FRENTE            canal  perna  junta       canal  perna  junta
+Top view               PCA 0x40 (left)           PCA 0x41 (right)
+     FRONT             ch.    leg    joint       ch.    leg    joint
   0 \      / 3          0     0      coxa         0     3      coxa
-     \____/             1     0      fêmur        1     3      fêmur
-  1 --|  |-- 4          2     0      tíbia        2     3      tíbia
+     \____/             1     0      femur        1     3      femur
+  1 --|  |-- 4          2     0      tibia        2     3      tibia
      /|__|\             4     1      coxa         4     4      coxa
-  2 /      \ 5          5     1      fêmur        5     4      fêmur
-                        6     1      tíbia        6     4      tíbia
+  2 /      \ 5          5     1      femur        5     4      femur
+                        6     1      tibia        6     4      tibia
                         8     2      coxa         8     5      coxa
-                        9     2      fêmur        9     5      fêmur
-                       10     2      tíbia       10     5      tíbia
+                        9     2      femur        9     5      femur
+                       10     2      tibia       10     5      tibia
 ```
 
-Canais livres: 3, 7, 11–15 em cada placa. Inversão de sentido, offset e limites de cada servo **não** ficam aqui: são calibrados e gravados na NVS.
+Free channels: 3, 7, 11–15 on each board. Each servo's direction, offset and limits are **not** set here: they are calibrated and stored in NVS.
 
-## Endereços I2C
+## I2C addresses
 
-| Barramento | Dispositivo | Endereço |
+| Bus | Device | Address |
 |---|---|---|
-| I2C 0 (servos) | PCA9685 esquerda | 0x40 (jumpers de fábrica) |
-| I2C 0 (servos) | PCA9685 direita | **0x41**: soldar o jumper **A0** |
-| I2C 1 (sensores) | VL53L0X frente/direita/trás/esquerda | 0x30/0x31/0x32/0x33 (trocados no boot; de fábrica todos 0x29) |
+| I2C 0 (servos) | Left PCA9685 | 0x40 (factory jumpers) |
+| I2C 0 (servos) | Right PCA9685 | **0x41**: solder jumper **A0** |
+| I2C 1 (sensors) | VL53L0X front/right/rear/left | 0x30/0x31/0x32/0x33 (changed at boot; all 0x29 from the factory) |
 | I2C 1 | BNO085 | 0x4A |
 | I2C 1 | BME280 | 0x76 |
-| I2C 1 | INA226 | 0x40 (não conflita com a PCA: outro barramento) |
+| I2C 1 | INA226 | 0x40 (no clash with the PCA: another bus) |
 
-## Cuidados de ligação
+## Wiring precautions
 
-### OE das PCA9685: *pull-up* obrigatório
+### PCA9685 OE: pull-up required
 
-O padrão seguro do projeto é **servos desligados**. Mas, nas placas compatíveis com a Adafruit (como a HW-170), o OE vem com um resistor para GND, o que **liga** as saídas enquanto o ESP32 está em reset e o pino flutua.
+The project's safe default is **servos off**. But on Adafruit-compatible boards (like the HW-170), OE comes with a resistor to GND, which **turns the outputs on** while the ESP32 is in reset and the pin floats.
 
-- Ligar um **resistor de 1 kΩ entre `PCA_OE` e 3,3 V**.
-- Com as duas placas em paralelo (2 × 10 kΩ para GND = 5 kΩ), o OE fica em ~2,75 V, acima do mínimo de nível alto da PCA9685 (0,7 × 3,3 V = 2,31 V). Um resistor maior (4,7 kΩ ou 10 kΩ) **não** garante o nível alto.
-- **Conferir com multímetro**, com o ESP32 desconectado: o OE deve medir ≥ 2,5 V.
+- Wire a **1 kΩ resistor between `PCA_OE` and 3.3 V**.
+- With both boards in parallel (2 × 10 kΩ to GND = 5 kΩ), OE sits at ~2.75 V, above the PCA9685's minimum high level (0.7 × 3.3 V = 2.31 V). A larger resistor (4.7 kΩ or 10 kΩ) does **not** guarantee a high level.
+- **Check with a multimeter**, with the ESP32 disconnected: OE must read ≥ 2.5 V.
 
-Consequência: depois de um reset do ESP32, os servos ficam **sem torque** até o firmware ler as PCA9685 e reativar o OE. Isso segue a regra de segurança nº 1; o robô deve estar apoiado ou sentado.
+Consequence: after an ESP32 reset, the servos have **no torque** until the firmware reads the PCA9685s and enables OE again. That follows safety rule no. 1; the robot should be resting or sitting.
 
-### Alimentação
+### Power
 
-| Rede | Origem | Destino |
+| Rail | From | To |
 |---|---|---|
-| 6,0 V (servos) | Step-down de 20 A | Borne **V+** das duas PCA9685 (nunca no VCC) |
-| 5 V (lógica) | Mini560 | Pi (pinos 2/6 do GPIO), 5 V do ESP32, WS2812 |
-| 3,3 V | Regulador do ESP32 | **VCC** das PCA9685 e de todos os sensores |
-| GND | **Comum a tudo** | Bateria, step-down, Mini560, ESP32, Pi, PCA9685, sensores |
+| 6.0 V (servos) | 20 A step-down | **V+** terminal of both PCA9685 (never VCC) |
+| 5 V (logic) | Mini560 | Pi (GPIO pins 2/6), ESP32 5 V, WS2812 |
+| 3.3 V | ESP32 regulator | **VCC** of the PCA9685s and of every sensor |
+| GND | **Common to everything** | Battery, step-down, Mini560, ESP32, Pi, PCA9685, sensors |
 
-- O VCC das PCA9685 em **3,3 V** deixa o I2C no mesmo nível do ESP32, sem conversor.
-- Cada placa de sensor traz seus próprios *pull-ups* no I2C, e no barramento de sensores são 7 em paralelo. Com 10 kΩ em cada, o total fica em ~1,4 kΩ, dentro do limite (mínimo de ~1 kΩ a 3,3 V). Placas com 4,7 kΩ podem passar do limite: **com tudo desligado, medir a resistência entre SDA e 3,3 V**. Se der menos de 1 kΩ, remover os *pull-ups* de algumas placas.
-- O 3,3 V do DevKit (AMS1117) aguenta ~600 mA no total: suficiente para os sensores, mas **nunca** alimentar servos ou LEDs por ele.
+- PCA9685 VCC at **3.3 V** keeps I2C at the ESP32's level, no level shifter needed.
+- Each sensor board carries its own I2C pull-ups, and the sensor bus has 7 in parallel. At 10 kΩ each that is ~1.4 kΩ in total, within the limit (about 1 kΩ minimum at 3.3 V). Boards with 4.7 kΩ can go past it: **with everything off, measure the resistance between SDA and 3.3 V**. Below 1 kΩ, remove the pull-ups from some boards.
+- The DevKit's 3.3 V (AMS1117) gives ~600 mA in total: enough for the sensors, but **never** power servos or LEDs from it.
 
 ### WS2812
 
-- Alimentação em 5 V; dado em 3,3 V funciona na maioria das fitas, mas fora da especificação. Se o primeiro LED piscar errado, usar um conversor de nível (74AHCT125) ou um resistor de 330 Ω em série no dado.
-- Decisão WS2812 vs. LEDs de 1 W ainda pendente (`CLAUDE.md`, seção 7).
+- Power at 5 V; data at 3.3 V works with most strips but is out of spec. If the first LED glitches, use a level shifter (74AHCT125) or a 330 Ω resistor in series on the data line.
+- WS2812 vs. 1 W LEDs is still undecided.
 
 ### INA226
 
-O shunt de fábrica (0,1 Ω) mede só até ~0,8 A. Ver o `CLAUDE.md`, seção 9, antes de confiar na corrente.
+The factory shunt (0.1 Ω) only measures up to ~0.8 A. Read the shunt note in the [parts list](../README.md#parts-list) before trusting the current.

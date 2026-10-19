@@ -24,6 +24,7 @@ import (
 	"github.com/coder/websocket"
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -43,6 +44,27 @@ type Config struct {
 	// Position is the latest GPS reading and whether the GPS is talking
 	// (nil: no GPS). Sent to every app once a second.
 	Position func() (*pb.Position, bool)
+	// PiStatus is the Pi's own health (nil: not sampled). Sent to every app
+	// every 2 s and exported in /metrics.
+	PiStatus func() *pb.PiStatus
+	// Identity of the robot; when set, /ws and /api require its key (pairing).
+	Identity *pairing.Identity
+	// WiFi runs the robot's Wi-Fi for the setup API (nil: not managed).
+	WiFi WiFi
+	// Tailscale logs the robot in for remote access (nil: not offered).
+	Tailscale Tailscale
+	// Media: photos and recordings for the app's gallery; Camera: its
+	// quality presets (nil: no camera).
+	Media  Media
+	Camera CameraQuality
+	// Rename saves a new robot name (nil: no pairing).
+	Rename func(name string) error
+	// Codes is the short code on the robot's screen that /pair trades for
+	// the key (nil: no short-code pairing).
+	Codes *pairing.Codes
+	// OnPaired runs whenever an app proves it has the key (/pair or an
+	// authorized /ws): the robot's own Wi-Fi then needs a password.
+	OnPaired func()
 }
 
 // Server is created once and serves until its context ends.
@@ -52,6 +74,8 @@ type Server struct {
 	log *slog.Logger
 
 	mu           sync.Mutex
+	name         string     // robot name, changed by /api/name
+	pairMu       sync.Mutex // /pair tries go one at a time
 	lastAppCmd   time.Time
 	deadmanFired bool
 	deadmanTrips uint64
@@ -72,7 +96,11 @@ func New(cfg Config, dev *device.Device, log *slog.Logger) *Server {
 	if cfg.HealthMaxAge == 0 {
 		cfg.HealthMaxAge = 2 * time.Second
 	}
-	return &Server{cfg: cfg, dev: dev, log: log, profile: pb.LinkProfile_LINK_PROFILE_WIFI}
+	s := &Server{cfg: cfg, dev: dev, log: log, profile: pb.LinkProfile_LINK_PROFILE_WIFI}
+	if cfg.Identity != nil {
+		s.name = cfg.Identity.Name
+	}
+	return s
 }
 
 // Clients is the number of apps connected over the WebSocket.
@@ -86,6 +114,24 @@ func (s *Server) Clients() int {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ws", s.handleWS)
+	mux.HandleFunc("GET /identity", s.handleIdentity)
+	mux.HandleFunc("GET /api/wifi", s.handleWiFiStatus)
+	mux.HandleFunc("GET /api/wifi/scan", s.handleWiFiScan)
+	mux.HandleFunc("POST /api/wifi/join", s.handleWiFiJoin)
+	mux.HandleFunc("POST /api/wifi/mode", s.handleWiFiMode)
+	mux.HandleFunc("POST /api/wifi/forget", s.handleWiFiForget)
+	mux.HandleFunc("GET /api/tailscale", s.handleTailscaleStatus)
+	mux.HandleFunc("POST /api/tailscale/login", s.handleTailscaleLogin)
+	mux.HandleFunc("POST /api/tailscale/logout", s.handleTailscaleLogout)
+	mux.HandleFunc("GET /api/media", s.handleMedia)
+	mux.HandleFunc("POST /api/media/photo", s.handlePhoto)
+	mux.HandleFunc("POST /api/media/record", s.handleRecord)
+	mux.HandleFunc("GET /api/media/files/{name}", s.handleMediaFile)
+	mux.HandleFunc("DELETE /api/media/files/{name}", s.handleMediaDelete)
+	mux.HandleFunc("GET /api/camera", s.handleCamera)
+	mux.HandleFunc("POST /api/camera", s.handleCamera)
+	mux.HandleFunc("POST /api/name", s.handleName)
+	mux.HandleFunc("POST /pair", s.handlePair)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /version", s.handleVersion)
 	mux.HandleFunc("GET /status", s.handleStatus)
@@ -162,6 +208,13 @@ func (s *Server) forward(cmd *pb.Command, profile pb.LinkProfile) error {
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
+	// Only paired apps: the key comes from pairing (code on the robot's screen).
+	if !s.authorized(w, r) {
+		return
+	}
+	if s.cfg.Identity != nil && s.cfg.OnPaired != nil {
+		s.cfg.OnPaired()
+	}
 	// Default options reject cross-origin browsers: a web page opened on the
 	// LAN must not be able to drive the robot. The app sends no Origin header.
 	conn, err := websocket.Accept(w, r, nil)
@@ -212,12 +265,24 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer t.Stop()
 		gpsTick = t.C
 	}
+	var piTick <-chan time.Time
+	if s.cfg.PiStatus != nil {
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		piTick = t.C
+	}
 	go func() {
 		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-piTick:
+				if p := s.cfg.PiStatus(); p != nil {
+					if write(&pb.Envelope{Payload: &pb.Envelope_PiStatus{PiStatus: p}}) != nil {
+						return
+					}
+				}
 			case <-gpsTick:
 				if p, ok := s.cfg.Position(); ok {
 					if write(&pb.Envelope{Payload: &pb.Envelope_Position{Position: p}}) != nil {
@@ -340,6 +405,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 	if !snap.LastRx.IsZero() {
 		v["last_rx_age_ms"] = time.Since(snap.LastRx).Milliseconds()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// handleIdentity tells apps on the network which robot this is (never the
+// key): the app matches the id read from the QR code.
+func (s *Server) handleIdentity(w http.ResponseWriter, _ *http.Request) {
+	v := map[string]any{"hexd_version": s.cfg.HexdVersion, "pairing": s.cfg.Identity != nil}
+	if id := s.cfg.Identity; id != nil {
+		s.mu.Lock()
+		v["id"], v["name"] = id.ID, s.name
+		s.mu.Unlock()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)

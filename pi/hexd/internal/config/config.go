@@ -32,6 +32,17 @@ type Config struct {
 		WirelessPath      string `yaml:"wireless_path"`
 		WifiInterface     string `yaml:"wifi_interface"`
 	} `yaml:"metrics"`
+	Auth struct {
+		Required bool   `yaml:"required"` // apps must present the pairing key (QR on the OLED)
+		Identity string `yaml:"identity"` // robot id, name and key; created on first start
+	} `yaml:"auth"`
+	WiFi struct {
+		Enabled       bool          `yaml:"enabled"`        // own network + home networks from the app
+		Interface     string        `yaml:"interface"`      // wlan0
+		Settings      string        `yaml:"settings"`       // mode (home/direct), on the data partition
+		FallbackAfter time.Duration `yaml:"fallback_after"` // no home network this long: own network
+		OwnBand       string        `yaml:"own_band"`       // own network: auto (5 GHz if the chip has it), 5 or 2.4
+	} `yaml:"wifi"`
 	GPS struct {
 		Enabled  bool    `yaml:"enabled"`
 		Device   string  `yaml:"device"`
@@ -48,6 +59,18 @@ type Config struct {
 		Wired    string        `yaml:"wired_interface"`
 		Tailnet  string        `yaml:"tailnet_interface"`
 	} `yaml:"display"`
+	Media struct {
+		Enabled   bool          `yaml:"enabled"`     // photos and recordings for the app's gallery
+		Dir       string        `yaml:"dir"`         // on the data partition
+		Source    string        `yaml:"source"`      // MediaMTX's local RTSP stream
+		MaxRecord time.Duration `yaml:"max_record"`  // a recording stops by itself after this long
+		MinFreeMB uint64        `yaml:"min_free_mb"` // keep this much of the SD card free (MB)
+		API       string        `yaml:"api"`         // MediaMTX API, for the camera quality
+		Settings  string        `yaml:"settings"`    // chosen quality (720p/1080p)
+	} `yaml:"media"`
+	Tailscale struct {
+		Enabled bool `yaml:"enabled"` // remote access set up from the app (needs auth.required)
+	} `yaml:"tailscale"`
 	Shutdown struct {
 		Enabled bool          `yaml:"enabled"`
 		Delay   time.Duration `yaml:"delay"`
@@ -69,6 +92,13 @@ func Default() Config {
 	c.Metrics.PiTemperaturePath = "/sys/class/thermal/thermal_zone0/temp"
 	c.Metrics.WirelessPath = "/proc/net/wireless"
 	c.Metrics.WifiInterface = "wlan0"
+	c.Auth.Required = true
+	c.Auth.Identity = "/opt/hexapod/shared/config/identity.json"
+	c.WiFi.Enabled = true // needs the pairing key (the own network's password comes from it)
+	c.WiFi.Interface = "wlan0"
+	c.WiFi.Settings = "/opt/hexapod/shared/config/network.json"
+	c.WiFi.FallbackAfter = 45 * time.Second
+	c.WiFi.OwnBand = "auto"
 	c.GPS.Enabled = true // a missing GPS is only logged
 	c.GPS.Device = "/dev/serial0"
 	c.GPS.Baud = 9600
@@ -79,6 +109,14 @@ func Default() Config {
 	c.Display.PageTime = 5 * time.Second
 	c.Display.Wired = "eth0"
 	c.Display.Tailnet = "tailscale0"
+	c.Media.Enabled = true // without a camera, photo and record answer "camera did not answer"
+	c.Media.Dir = "/opt/hexapod/shared/media"
+	c.Media.Source = "rtsp://127.0.0.1:8554/cam"
+	c.Media.MaxRecord = 30 * time.Minute
+	c.Media.MinFreeMB = 500
+	c.Media.API = "http://127.0.0.1:9997"
+	c.Media.Settings = "/opt/hexapod/shared/config/camera.json"
+	c.Tailscale.Enabled = true // without tailscale installed the app is told so
 	c.Shutdown.Enabled = true
 	c.Shutdown.Delay = 10 * time.Second
 	c.Shutdown.Command = []string{"systemctl", "poweroff"}

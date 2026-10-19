@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/control/control_state.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
@@ -35,6 +36,7 @@ Future<void> _pump(
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        piStatusProvider.overrideWith((ref) => const Stream.empty()),
         videoViewProvider.overrideWith(
           (ref) =>
               (_) => const VideoPlaceholder(),
@@ -48,7 +50,7 @@ Future<void> _pump(
         settingsProvider.overrideWith(() => SettingsNotifier(settings)),
         robotAddressProvider.overrideWith((ref) async => '127.0.0.1'),
       ],
-      child: const MaterialApp(home: PilotScreen()),
+      child: testApp(home: const PilotScreen()),
     ),
   );
   await tester.pump(const Duration(milliseconds: 300));

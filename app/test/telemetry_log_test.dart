@@ -1,6 +1,8 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
 import 'package:hexapod_app/features/data/telemetry_log.dart';
+import 'package:hexapod_app/l10n/l10n.dart';
 
 pb.Telemetry _t(int seq, {int faults = 0}) => pb.Telemetry()
   ..seq = seq
@@ -44,6 +46,18 @@ void main() {
     expect(Part.power.presentIn(t), isFalse);
     expect(Part.environment.presentIn(t), isTrue);
     expect(Part.servosLeft.presentIn(t), isTrue);
+  });
+
+  test('part labels, checks and Wi-Fi signal follow the language', () {
+    final en = lookupAppLocalizations(const Locale('en'));
+    final pt = lookupAppLocalizations(const Locale('pt'));
+    expect(Part.gas.label(en), 'Gas and smoke');
+    expect(Part.gas.label(pt), 'Gás e fumaça');
+    expect(faultChecks(en).length, faultTexts(en).length);
+    expect(faultTexts(pt).first.$2, 'Servos esquerdos (PCA9685 0x40) sem resposta');
+    expect(describeSignal(en, -55), '-55 dBm · great');
+    expect(describeSignal(pt, -75), '-75 dBm · fraco');
+    expect(describeSignal(en, 0), 'no Wi-Fi');
   });
 
   test('uptime reads like a person would say it', () {

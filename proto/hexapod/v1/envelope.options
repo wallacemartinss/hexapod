@@ -1,3 +1,4 @@
-# The ESP32 never sees a Position (the GPS is on the Pi): leaving it out of
+# The ESP32 never sees a Position or a PiStatus (hexd -> app only): leaving them out of
 # the C union keeps the worst-case serial frame within one COBS block.
 hexapod.v1.Envelope.position type:FT_IGNORE
+hexapod.v1.Envelope.pi_status type:FT_IGNORE

@@ -3,6 +3,7 @@
 //	hexd -config /opt/hexapod/shared/config/hexd.yaml
 //	hexd -serial tcp://127.0.0.1:7777 -listen :8080     # against hexsim
 //	hexd -boot-screen   # boot checklist on the OLED until the network is up
+//	hexd -pairing       # print the robot's id, key and pairing QR (as the service user)
 package main
 
 import (
@@ -16,6 +17,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -24,8 +26,14 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/display"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/gps"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/media"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/sysinfo"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/tailscale"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
+	"google.golang.org/protobuf/proto"
 )
 
 // Set at build time: -ldflags "-X main.version=... -X main.gitHash=...".
@@ -39,6 +47,7 @@ func main() {
 	serial := flag.String("serial", "", "override serial.device")
 	listen := flag.String("listen", "", "override listen")
 	bootScreen := flag.Bool("boot-screen", false, "show the boot checklist on the OLED, then exit")
+	showPairing := flag.Bool("pairing", false, "print the pairing key and QR, then exit")
 	flag.Parse()
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
@@ -52,6 +61,15 @@ func main() {
 	}
 	if *listen != "" {
 		cfg.Listen = *listen
+	}
+	if *showPairing {
+		id, err := pairing.LoadOrCreate(cfg.Auth.Identity)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "pairing:", err, "(run as the service user: sudo -u hexapod ...)")
+			os.Exit(1)
+		}
+		fmt.Printf("Robô %s (%s)\nChave: %s\n\nNo app: Novo robô > escanear este QR\n%s\n", id.ID, id.Name, id.Token, pairing.TerminalQR(id.QR()))
+		return
 	}
 	if *bootScreen {
 		runBootScreen(cfg, log.With("component", "boot-screen"))
@@ -71,6 +89,20 @@ func main() {
 	})
 	go dev.Run(ctx)
 
+	// Pairing: without the key from the robot's screen, no app connects.
+	var identity *pairing.Identity
+	if cfg.Auth.Required {
+		id, err := pairing.LoadOrCreate(cfg.Auth.Identity)
+		if err != nil { // fail closed: never serve without the key
+			log.Error("pairing identity", "path", cfg.Auth.Identity, "err", err)
+			os.Exit(1)
+		}
+		identity = &id
+		log.Info("pairing on", "id", id.ID)
+	} else {
+		log.Warn("pairing off: any app on the network can drive the robot (auth.required: false)")
+	}
+
 	// GPS on the Pi's UART (or simulated); nil when disabled.
 	var position func() (*pb.Position, bool)
 	if cfg.GPS.Enabled {
@@ -83,7 +115,111 @@ func main() {
 		position = func() (*pb.Position, bool) { return reader.Latest(3 * time.Second) }
 	}
 
-	srv := server.New(server.Config{
+	// The Pi's own health (CPU, memory, SD card, power), for the app and /metrics.
+	pi := &sysinfo.Sampler{DataPath: "/opt/hexapod", WifiInterface: cfg.Metrics.WifiInterface}
+	go pi.Run(ctx, 2*time.Second)
+
+	// The identity's name and "paired" flag change at run time (rename,
+	// first pairing): idMu guards them and every save of the file.
+	var idMu sync.Mutex
+	update := func(change func(*pairing.Identity) bool) error {
+		idMu.Lock()
+		defer idMu.Unlock()
+		if !change(identity) {
+			return nil
+		}
+		return pairing.Save(cfg.Auth.Identity, *identity)
+	}
+	// Short code on the screen, traded for the key by /pair.
+	var codes *pairing.Codes
+	if identity != nil {
+		codes = &pairing.Codes{TTL: 10 * time.Minute}
+	}
+	// An app proved it has the key: from now on the own network needs a password.
+	var onPaired func()
+	if identity != nil {
+		onPaired = func() {
+			if err := update(func(id *pairing.Identity) bool {
+				was := id.Paired
+				id.Paired = true
+				return !was
+			}); err != nil {
+				log.Warn("saving paired flag", "err", err)
+			}
+		}
+	}
+
+	// Wi-Fi: the robot's own network (open until the first pairing, then a
+	// password from the key) and the home networks the app saves. srv is
+	// set below, before Run starts.
+	var srv *server.Server
+	var wifiMgr *wifi.Manager
+	if cfg.WiFi.Enabled && identity != nil {
+		wifiMgr = wifi.New(wifi.Options{
+			NM: wifi.NM{Run: wifi.Nmcli, Iface: cfg.WiFi.Interface},
+			Own: func() (string, string) {
+				idMu.Lock()
+				defer idMu.Unlock()
+				return identity.OwnNetwork()
+			},
+			SettingsPath:   cfg.WiFi.Settings,
+			FallbackAfter:  cfg.WiFi.FallbackAfter,
+			OwnBand:        cfg.WiFi.OwnBand,
+			RetryHomeEvery: 2 * time.Minute,
+			JoinWait:       30,
+			Tick:           5 * time.Second,
+			Apps:           func() int { return srv.Clients() },
+			Log:            log.With("component", "wifi"),
+		})
+	}
+	// Renaming from the app rewrites the identity file (nil without pairing).
+	var rename func(name string) error
+	if identity != nil {
+		rename = func(name string) error {
+			return update(func(id *pairing.Identity) bool { id.Name = name; return true })
+		}
+	}
+
+	// Remote access: the app logs the robot in to the owner's tailnet.
+	var remote server.Tailscale
+	if cfg.Tailscale.Enabled && identity != nil {
+		remote = &tailscale.Client{
+			Run:      tailscale.CLI,
+			Hostname: "hexapod-" + strings.ToLower(identity.ID),
+			Prepare:  tailscale.RestoreOperator,
+		}
+	}
+
+	// Camera: photos and recordings for the app's gallery, quality presets.
+	var gallery *media.Gallery
+	var camera *media.Camera
+	if cfg.Media.Enabled {
+		g, err := media.New(media.Options{
+			Dir: cfg.Media.Dir, Source: cfg.Media.Source, MaxRecord: cfg.Media.MaxRecord,
+			MinFreeMB: cfg.Media.MinFreeMB, Log: log.With("component", "media"),
+		})
+		if err != nil {
+			log.Warn("gallery off", "err", err)
+		} else {
+			gallery = g
+			defer func() { _, _ = gallery.StopRecording() }() // a clean MP4 on shutdown
+		}
+		camera = &media.Camera{API: cfg.Media.API, Path: "cam", Settings: cfg.Media.Settings}
+		go camera.Keep(ctx, 30*time.Second)
+	}
+	// The Pi's health, plus whether the camera is recording (for the app's REC badge).
+	piStatus := func() *pb.PiStatus {
+		st := pi.Latest()
+		if st == nil || gallery == nil {
+			return st
+		}
+		st = proto.CloneOf(st)
+		on, d := gallery.Recording()
+		st.Recording, st.RecordingS = on, uint32(d.Seconds())
+		return st
+	}
+
+	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
 		CellularInterfaces: cfg.Deadman.CellularInterfaces,
@@ -94,7 +230,19 @@ func main() {
 		WirelessPath:       cfg.Metrics.WirelessPath,
 		WifiInterface:      cfg.Metrics.WifiInterface,
 		Position:           position,
+		PiStatus:           piStatus,
+		Media:              mediaAPI(gallery),
+		Camera:             cameraAPI(camera),
+		Identity:           identity,
+		WiFi:               wifiAPI(wifiMgr),
+		Tailscale:          remote,
+		Rename:             rename,
+		Codes:              codes,
+		OnPaired:           onPaired,
 	}, dev, log.With("component", "server"))
+	if wifiMgr != nil {
+		go wifiMgr.Run(ctx)
+	}
 	go srv.Run(ctx)
 
 	if cfg.Shutdown.Enabled {
@@ -109,7 +257,7 @@ func main() {
 	if cfg.Display.Enabled {
 		go func() {
 			defer close(displayDone)
-			runDisplay(ctx, cfg, dev, srv, position, log.With("component", "display"))
+			runDisplay(ctx, cfg, dev, srv, position, identity, codes, wifiMgr, log.With("component", "display"))
 		}()
 	} else {
 		close(displayDone)
@@ -136,19 +284,26 @@ func main() {
 // runDisplay keeps the OLED status screen up to date. The network is looked
 // up every 10 s (it shells out to iw), the rest every refresh.
 func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
-	position func() (*pb.Position, bool), log *slog.Logger) {
+	position func() (*pb.Position, bool), identity *pairing.Identity, codes *pairing.Codes,
+	wifiMgr *wifi.Manager, log *slog.Logger) {
 	var label, ip, ts string
 	var netAt time.Time
 	status := func() display.Status {
 		if now := time.Now(); now.Sub(netAt) > 10*time.Second {
 			label, ip, ts = display.Network(cfg.Metrics.WifiInterface, cfg.Display.Wired, cfg.Display.Tailnet)
+			// In its own network iw shows no SSID: say which network it is.
+			if wifiMgr != nil {
+				if w := wifiMgr.Status(); w.State == wifi.StateOwn {
+					label, ip = "Rede própria", w.IP
+				}
+			}
 			netAt = now
 		}
 		snap := dev.Snapshot()
 		if ctx.Err() != nil { // stopping: say why, if the whole Pi is going down
 			return display.Status{Stopped: true, Shutdown: systemShutdown(), Version: version}
 		}
-		return display.Status{
+		st := display.Status{
 			ESP32:     snap.Connected && time.Since(snap.LastRx) < cfg.HealthMaxAge,
 			Telemetry: snap.Telemetry,
 			Apps:      srv.Clients(),
@@ -158,6 +313,11 @@ func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv 
 			Version:   version,
 			GPS:       gpsLine(position),
 		}
+		if identity != nil && codes != nil {
+			code := codes.Current()
+			st.Pairing, st.RobotID, st.PairCode = identity.PairingQR(code), identity.ID, code
+		}
+		return st
 	}
 	display.Run(ctx, display.Options{
 		Bus:      cfg.Display.Bus,
@@ -216,4 +376,28 @@ func gpsLine(position func() (*pb.Position, bool)) string {
 	default:
 		return fmt.Sprintf("GPS: procurando (%d)", p.SatellitesInView)
 	}
+}
+
+// wifiAPI keeps a nil manager a nil interface (no Wi-Fi API).
+// mediaAPI and cameraAPI keep a nil pointer from becoming a non-nil
+// interface (the API then answers "camera off").
+func mediaAPI(g *media.Gallery) server.Media {
+	if g == nil {
+		return nil
+	}
+	return g
+}
+
+func cameraAPI(c *media.Camera) server.CameraQuality {
+	if c == nil {
+		return nil
+	}
+	return c
+}
+
+func wifiAPI(m *wifi.Manager) server.WiFi {
+	if m == nil {
+		return nil
+	}
+	return m
 }

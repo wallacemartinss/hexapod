@@ -66,6 +66,7 @@
   failed_when: false
 
 # cmdline.txt is a single line: rewrite it only when the HDMI flag differs
+# (both ports: the Pi 4 has two; a Pi 3 ignores the second)
 # (or, with the GPS on the UART, to drop the serial console).
 - name: Read kernel cmdline
   ansible.builtin.slurp:
@@ -76,10 +77,12 @@
   ansible.builtin.set_fact:
     cmdline_new: >-
       {{ ((cmdline_raw.content | b64decode | trim).split()
-          | reject('equalto', 'video=HDMI-A-1:d')
+          | reject('match', '^video=HDMI-A-[12]:d$')
+          | reject('match', '^cfg80211.ieee80211_regdom=')
           | reject('match', '^console=(serial0|ttyAMA0|ttyS0),' if enable_gps_uart | bool else '^$')
           | list
-          + (['video=HDMI-A-1:d'] if disable_hdmi | bool else []))
+          + (['video=HDMI-A-1:d', 'video=HDMI-A-2:d'] if disable_hdmi | bool else [])
+          + ['cfg80211.ieee80211_regdom=' ~ wifi_country])
          | join(' ') }}
 
 - name: Write kernel cmdline

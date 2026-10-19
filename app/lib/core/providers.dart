@@ -7,9 +7,13 @@ import '../features/video/video_view.dart';
 
 import 'control/command_mapper.dart';
 import 'control/control_state.dart';
+import 'link/discovery.dart';
 import 'link/host_resolver.dart';
+import 'link/robot_wifi.dart';
+import 'link/robot_api.dart';
 import 'link/robot_link.dart';
 import 'proto.dart';
+import 'robots.dart';
 import 'settings.dart';
 
 /// Commands per second, also when the sticks are idle (dead man's switch:
@@ -38,8 +42,66 @@ class SettingsNotifier extends Notifier<Settings> {
 
 /// The robot's address: the configured host resolved (mDNS fallback for
 /// `.local` on phones that do not resolve it). Raw host until resolved.
-final robotAddressProvider = FutureProvider<String>((ref) {
-  return resolveHost(ref.watch(settingsProvider.select((s) => s.host)));
+/// The active robot's id and key: the only robot fields that reconnect
+/// (a record, so equal values do not notify).
+final activeRobotKeyProvider = Provider<({String id, String token})?>((ref) {
+  final r = ref.watch(
+    robotsProvider.select((s) => s.active == null ? null : (id: s.active!.id, token: s.active!.token)),
+  );
+  return r;
+});
+
+DateTime _ownNetworkTried = DateTime(0);
+
+/// Where to reach the robot: the paired robot found on the network (its
+/// last address first), else the manual address from the settings.
+final robotAddressProvider = FutureProvider<String>((ref) async {
+  final host = ref.watch(settingsProvider.select((s) => s.host));
+  final robot = ref.watch(activeRobotKeyProvider);
+  if (robot == null) return resolveHost(host);
+  final last = ref.read(robotsProvider).active?.address;
+  final found = await findRobot(robot.id, lastAddress: last);
+  if (found != null) {
+    unawaited(ref.read(robotsProvider.notifier).seenAt(robot.id, found.address));
+    return found.address;
+  }
+  // Away from it (4G, another network): its Tailscale address (remote
+  // access set up in the app), then the address in Settings, when the robot
+  // answering there is this one. Before the own network, which makes
+  // Android ask the user.
+  final tailnet = ref.read(robotsProvider).active?.remote;
+  for (final address in [?tailnet, await resolveHost(host)]) {
+    final there = await identify(address);
+    if (there != null && there.id == robot.id) return there.address;
+  }
+  // Not on this network: the robot may be on its own Wi-Fi (direct mode,
+  // or no home network worked). Join it, at most once a minute (Android
+  // asks the user each time).
+  final wifi = ref.read(robotWifiProvider);
+  final now = DateTime.now();
+  if (wifi != null && now.difference(_ownNetworkTried) > const Duration(minutes: 1)) {
+    _ownNetworkTried = now;
+    final own = ownNetwork(robot.id, robot.token);
+    // Its password, or still open: right after the first pairing the robot
+    // switches only once nobody is connected.
+    for (final password in [own.password, '']) {
+      if (await wifi.join(own.ssid, password)) {
+        final there = await identify(ownNetworkAddress);
+        if (there?.id == robot.id) return ownNetworkAddress;
+        await wifi.release();
+      }
+    }
+  }
+  return last ?? resolveHost(host);
+});
+
+/// The active robot's setup API (gallery, camera...), at the address the
+/// link uses; null without a paired robot or before it is found.
+final robotApiProvider = Provider<RobotApi?>((ref) {
+  final robot = ref.watch(robotsProvider).active;
+  final address = ref.watch(robotAddressProvider).value;
+  if (robot == null || address == null) return null;
+  return RobotApi(address, robot.token, port: ref.watch(settingsProvider.select((s) => s.port)));
 });
 
 String _address(Ref ref) =>
@@ -50,15 +112,18 @@ final linkProvider = Provider<RobotLink>((ref) {
   // Only the address and port matter: other settings must not reconnect.
   final port = ref.watch(settingsProvider.select((s) => s.port));
   final uri = Uri(scheme: 'ws', host: _address(ref), port: port, path: '/ws');
-  final link = RobotLink(uri);
+  final link = RobotLink(uri, token: ref.watch(activeRobotKeyProvider)?.token);
   unawaited(link.start());
   ref.onDispose(link.close);
   return link;
 });
 
-final linkStatusProvider = StreamProvider<LinkStatus>((ref) {
+final linkStatusProvider = StreamProvider<LinkStatus>((ref) async* {
   final link = ref.watch(linkProvider);
-  return link.status;
+  // A new link (after pairing...) starts from its own state, never from
+  // the old link's (a stale "refused" flashed right after pairing).
+  yield link.current;
+  yield* link.status;
 });
 
 final telemetryProvider = StreamProvider<Telemetry>((ref) => ref.watch(linkProvider).telemetry);
@@ -83,6 +148,21 @@ final positionProvider = StreamProvider<GpsReading>((ref) async* {
   final last = link.lastPosition;
   if (last != null) yield GpsReading(last);
   yield* link.position.map(GpsReading.new);
+});
+
+/// A PiStatus as it arrived: like [GpsReading], every sample notifies,
+/// even when the values repeat (the data screen times them).
+class PiReading {
+  PiReading(this.status);
+
+  final PiStatus status;
+}
+
+final piStatusProvider = StreamProvider<PiReading>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastPiStatus;
+  if (last != null) yield PiReading(last);
+  yield* link.piStatus.map(PiReading.new);
 });
 
 final controlProvider = NotifierProvider<ControlNotifier, ControlState>(ControlNotifier.new);

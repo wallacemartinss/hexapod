@@ -58,3 +58,41 @@
         }
       });
     mode: "0644"
+
+# hexd runs the Wi-Fi from the app (own network, home networks): only the
+# NetworkManager actions that needs, for the service user only.
+- name: Allow the service user to manage Wi-Fi
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/50-hexapod-network.rules
+    content: |
+      polkit.addRule(function (action, subject) {
+        var allowed = [
+          "org.freedesktop.NetworkManager.network-control",
+          "org.freedesktop.NetworkManager.settings.modify.system",
+          "org.freedesktop.NetworkManager.wifi.scan",
+          "org.freedesktop.NetworkManager.wifi.share.protected",
+          "org.freedesktop.NetworkManager.wifi.share.open",
+          "org.freedesktop.NetworkManager.enable-disable-wifi"
+        ];
+        if (subject.user === "{{ hexapod_user }}" && allowed.indexOf(action.id) >= 0) {
+          return polkit.Result.YES;
+        }
+      });
+    mode: "0644"
+
+# `tailscale logout` (Disconnect in the app) clears tailscaled's prefs,
+# operator included: hexd re-applies it before each login by starting this
+# one unit. Only that unit, only start, only the service user.
+- name: Allow the service user to restore its tailscale operator
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/50-hexapod-tailscale.rules
+    content: |
+      polkit.addRule(function (action, subject) {
+        if (subject.user === "{{ hexapod_user }}" &&
+            action.id === "org.freedesktop.systemd1.manage-units" &&
+            action.lookup("unit") === "hexapod-tailscale-operator.service" &&
+            action.lookup("verb") === "start") {
+          return polkit.Result.YES;
+        }
+      });
+    mode: "0644"

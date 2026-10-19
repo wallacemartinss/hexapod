@@ -16,6 +16,8 @@ import (
 	"github.com/coder/websocket"
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 	"github.com/wallacemartinss/hexapod/pi/internal/sim"
 	"google.golang.org/protobuf/proto"
 )
@@ -296,6 +298,33 @@ func TestAppGetsThePosition(t *testing.T) {
 	}
 }
 
+func TestAppGetsThePiStatus(t *testing.T) {
+	r := newRig(t, Config{PiStatus: func() *pb.PiStatus {
+		return &pb.PiStatus{CpuPercent: 12, UnderVoltageSeen: true}
+	}})
+	_, metrics := get(t, r.http.URL+"/metrics")
+	for _, want := range []string{"hexapod_pi_cpu_percent 12", "hexapod_pi_under_voltage_seen 1"} {
+		if !strings.Contains(metrics, want) {
+			t.Errorf("/metrics missing %q", want)
+		}
+	}
+	a := connectApp(t, r)
+	deadline := time.After(4 * time.Second)
+	for {
+		select {
+		case env := <-a.in:
+			if p := env.GetPiStatus(); p != nil {
+				if p.CpuPercent != 12 || !p.UnderVoltageSeen {
+					t.Fatalf("pi status: %v", p)
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("no PiStatus over the websocket")
+		}
+	}
+}
+
 func TestNoPositionWithoutGPS(t *testing.T) {
 	r := newRig(t, Config{Position: func() (*pb.Position, bool) { return &pb.Position{}, false }})
 	a := connectApp(t, r)
@@ -309,5 +338,142 @@ func TestNoPositionWithoutGPS(t *testing.T) {
 		case <-deadline:
 			return
 		}
+	}
+}
+
+func TestPairingKeyRequired(t *testing.T) {
+	id, _ := pairing.New()
+	r := newRig(t, Config{Identity: &id})
+	url := "ws" + strings.TrimPrefix(r.http.URL, "http") + "/ws"
+	dial := func(key string) (int, error) {
+		opts := &websocket.DialOptions{}
+		if key != "" {
+			opts.HTTPHeader = http.Header{"Authorization": []string{"Bearer " + key}}
+		}
+		conn, resp, err := websocket.Dial(context.Background(), url, opts)
+		if conn != nil {
+			conn.CloseNow()
+		}
+		if resp == nil {
+			return 0, err
+		}
+		return resp.StatusCode, err
+	}
+	for _, key := range []string{"", "WRONGKEYWRONGKEYWRON"} {
+		if code, err := dial(key); err == nil || code != http.StatusUnauthorized {
+			t.Fatalf("key %q: status %d err %v, want 401", key, code, err)
+		}
+	}
+	if code, err := dial(id.Token); err != nil || code != http.StatusSwitchingProtocols {
+		t.Fatalf("right key: status %d err %v", code, err)
+	}
+}
+
+func TestIdentityNeverShowsTheKey(t *testing.T) {
+	id, _ := pairing.New()
+	r := newRig(t, Config{Identity: &id, HexdVersion: "v-id"})
+	code, body := get(t, r.http.URL+"/identity")
+	if code != http.StatusOK || !strings.Contains(body, `"id":"`+id.ID+`"`) || !strings.Contains(body, "v-id") {
+		t.Fatalf("identity: %d %s", code, body)
+	}
+	if strings.Contains(body, id.Token) {
+		t.Fatal("/identity leaks the pairing key")
+	}
+}
+
+type fakeWiFi struct {
+	joined []string
+	mode   wifi.Mode
+}
+
+func (f *fakeWiFi) Status() wifi.Status {
+	return wifi.Status{Mode: f.mode, State: wifi.StateOwn, APSSID: "Hexapode-7F3A", Saved: []string{}}
+}
+func (f *fakeWiFi) Scan(context.Context) ([]wifi.Network, error) {
+	return []wifi.Network{{SSID: "Casa", Signal: 80, Secure: true}}, nil
+}
+func (f *fakeWiFi) Join(ssid, _ string) error { f.joined = append(f.joined, ssid); return nil }
+func (f *fakeWiFi) SetMode(m wifi.Mode) error { f.mode = m; return nil }
+func (f *fakeWiFi) Forget(string) error       { return nil }
+
+func TestSetupAPI(t *testing.T) {
+	id, _ := pairing.New()
+	wf := &fakeWiFi{mode: wifi.ModeHome}
+	var renamed string
+	r := newRig(t, Config{Identity: &id, WiFi: wf, Rename: func(n string) error { renamed = n; return nil }})
+	call := func(method, path, body, key string) (int, string) {
+		req, _ := http.NewRequest(method, r.http.URL+path, strings.NewReader(body))
+		if key != "" {
+			req.Header.Set("Authorization", "Bearer "+key)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	for _, p := range []struct{ m, path string }{{"GET", "/api/wifi"}, {"GET", "/api/wifi/scan"}, {"POST", "/api/wifi/join"}, {"POST", "/api/name"}} {
+		if code, _ := call(p.m, p.path, `{}`, ""); code != http.StatusUnauthorized {
+			t.Errorf("%s %s without key: %d, want 401", p.m, p.path, code)
+		}
+	}
+	if code, body := call("GET", "/api/wifi", "", id.Token); code != 200 || !strings.Contains(body, `"ap_ssid":"Hexapode-7F3A"`) {
+		t.Fatalf("status: %d %s", code, body)
+	}
+	if code, body := call("GET", "/api/wifi/scan", "", id.Token); code != 200 || !strings.Contains(body, `"ssid":"Casa"`) {
+		t.Fatalf("scan: %d %s", code, body)
+	}
+	if code, _ := call("POST", "/api/wifi/join", `{"ssid":"Casa","password":"senha-certa"}`, id.Token); code != http.StatusAccepted || wf.joined[0] != "Casa" {
+		t.Fatalf("join: %d %v", code, wf.joined)
+	}
+	if code, _ := call("POST", "/api/wifi/mode", `{"mode":"direct"}`, id.Token); code != http.StatusAccepted || wf.mode != wifi.ModeDirect {
+		t.Fatalf("mode: %d %v", code, wf.mode)
+	}
+	if code, _ := call("POST", "/api/wifi/join", `not json`, id.Token); code != http.StatusBadRequest {
+		t.Fatalf("bad body: %d", code)
+	}
+	if code, _ := call("POST", "/api/name", `{"name":"Minha aranha"}`, id.Token); code != 200 || renamed != "Minha aranha" {
+		t.Fatalf("rename: %d %q", code, renamed)
+	}
+	if _, body := get(t, r.http.URL+"/identity"); !strings.Contains(body, "Minha aranha") {
+		t.Fatalf("/identity keeps the old name: %s", body)
+	}
+	if code, _ := call("POST", "/api/name", `{"name":"   "}`, id.Token); code != http.StatusBadRequest {
+		t.Fatalf("blank name: %d", code)
+	}
+}
+
+func TestPairWithTheShortCode(t *testing.T) {
+	id, _ := pairing.New()
+	codes := &pairing.Codes{TTL: time.Minute}
+	paired := 0
+	r := newRig(t, Config{Identity: &id, Codes: codes, OnPaired: func() { paired++ }})
+	post := func(code string) (int, string) {
+		resp, err := http.Post(r.http.URL+"/pair", "application/json", strings.NewReader(`{"code":"`+code+`"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	start := time.Now()
+	if code, _ := post("ZZZZZ"); code != http.StatusForbidden {
+		t.Fatalf("wrong code: %d", code)
+	}
+	if time.Since(start) < 900*time.Millisecond {
+		t.Fatal("a wrong code must cost time")
+	}
+	good := codes.Current()
+	code, body := post(strings.ToLower(good)) // typed in lower case
+	if code != 200 || !strings.Contains(body, id.Token) || paired != 1 {
+		t.Fatalf("right code: %d %s paired=%d", code, body, paired)
+	}
+	if code, _ := post(good); code != http.StatusForbidden {
+		t.Fatal("a code works once")
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -161,13 +162,19 @@ func TestPanelProtocol(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := bus.writes[3:]
-	if len(data) != pages {
-		t.Fatalf("%d data writes, want %d", len(data), pages)
+	if len(data) != pages*Width/chunk {
+		t.Fatalf("%d data writes, want %d", len(data), pages*Width/chunk)
 	}
+	sent := 0
 	for _, w := range data {
-		if w[0] != 0x40 || len(w) != Width+1 {
+		// Small writes only: this panel lost 129-byte ones and went dark.
+		if w[0] != 0x40 || len(w) > chunk+1 {
 			t.Fatalf("data write: len %d prefix %#x", len(w), w[0])
 		}
+		sent += len(w) - 1
+	}
+	if sent != pages*Width {
+		t.Fatalf("%d pixel bytes sent, want %d", sent, pages*Width)
 	}
 }
 
@@ -191,18 +198,21 @@ func TestRunLeavesStoppedOnScreen(t *testing.T) {
 
 	bus.mu.Lock()
 	defer bus.mu.Unlock()
-	last := bus.writes[len(bus.writes)-pages:]
+	// The last frame: its pixel writes, joined back into pages.
+	writes := bus.writes[len(bus.writes)-pages*Width/chunk:]
+	var got []byte
+	for _, w := range writes {
+		got = append(got, w[1:]...)
+	}
 	stopped := seated()
 	stopped.Stopped = true
 	for shift := 0; shift < 3; shift++ {
 		want := Render(stopped, PageStatus, shift)
-		match := true
+		var flat []byte
 		for p := range want {
-			if !bytes.Equal(last[p][1:], want[p][:]) {
-				match = false
-			}
+			flat = append(flat, want[p][:]...)
 		}
-		if match {
+		if bytes.Equal(got, flat) {
 			return
 		}
 	}
@@ -242,6 +252,7 @@ func TestPreview(t *testing.T) {
 		"alert":   Render(estop, PageAlert, 0),
 		"stopped": Render(stopped, PageStatus, 0),
 		"boot":    RenderBoot(Boot{Elapsed: 7 * time.Second, ESP32: true}),
+		"pairing": Render(paired(), PagePairing, 0),
 		"poweroff": func() *Frame {
 			s := stopped
 			s.Shutdown = "poweroff"
@@ -348,5 +359,51 @@ func TestWakeNeverBlanks(t *testing.T) {
 	}
 	if !bytes.Contains(w, []byte{0x20, 0x00}) || !bytes.Contains(w, []byte{0x8D, 0x14}) {
 		t.Fatalf("wake must restore addressing and the charge pump: % x", w)
+	}
+}
+
+func paired() Status {
+	s := seated()
+	s.Apps = 0
+	s.Pairing, s.RobotID, s.PairCode = "HXP2 7F3A K7F2Q", "7F3A", "K7F2Q"
+	return s
+}
+
+func TestPairingPageOnlyWithoutApps(t *testing.T) {
+	s := paired()
+	if !slices.Contains(Pages(s), PagePairing) {
+		t.Fatalf("no app connected: pairing page missing from %v", Pages(s))
+	}
+	s.Apps = 1
+	if slices.Contains(Pages(s), PagePairing) {
+		t.Fatal("the key must not be on display while an app is connected")
+	}
+	s.Apps, s.Pairing = 0, ""
+	if slices.Contains(Pages(s), PagePairing) {
+		t.Fatal("pairing off: no QR page")
+	}
+}
+
+func TestQRFitsWithQuietZone(t *testing.T) {
+	var f Frame
+	w := f.QR(paired().Pairing)
+	if w == 0 || w > Height {
+		t.Fatalf("QR width %d", w)
+	}
+	lit := func(x, y int) bool { return f[y/8][x]>>(y%8)&1 == 1 }
+	if !lit(0, (Height-w)/2) || !lit(w-1, Height/2) {
+		t.Fatal("quiet zone must be lit")
+	}
+	// Somewhere inside there must be dark modules (the finder patterns).
+	dark := 0
+	for y := 0; y < Height; y++ {
+		for x := 0; x < w; x++ {
+			if !lit(x, y) {
+				dark++
+			}
+		}
+	}
+	if dark < w*w/5 {
+		t.Fatalf("only %d dark pixels: no QR drawn", dark)
 	}
 }

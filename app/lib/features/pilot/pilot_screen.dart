@@ -9,11 +9,16 @@ import '../../core/input/gamepad_service.dart';
 import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
+import '../../core/robots.dart';
 import '../data/data_screen.dart';
+import '../robots/pair_screen.dart';
+import '../robots/robots_sheet.dart';
 import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
+import 'widgets/camera_controls.dart';
+import '../../l10n/l10n.dart';
 import 'widgets/center_feedback.dart';
 import 'widgets/controls.dart';
 import 'widgets/floating_joystick.dart';
@@ -33,15 +38,12 @@ const _alarms = {
   pb.State.STATE_BLOCKED,
 };
 
-/// What each stick does, per scheme: (label, hint).
-const _stickTexts = {
-  Scheme.sit: (('Sentado', null), ('Sentado', null)),
-  Scheme.pose: (('Inclinar', 'para os lados e frente/trás'), ('Torcer', 'gira o corpo no lugar')),
-  Scheme.walk: (('Andar', 'frente, trás e lados'), ('Girar · olhar', 'gira e inclina a câmera')),
-  Scheme.legs: (
-    ('Pata esquerda', 'cima levanta · fora estica'),
-    ('Pata direita', 'cima levanta · fora estica'),
-  ),
+/// What each stick does, per scheme: ((left label, hint), (right label, hint)).
+((String, String?), (String, String?)) _stickTexts(AppLocalizations l, Scheme scheme) => switch (scheme) {
+  Scheme.sit => ((l.pilotStickSitting, null), (l.pilotStickSitting, null)),
+  Scheme.pose => ((l.pilotStickTilt, l.pilotStickTiltHint), (l.pilotStickTwist, l.pilotStickTwistHint)),
+  Scheme.walk => ((l.pilotStickWalk, l.pilotStickWalkHint), (l.pilotStickTurnLook, l.pilotStickTurnLookHint)),
+  Scheme.legs => ((l.pilotStickLeftLeg, l.pilotStickLegHint), (l.pilotStickRightLeg, l.pilotStickLegHint)),
 };
 
 class PilotScreen extends ConsumerStatefulWidget {
@@ -52,9 +54,19 @@ class PilotScreen extends ConsumerStatefulWidget {
 }
 
 class _PilotScreenState extends ConsumerState<PilotScreen> {
+  /// Where the idle sticks sit, from the screen's edges (dp): just past the
+  /// height slider on the left and the STOP / camera column on the right,
+  /// clear of the mode bar in the middle, on any phone width.
+  static const _leftStickX = 184.0;
+  static const _rightStickX = 150.0;
+
   DateTime? _lastTelemetry;
   late final Timer _clock;
   bool _wasLost = true;
+
+  /// While the robot is lost, look for it again on the network now and then
+  /// (it may have changed address or network).
+  DateTime? _rediscoverAt;
 
   /// Height slider and mode bar stay on screen for this long after the last
   /// tap (counted down by [_clock], see [_revealBars]).
@@ -113,6 +125,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     ref.listen(controlProvider.select((c) => c.scheme), (_, _) => _revealBars());
 
     final settings = ref.watch(settingsProvider);
+    final robots = ref.watch(robotsProvider);
     final media = ref.watch(mediaUrisProvider);
     final gamepad = ref.watch(gamepadNameProvider);
     final control = ref.watch(controlProvider);
@@ -121,15 +134,27 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final telemetry = ref.watch(telemetryProvider).value;
     final age = _lastTelemetry == null ? null : DateTime.now().difference(_lastTelemetry!);
     final fresh = link == LinkStatus.connected && age != null && age < const Duration(seconds: 1);
+    final pi = ref.watch(piStatusProvider).value?.status;
     final lost = link != LinkStatus.connected || age == null || age > const Duration(seconds: 3);
     if (lost && !_wasLost && settings.haptics) HapticFeedback.vibrate(); // signal just dropped
+    if (lost && robots.active != null) {
+      final now = DateTime.now();
+      if (_rediscoverAt == null) {
+        _rediscoverAt = now.add(const Duration(seconds: 15));
+      } else if (now.isAfter(_rediscoverAt!)) {
+        _rediscoverAt = now.add(const Duration(seconds: 15));
+        Future.microtask(() => ref.invalidate(robotAddressProvider));
+      }
+    } else {
+      _rediscoverAt = null;
+    }
     _wasLost = lost;
 
     final robotState = fresh ? telemetry?.state : null;
     final canMove = robotState != null && _moving.contains(robotState) && !control.estop;
     final needsStand = control.estop || (robotState != null && !_moving.contains(robotState));
     final standing = robotState != null && _moving.contains(robotState);
-    final banner = robotState == null ? null : describeState(robotState);
+    final banner = robotState == null ? null : describeState(context.l10n, robotState);
     final sticksLive = canMove && control.scheme != Scheme.sit && !control.standRequested;
 
     // The height slider and the mode bar hide only while actually piloting;
@@ -144,8 +169,11 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     // A connected gamepad drives: the screen sticks step aside (STOP stays),
     // and come back the moment the pad disconnects.
     final padDriving = gamepad != null && settings.hideSticksWithPad;
+    final half = MediaQuery.sizeOf(context).width / 2;
+    final leftRest = Alignment((2 * _leftStickX / half - 1).clamp(-0.6, 0), -0.05);
+    final rightRest = Alignment((1 - 2 * _rightStickX / half).clamp(0, 0.6), -0.05);
 
-    final (leftText, rightText) = _stickTexts[control.scheme]!;
+    final (leftText, rightText) = _stickTexts(context.l10n, control.scheme);
     void onLeft(Stick s) =>
         settings.swapSticks ? controller.setSticks(right: s) : controller.setSticks(left: s);
     void onRight(Stick s) =>
@@ -170,7 +198,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                 bottom: 0,
                 width: MediaQuery.sizeOf(context).width / 2,
                 child: FloatingJoystick(
-                  restAlignment: const Alignment(-0.3, 0.05),
+                  restAlignment: leftRest,
                   label: settings.swapSticks ? rightText.$1 : leftText.$1,
                   hint: settings.swapSticks ? rightText.$2 : leftText.$2,
                   enabled: sticksLive,
@@ -184,7 +212,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                 bottom: 0,
                 width: MediaQuery.sizeOf(context).width / 2,
                 child: FloatingJoystick(
-                  restAlignment: const Alignment(0.3, 0.05),
+                  restAlignment: rightRest,
                   label: settings.swapSticks ? leftText.$1 : rightText.$1,
                   hint: settings.swapSticks ? leftText.$2 : rightText.$2,
                   enabled: sticksLive,
@@ -211,16 +239,15 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                           .update(settings.copyWith(robotAudio: !settings.robotAudio)),
                       onSettings: () => showSettingsSheet(context),
                       onFaults: () => _showFaults(context, telemetry),
+                      recordingS: (pi?.recording ?? false) ? pi!.recordingS : null,
+                      // Obstacles at the top, out of the camera's center.
+                      center: fresh && telemetry != null
+                          ? ProximityRadar(
+                              distancesMm: telemetry.distancesMm,
+                              blockedMask: telemetry.blockedMask,
+                            )
+                          : null,
                     ),
-                    // Obstacles at the top, out of the camera's center.
-                    if (fresh && telemetry != null)
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: ProximityRadar(
-                          distancesMm: telemetry.distancesMm,
-                          blockedMask: telemetry.blockedMask,
-                        ),
-                      ),
                     if (!lost)
                       Positioned(
                         top: 84,
@@ -229,7 +256,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                         child: Column(
                           children: [
                             // Gas first: it is not a robot state and can come with any.
-                            if (fresh && gasAlarmOn(telemetry)) const StateBanner(text: gasAlarmText),
+                            if (fresh && gasAlarmOn(telemetry)) StateBanner(text: gasAlarmText(context.l10n)),
                             if (fresh &&
                                 gasAlarmOn(telemetry) &&
                                 banner != null &&
@@ -239,12 +266,27 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                           ],
                         ),
                       ),
+                    // STOP, then photo / record / gallery under it: one column,
+                    // so they never overlap on short screens.
                     Align(
-                      alignment: const Alignment(1, -0.35),
-                      child: StopButton(
-                        latched: control.estop || robotState == pb.State.STATE_ESTOP,
-                        haptics: settings.haptics,
-                        onPressed: controller.stop,
+                      alignment: const Alignment(1, 0.1),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          StopButton(
+                            latched: control.estop || robotState == pb.State.STATE_ESTOP,
+                            haptics: settings.haptics,
+                            onPressed: controller.stop,
+                          ),
+                          if (link == LinkStatus.connected) ...[
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 20),
+                              child: CameraControls(haptics: settings.haptics),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     Align(
@@ -295,7 +337,12 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
               ),
             ),
             const CenterFeedback(), // over the camera, never over the alerts below
-            if (lost) _ConnectionOverlay(host: settings.host, status: link),
+            if (lost)
+              _ConnectionOverlay(
+                target: robots.active?.name ?? settings.host,
+                status: link,
+                paired: robots.robots.isNotEmpty,
+              ),
             if (!settings.onboarded)
               _Onboarding(
                 onDone: () => ref.read(settingsProvider.notifier).update(settings.copyWith(onboarded: true)),
@@ -307,7 +354,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
   }
 
   void _showFaults(BuildContext context, pb.Telemetry? t) {
-    final faults = t == null ? const <String>[] : describeFaults(t.faultFlags);
+    final faults = t == null ? const <String>[] : describeFaults(context.l10n, t.faultFlags);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF15181D),
@@ -316,9 +363,9 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
           shrinkWrap: true,
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
-              'Avisos do robô',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+            Text(
+              context.l10n.pilotFaultsTitle,
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             for (final f in faults)
@@ -389,8 +436,8 @@ class _ModeRail extends StatelessWidget {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
-              content: Text('Segure LEVANTAR primeiro'),
+            SnackBar(
+              content: Text(context.l10n.pilotStandFirst),
               duration: Duration(milliseconds: 1500),
               behavior: SnackBarBehavior.floating,
               width: 260,
@@ -401,13 +448,14 @@ class _ModeRail extends StatelessWidget {
       onScheme(s);
     }
 
+    final l = context.l10n;
     return Glass(
       padding: const EdgeInsets.all(6),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           RailButton(
-            label: 'Sentar',
+            label: l.pilotSit,
             icon: Icons.airline_seat_recline_normal_rounded,
             selected: scheme == Scheme.sit,
             haptics: haptics,
@@ -415,7 +463,7 @@ class _ModeRail extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           HoldButton(
-            label: 'Levantar',
+            label: l.pilotStandUp,
             icon: Icons.keyboard_double_arrow_up_rounded,
             haptics: haptics,
             highlight: needsStand,
@@ -424,7 +472,7 @@ class _ModeRail extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           RailButton(
-            label: 'Pose',
+            label: l.pilotPose,
             icon: Icons.threed_rotation_rounded,
             selected: scheme == Scheme.pose,
             enabled: upModes,
@@ -433,7 +481,7 @@ class _ModeRail extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           RailButton(
-            label: 'Andar',
+            label: l.pilotWalk,
             icon: Icons.directions_walk_rounded,
             selected: scheme == Scheme.walk,
             enabled: upModes,
@@ -442,7 +490,7 @@ class _ModeRail extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           RailButton(
-            label: 'Patas',
+            label: l.pilotLegs,
             icon: Icons.back_hand_rounded,
             selected: scheme == Scheme.legs,
             enabled: upModes,
@@ -473,7 +521,8 @@ class _GestureRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget item(pb.Gesture g) {
-      final (label, icon) = gestureTexts[g]!;
+      final label = gestureLabel(context.l10n, g);
+      final icon = gestureIcons[g]!;
       final on = g == active;
       final color = on ? gestureColor : Colors.white;
       return Padding(
@@ -514,47 +563,87 @@ class _GestureRow extends StatelessWidget {
       );
     }
 
-    return Row(mainAxisSize: MainAxisSize.min, children: [for (final g in gestureTexts.keys) item(g)]);
+    return Row(mainAxisSize: MainAxisSize.min, children: [for (final g in gestureIcons.keys) item(g)]);
   }
 }
 
 class _ConnectionOverlay extends StatelessWidget {
-  const _ConnectionOverlay({required this.host, required this.status});
+  const _ConnectionOverlay({required this.target, required this.status, required this.paired});
 
-  final String host;
+  /// What is being looked for: the paired robot's name, or the manual host.
+  final String target;
   final LinkStatus status;
+
+  /// At least one robot is paired.
+  final bool paired;
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
+    final (Widget icon, String title, String text, String primary, VoidCallback onPrimary) = switch ((
+      paired,
+      status,
+    )) {
+      (false, _) => (
+        const Icon(Icons.qr_code_2_rounded, size: 40, color: Color(0xFF3FCDF5)),
+        l.pilotNoRobotTitle,
+        l.pilotNoRobotText,
+        l.pilotPairRobot,
+        () => showPairScreen(context),
+      ),
+      (_, LinkStatus.unauthorized) => (
+        const Icon(Icons.key_off_rounded, size: 40, color: Color(0xFFFF5A5F)),
+        l.pilotKeyRefusedTitle,
+        l.pilotKeyRefusedText,
+        l.pilotPairAgain,
+        () => showPairScreen(context),
+      ),
+      _ => (
+        const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
+        l.pilotNoConnectionTitle,
+        status == LinkStatus.connected ? l.pilotWaitingForBoard : l.pilotSearching(target),
+        l.pilotMyRobots,
+        () => showRobotsSheet(context),
+      ),
+    };
     return Positioned.fill(
       child: Container(
         color: Colors.black.withValues(alpha: 0.45),
         alignment: Alignment.center,
         child: Glass(
           padding: const EdgeInsets.fromLTRB(28, 22, 28, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
-              const SizedBox(height: 14),
-              const Text(
-                'Sem conexão com o robô',
-                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                status == LinkStatus.connected
-                    ? 'Conectado ao hexd, aguardando o ESP32…'
-                    : 'Procurando $host…',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 14),
-              TextButton.icon(
-                onPressed: () => showSettingsSheet(context),
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Ajustes de conexão'),
-              ),
-            ],
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                icon,
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilledButton(onPressed: onPrimary, child: Text(primary)),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () => showSettingsSheet(context),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: Text(l.pilotSettings),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -570,6 +659,7 @@ class _Onboarding extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     Widget tip(IconData icon, Color color, String title, String text) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -604,38 +694,33 @@ class _Onboarding extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Antes de pilotar',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                Text(
+                  l.pilotOnboardingTitle,
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 tip(
                   Icons.back_hand_rounded,
                   const Color(0xFFE5383B),
-                  'PARAR',
-                  'Um toque corta a força dos servos na hora. No controle PS5: bolinha.',
+                  l.pilotTipStopTitle,
+                  l.pilotTipStopText,
                 ),
                 tip(
                   Icons.keyboard_double_arrow_up_rounded,
                   const Color(0xFF3DDC97),
-                  'Segure LEVANTAR',
-                  'O robô só se levanta se você segurar o botão. Também é assim que ele volta depois de um alerta.',
+                  l.pilotTipStandTitle,
+                  l.pilotTipStandText,
                 ),
                 tip(
                   Icons.radio_button_checked_rounded,
-                  const Color(0xFF4FD1FF),
-                  'Joysticks flutuantes',
-                  'Toque em qualquer lugar de cada metade da tela: o joystick nasce sob o seu polegar. As barras somem enquanto você pilota; um toque rápido traz de volta.',
+                  const Color(0xFF3FCDF5),
+                  l.pilotTipSticksTitle,
+                  l.pilotTipSticksText,
                 ),
-                tip(
-                  Icons.sports_esports_rounded,
-                  Colors.white,
-                  'Controle PS5',
-                  'Pareie no Bluetooth do celular: sticks andam, xis, quadrado e triângulo trocam o modo, L2/R2 mudam a altura.',
-                ),
+                tip(Icons.sports_esports_rounded, Colors.white, l.pilotTipPadTitle, l.pilotTipPadText),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: FilledButton(onPressed: onDone, child: const Text('Entendi')),
+                  child: FilledButton(onPressed: onDone, child: Text(l.pilotGotIt)),
                 ),
               ],
             ),

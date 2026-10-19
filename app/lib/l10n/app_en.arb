@@ -1,0 +1,1319 @@
+{
+  "@@locale": "en",
+  "appTitle": "Hexapod",
+  "@appTitle": {
+    "description": "App name (launcher, task switcher)"
+  },
+  "settingsLanguage": "Language",
+  "stateNormal": "Ready",
+  "@stateNormal": {
+    "description": "Robot state label: walking/standing normally"
+  },
+  "stateGas": "Gas or smoke",
+  "@stateGas": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateGasDetail": "The MQ-2 sensor detected gas or smoke near the robot.",
+  "stateGasAction": "Check the surroundings",
+  "@stateGasAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateStopping": "Stopping",
+  "@stateStopping": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateStoppingDetail": "The app's signal dropped for a moment.",
+  "stateStoppingAction": "Hold STAND UP to resume",
+  "@stateStoppingAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateSafeSit": "Sat down for safety",
+  "@stateSafeSit": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateSafeSitDetail": "The robot lost the signal and rested on its 6 legs.",
+  "stateSafeSitAction": "Hold STAND UP to resume",
+  "@stateSafeSitAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateRelaxed": "Relaxed",
+  "@stateRelaxed": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateRelaxedDetail": "Servos without power.",
+  "stateRelaxedAction": "Hold STAND UP to stand",
+  "@stateRelaxedAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateBlocked": "Obstacle",
+  "@stateBlocked": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateBlockedDetail": "Walking that way is blocked; the other directions stay free.",
+  "stateLowBattery": "Battery critical",
+  "@stateLowBattery": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateLowBatteryDetail": "The robot sat down and the Raspberry Pi will shut down.",
+  "stateLowBatteryAction": "Swap or charge the battery",
+  "@stateLowBatteryAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateTipped": "Tipped over",
+  "@stateTipped": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateTippedDetail": "Tilted over 35°: legs relaxed.",
+  "stateTippedAction": "Turn the robot upright and hold STAND UP",
+  "@stateTippedAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateEstop": "STOPPED",
+  "@stateEstop": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateEstopDetail": "Emergency stop: servos without power.",
+  "stateEstopAction": "Hold STAND UP to power back on",
+  "@stateEstopAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "faultLeftServos": "Left servos not answering",
+  "faultRightServos": "Right servos not answering",
+  "faultImu": "IMU missing: no fall detection",
+  "faultDistance": "Distance sensors missing",
+  "faultEnvironment": "Environment sensor missing",
+  "faultPower": "Battery meter missing",
+  "faultOvercurrent": "High current",
+  "faultBatteryLow": "Battery low: speed reduced",
+  "faultBatteryCritical": "Battery critical: shutting down",
+  "faultLoopOverrun": "Control loop running late",
+  "faultCalibration": "Calibration not loaded",
+  "faultGas": "Gas sensor missing",
+  "pairTitle": "New robot",
+  "@pairTitle": {
+    "description": "Title of the pairing screen"
+  },
+  "pairCodeError": "Type the 5 letters and numbers shown on the robot's screen",
+  "pairSearching": "Looking for the robot…",
+  "pairSearchingId": "Looking for robot {id}…",
+  "@pairSearchingId": {
+    "description": "id: the robot's short ID",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "pairSameWifi": "On the same Wi-Fi network as the phone.",
+  "pairJoiningOwn": "Connecting to the robot's network…",
+  "pairPickNetwork": "Pick the \"Hexapode-…\" network in the Android list.",
+  "@pairPickNetwork": {
+    "description": "Hexapode- is the robot's Wi-Fi name prefix: do not translate"
+  },
+  "pairJoinNetwork": "Network Hexapode-{id}. If Android asks, tap \"Connect\".",
+  "@pairJoinNetwork": {
+    "description": "Hexapode-{id} is the robot's Wi-Fi name: do not translate",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "pairKeyRefused": "The robot refused the key",
+  "pairCodeWrong": "Wrong or expired code",
+  "pairCodeHelp": "The code changes every 10 minutes and after each use. Use the one on the robot's screen right now.",
+  "pairRetry": "Try again",
+  "pairDone": "Paired!",
+  "pairReady": "{name} is ready to drive.",
+  "@pairReady": {
+    "description": "name: the robot's name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pairDrive": "Drive",
+  "@pairDrive": {
+    "description": "Button that closes the pairing screen and goes to piloting"
+  },
+  "pairIntro": "When no app is connected, the robot's screen shows a QR code and a code of 5 letters and numbers.",
+  "pairCodeLabel": "Code on the robot's screen",
+  "pairButton": "Pair",
+  "pairNotFound": "Couldn't find the robot",
+  "pairNotFoundId": "Couldn't find robot {id}",
+  "@pairNotFoundId": {
+    "description": "id: the robot's short ID",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "pairNotFoundTips": "• Is the robot on, with the code on its screen?\n• Is the phone on the same Wi-Fi as the robot?\n• Some networks block the search: type the address (IP) shown on the robot's screen.",
+  "@pairNotFoundTips": {
+    "description": "Checklist, one bullet per line"
+  },
+  "pairAddressLabel": "Robot's address (optional)",
+  "robotsTitle": "My robots",
+  "robotsNew": "New robot",
+  "@robotsNew": {
+    "description": "Button that opens the pairing screen"
+  },
+  "robotsEmpty": "No robots paired yet. Tap \"New robot\" and scan the QR code on the robot's screen.",
+  "@robotsEmpty": {
+    "description": "Must quote the robotsNew button label"
+  },
+  "robotsNetworkAndName": "Network and name",
+  "@robotsNetworkAndName": {
+    "description": "Tooltip of the robot settings button"
+  },
+  "robotsForget": "Forget",
+  "@robotsForget": {
+    "description": "Remove a paired robot from the phone"
+  },
+  "robotsForgetTitle": "Forget {name}?",
+  "@robotsForgetTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "robotsForgetText": "To drive it again, you'll need to scan the robot's QR code.",
+  "robotsCancel": "Cancel",
+  "networkTitle": "Robot's network",
+  "networkOutOfReach": "Robot out of reach",
+  "networkActionFailed": "{action}: {error}",
+  "@networkActionFailed": {
+    "description": "Snackbar when an action fails; action: what was tried (e.g. Rename)",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "networkRobotName": "Robot's name",
+  "networkCancel": "Cancel",
+  "networkSave": "Save",
+  "networkRename": "Rename",
+  "networkScanning": "The robot is looking for networks…",
+  "networkVisible": "Networks the robot can see",
+  "networkOnly24": "5 GHz networks only show up on boards that have it (Pi 4 and later)",
+  "networkNoneFound": "No networks found",
+  "networkPassword": "Password for \"{ssid}\"",
+  "@networkPassword": {
+    "description": "ssid: the Wi-Fi network name",
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkPasswordHelp": "Saved only on the robot",
+  "networkConnect": "Connect",
+  "networkJoining": "The robot is joining \"{ssid}\".\nYour phone should go back to it on its own.",
+  "@networkJoining": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkJoined": "Done! {name} is on \"{ssid}\".",
+  "@networkJoined": {
+    "description": "name: the robot's name; ssid: the Wi-Fi network name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkNotThere": "Couldn't find the robot on \"{ssid}\". Going back to its own network…",
+  "@networkNotThere": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkDidNotJoin": "The robot didn't join \"{ssid}\".",
+  "@networkDidNotJoin": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkNoContact": "No contact",
+  "networkReading": "Reading…",
+  "networkOwn": "Its own network",
+  "@networkOwn": {
+    "description": "The robot makes its own Wi-Fi network"
+  },
+  "networkOwnDetail": "{ssid} · the phone talks straight to the robot",
+  "@networkOwnDetail": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkHome": "Network \"{ssid}\"",
+  "@networkHome": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkConnecting": "Connecting…",
+  "networkUnavailable": "Robot's Wi-Fi unavailable",
+  "networkUnavailableDetail": "The Pi's Wi-Fi chip didn't answer. Check the robot's power supply.",
+  "networkLastError": "Last try: {error}",
+  "@networkLastError": {
+    "description": "error: the reason sent by the robot",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "networkHowTitle": "How the robot uses Wi-Fi",
+  "networkModeHome": "Home network",
+  "networkModeDirect": "Direct",
+  "@networkModeDirect": {
+    "description": "Mode: the phone connects straight to the robot's own network"
+  },
+  "networkMode": "Mode",
+  "@networkMode": {
+    "description": "Snackbar prefix when changing the mode fails"
+  },
+  "networkDirectHelp": "The robot makes the {ssid} network and the phone connects to it. Works anywhere, no router needed.",
+  "@networkDirectHelp": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkHomeHelp": "The robot joins your network. If none works, it opens the {ssid} network on its own.",
+  "@networkHomeHelp": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkJoinButton": "Connect to a network",
+  "networkSaved": "Networks saved on the robot",
+  "networkSavedNone": "None",
+  "@networkSavedNone": {
+    "description": "No saved networks"
+  },
+  "networkForget": "Forget",
+  "@networkForget": {
+    "description": "Remove a saved Wi-Fi network from the robot"
+  },
+  "settingsTitle": "Settings",
+  "settingsSave": "Save",
+  "settingsHost": "Robot's address",
+  "settingsHostHelp": "hexapod.local on your home network, or the Tailscale name/IP",
+  "settingsDeadzone": "Dead zone",
+  "@settingsDeadzone": {
+    "description": "Joystick setting"
+  },
+  "settingsDeadzoneHelp": "Ignores light touches in the center",
+  "settingsExpo": "Smoothness (expo)",
+  "@settingsExpo": {
+    "description": "Joystick curve setting"
+  },
+  "settingsExpoHelp": "Finer control near the center",
+  "settingsMaxSpeed": "Top speed",
+  "settingsMaxSpeedHelp": "A limit for beginners and tight spaces",
+  "settingsLeftHanded": "Left-handed",
+  "settingsLeftHandedHelp": "Swaps the joysticks' sides",
+  "settingsHaptics": "Vibration",
+  "settingsAutoHide": "Hide height and modes",
+  "settingsAutoHideHelp": "They hide while you drive; tap the screen to bring them back",
+  "settingsRobotsHelp": "Pair a new robot or pick which one to drive",
+  "settingsNetwork": "Robot's network (Wi-Fi)",
+  "settingsNetworkHelp": "Home network or straight to the phone; robot's name",
+  "settingsControllerHelp": "Pair the PS5 controller and see the buttons",
+  "settingsAppVersion": "App {version}",
+  "@settingsAppVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRobotOffline": "Robot: not connected",
+  "settingsRobotWaiting": "Robot: connected, waiting for the versions…",
+  "settingsFirmwareWaiting": "waiting for the ESP32",
+  "@settingsFirmwareWaiting": {
+    "description": "Shown in place of the firmware version"
+  },
+  "settingsBridgeVersion": " · bridge (Pi) {version}",
+  "@settingsBridgeVersion": {
+    "description": "Appended to settingsRobotVersions; keep the leading ' · '. The bridge is the hexd service on the Raspberry Pi",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRobotVersions": "Robot: firmware {firmware}{bridge} · protocol {protocol}",
+  "@settingsRobotVersions": {
+    "description": "firmware: version or settingsFirmwareWaiting; bridge: settingsBridgeVersion or empty",
+    "placeholders": {
+      "firmware": {
+        "type": "String"
+      },
+      "bridge": {
+        "type": "String"
+      },
+      "protocol": {
+        "type": "int"
+      }
+    }
+  },
+  "controllerTitle": "External controller",
+  "controllerConnected": "Connected",
+  "controllerNone": "No controller connected",
+  "controllerFollowSteps": "Follow the steps below to pair",
+  "controllerTest": "Test",
+  "@controllerTest": {
+    "description": "Button: the controller buzzes"
+  },
+  "controllerHideSticks": "Hide on-screen joysticks",
+  "controllerHideSticksHelp": "With the controller connected, the video is clear. STOP stays on screen, and the joysticks come back if the controller disconnects.",
+  "@controllerHideSticksHelp": {
+    "description": "PARAR/STOP is the stop button label"
+  },
+  "controllerHowToPair": "How to pair the PS5 controller",
+  "controllerStep1": "With the controller off, hold PS + Create",
+  "@controllerStep1": {
+    "description": "PS and Create are button names on the controller"
+  },
+  "controllerStep1Detail": "Create is the small button left of the touchpad. Let go when the light blinks fast, in blue.",
+  "controllerStep2": "Open the phone's Bluetooth",
+  "controllerStep2Detail": "Tap \"Bluetooth\" up here, then \"Pair new device\".",
+  "@controllerStep2Detail": {
+    "description": "\"Pair new device\" is the Android menu item"
+  },
+  "controllerStep3": "Choose \"DualSense Wireless Controller\"",
+  "@controllerStep3": {
+    "description": "The device name: do not translate it"
+  },
+  "controllerStep3Detail": "It may show up as just \"Wireless Controller\".",
+  "controllerStep4": "Come back to the app",
+  "controllerStep4Detail": "The controller buzzes twice and the icon turns green. Next time, just press PS.",
+  "controllerButtons": "Buttons",
+  "controllerCircle": "Circle",
+  "@controllerCircle": {
+    "description": "PS5 button"
+  },
+  "controllerStop": "STOP",
+  "@controllerStop": {
+    "description": "Emergency stop, as on the on-screen button"
+  },
+  "controllerDpadUpHeld": "D-pad up, held",
+  "controllerStandUp": "Stand up",
+  "controllerDpadDown": "D-pad down",
+  "controllerSit": "Sit",
+  "controllerFaceButtons": "Cross / Square / Triangle",
+  "@controllerFaceButtons": {
+    "description": "PS5 buttons"
+  },
+  "controllerModes": "Walk / Pose / Legs",
+  "@controllerModes": {
+    "description": "The three mode names, in the order of controllerFaceButtons"
+  },
+  "controllerSticks": "Same as the on-screen joysticks",
+  "controllerBody": "Lower / raise the body",
+  "controllerL1Pose": "L1 held (Pose)",
+  "controllerTilt": "Tilt the controller to tilt the robot",
+  "controllerLegButtons": "L1 / R1 / R3 (Legs)",
+  "@controllerLegButtons": {
+    "description": "Patas/Legs is the mode name"
+  },
+  "controllerLegMoves": "Guard / Wave / Strike",
+  "@controllerLegMoves": {
+    "description": "Moves of the front legs, in the order of controllerLegButtons"
+  },
+  "pilotStickSitting": "Sitting",
+  "@pilotStickSitting": {
+    "description": "Joystick label while the robot is seated (the stick does nothing)"
+  },
+  "pilotStickTilt": "Tilt",
+  "@pilotStickTilt": {
+    "description": "Joystick label in Pose mode: tilts the body"
+  },
+  "pilotStickTiltHint": "side to side and front/back",
+  "@pilotStickTiltHint": {
+    "description": "Hint under the Tilt joystick"
+  },
+  "pilotStickTwist": "Twist",
+  "@pilotStickTwist": {
+    "description": "Joystick label in Pose mode: twists the body"
+  },
+  "pilotStickTwistHint": "turns the body in place",
+  "@pilotStickTwistHint": {
+    "description": "Hint under the Twist joystick"
+  },
+  "pilotStickWalk": "Walk",
+  "@pilotStickWalk": {
+    "description": "Joystick label in Walk mode"
+  },
+  "pilotStickWalkHint": "forward, back and sideways",
+  "@pilotStickWalkHint": {
+    "description": "Hint under the Walk joystick"
+  },
+  "pilotStickTurnLook": "Turn · look",
+  "@pilotStickTurnLook": {
+    "description": "Joystick label in Walk mode: turns the robot and tilts the camera"
+  },
+  "pilotStickTurnLookHint": "turns and tilts the camera",
+  "@pilotStickTurnLookHint": {
+    "description": "Hint under the Turn · look joystick"
+  },
+  "pilotStickLeftLeg": "Left leg",
+  "@pilotStickLeftLeg": {
+    "description": "Joystick label in Legs mode"
+  },
+  "pilotStickRightLeg": "Right leg",
+  "@pilotStickRightLeg": {
+    "description": "Joystick label in Legs mode"
+  },
+  "pilotStickLegHint": "up lifts · out stretches",
+  "@pilotStickLegHint": {
+    "description": "Hint under the leg joysticks: pushing up lifts the leg, pushing outwards stretches it"
+  },
+  "pilotFaultsTitle": "Robot warnings",
+  "@pilotFaultsTitle": {
+    "description": "Title of the sheet listing the robot's faults"
+  },
+  "pilotStandFirst": "Hold STAND UP first",
+  "@pilotStandFirst": {
+    "description": "Snackbar when a mode is tapped while seated; STAND UP is the button label"
+  },
+  "pilotSit": "Sit",
+  "@pilotSit": {
+    "description": "Mode bar button: sit down"
+  },
+  "pilotStandUp": "Stand up",
+  "@pilotStandUp": {
+    "description": "Mode bar hold button (and its progress card): stand up"
+  },
+  "pilotPose": "Pose",
+  "@pilotPose": {
+    "description": "Mode bar button: move the body without walking"
+  },
+  "pilotWalk": "Walk",
+  "@pilotWalk": {
+    "description": "Mode bar button: walk"
+  },
+  "pilotLegs": "Legs",
+  "@pilotLegs": {
+    "description": "Mode bar button: control single legs and gestures"
+  },
+  "pilotNoRobotTitle": "No robot paired",
+  "pilotNoRobotText": "Turn the robot on: when no app is connected, its screen shows a QR code.",
+  "pilotPairRobot": "Pair a robot",
+  "pilotKeyRefusedTitle": "The robot refused the key",
+  "@pilotKeyRefusedTitle": {
+    "description": "The robot rejected the app's pairing key"
+  },
+  "pilotKeyRefusedText": "The pairing key changed. Scan the QR code on the robot's screen again.",
+  "pilotPairAgain": "Pair again",
+  "pilotNoConnectionTitle": "No connection to the robot",
+  "pilotWaitingForBoard": "Connected, waiting for the ESP32…",
+  "@pilotWaitingForBoard": {
+    "description": "The Raspberry Pi answered but the ESP32 board has not sent data yet"
+  },
+  "pilotSearching": "Looking for {target} on the network…",
+  "@pilotSearching": {
+    "description": "Searching for the robot (its name or address)",
+    "placeholders": {
+      "target": {
+        "type": "String",
+        "example": "Hexapode-AB12"
+      }
+    }
+  },
+  "pilotMyRobots": "My robots",
+  "pilotSettings": "Settings",
+  "@pilotSettings": {
+    "description": "Button that opens the settings"
+  },
+  "pilotOnboardingTitle": "Before you drive",
+  "@pilotOnboardingTitle": {
+    "description": "Title of the first-run tips"
+  },
+  "pilotTipStopTitle": "STOP",
+  "@pilotTipStopTitle": {
+    "description": "First-run tip title; same text as the red STOP button"
+  },
+  "pilotTipStopText": "One tap cuts power to the servos right away. On the PS5 controller: circle.",
+  "pilotTipStandTitle": "Hold STAND UP",
+  "@pilotTipStandTitle": {
+    "description": "First-run tip title; STAND UP is the button label"
+  },
+  "pilotTipStandText": "The robot only stands up while you hold the button. That is also how it comes back after an alert.",
+  "pilotTipSticksTitle": "Floating joysticks",
+  "pilotTipSticksText": "Touch anywhere on each half of the screen: the joystick appears under your thumb. The bars hide while you drive; a quick tap brings them back.",
+  "pilotTipPadTitle": "PS5 controller",
+  "pilotTipPadText": "Pair it in the phone's Bluetooth: the sticks drive, cross, square and triangle change the mode, L2/R2 change the height.",
+  "pilotGotIt": "Got it",
+  "@pilotGotIt": {
+    "description": "Closes the first-run tips"
+  },
+  "pilotStopButton": "STOP",
+  "@pilotStopButton": {
+    "description": "Red emergency stop button (short, all caps)"
+  },
+  "pilotEmergencyStop": "Emergency stop",
+  "@pilotEmergencyStop": {
+    "description": "Screen reader label of the STOP button"
+  },
+  "pilotHolding": "Hold…",
+  "@pilotHolding": {
+    "description": "Hold button label while it is being held"
+  },
+  "pilotKeepHolding": "Keep holding",
+  "@pilotKeepHolding": {
+    "description": "Card shown while the STAND UP button is held"
+  },
+  "pilotStandingUp": "Standing up…",
+  "pilotStandingUpWait": "Wait for the robot to stand",
+  "pilotStood": "Standing",
+  "@pilotStood": {
+    "description": "Card shown when the robot is up"
+  },
+  "pilotPadDisconnected": "Controller disconnected",
+  "@pilotPadDisconnected": {
+    "description": "A Bluetooth gamepad was disconnected"
+  },
+  "pilotPadDisconnectedText": "The on-screen joysticks are back",
+  "pilotPadConnected": "Controller connected",
+  "@pilotPadConnected": {
+    "description": "A Bluetooth gamepad was connected"
+  },
+  "pilotGestureWave": "Wave",
+  "@pilotGestureWave": {
+    "description": "Gesture button: the robot waves a front leg"
+  },
+  "pilotGestureGuard": "Guard",
+  "@pilotGestureGuard": {
+    "description": "Gesture button: the robot raises its front legs in a guard pose"
+  },
+  "pilotGestureStrike": "Strike",
+  "@pilotGestureStrike": {
+    "description": "Gesture button: the robot strikes with a front leg"
+  },
+  "hudConnected": "Connected",
+  "@hudConnected": {
+    "description": "Link status in the top bar"
+  },
+  "hudWeakSignal": "Weak signal",
+  "@hudWeakSignal": {
+    "description": "Link status: connected but data arrives late"
+  },
+  "hudConnecting": "Connecting…",
+  "@hudConnecting": {
+    "description": "Link status in the top bar"
+  },
+  "hudDisconnected": "No connection",
+  "@hudDisconnected": {
+    "description": "Link status in the top bar"
+  },
+  "hudPairAgain": "Pair again",
+  "@hudPairAgain": {
+    "description": "Link status: the robot refused the pairing key"
+  },
+  "hudGamepad": "External controller",
+  "@hudGamepad": {
+    "description": "Tooltip of the gamepad button when none is connected"
+  },
+  "hudFront": "front",
+  "@hudFront": {
+    "description": "Label over the distance to the obstacle in front of the robot"
+  },
+  "videoConnecting": "Connecting camera…",
+  "videoUnavailable": "Camera unavailable",
+  "coreApiKeyRefused": "The robot refused the key: pair again",
+  "@coreApiKeyRefused": {
+    "description": "Error from the robot's setup API: wrong pairing key"
+  },
+  "coreApiError": "Error {status} on the robot",
+  "@coreApiError": {
+    "description": "Error from the robot's setup API with no explanation",
+    "placeholders": {
+      "status": {
+        "type": "int",
+        "example": "500"
+      }
+    }
+  },
+  "dataTitle": "Robot data",
+  "@dataTitle": {
+    "description": "Title of the robot data screen"
+  },
+  "dataStop": "STOP",
+  "@dataStop": {
+    "description": "Emergency stop button in the data screen"
+  },
+  "dataTabSummary": "Summary",
+  "@dataTabSummary": {
+    "description": "Data screen tab"
+  },
+  "dataTabOrientation": "Orientation",
+  "@dataTabOrientation": {
+    "description": "Data screen tab"
+  },
+  "dataTabDistance": "Distance",
+  "@dataTabDistance": {
+    "description": "Data screen tab"
+  },
+  "dataTabPosition": "Position",
+  "@dataTabPosition": {
+    "description": "Data screen tab (GPS)"
+  },
+  "dataTabEnvironment": "Environment",
+  "@dataTabEnvironment": {
+    "description": "Data screen tab (temperature, humidity, gas)"
+  },
+  "dataTabLegs": "Legs",
+  "@dataTabLegs": {
+    "description": "Data screen tab"
+  },
+  "dataTabSystem": "System",
+  "@dataTabSystem": {
+    "description": "Data screen tab"
+  },
+  "dataTabPi": "Raspberry Pi",
+  "@dataTabPi": {
+    "description": "Data screen tab"
+  },
+  "dataWaiting": "Waiting for robot data…",
+  "dataNoConnection": "No connection to the robot",
+  "dataState": "State",
+  "@dataState": {
+    "description": "Card title: the robot state"
+  },
+  "dataMode": "Mode",
+  "dataGait": "Gait",
+  "@dataGait": {
+    "description": "How the legs take turns when walking (tripod, wave, ripple)"
+  },
+  "dataUptime": "On for",
+  "@dataUptime": {
+    "description": "Row label; the value is a duration like 3 min 12 s"
+  },
+  "dataBattery": "Battery",
+  "@dataBattery": {
+    "description": "Card title"
+  },
+  "dataVoltage": "Voltage",
+  "dataPerCell": "Per cell",
+  "@dataPerCell": {
+    "description": "Battery voltage of each of the 3 LiPo cells"
+  },
+  "dataCurrent": "Current",
+  "@dataCurrent": {
+    "description": "Electric current, in amperes"
+  },
+  "dataCurrentNote": "The current is only right with the correct shunt on the INA226.",
+  "dataLink": "Link to the robot",
+  "@dataLink": {
+    "description": "Card title: messages coming from the robot"
+  },
+  "dataTelemetryExpected": "Expected data rate: 10 Hz",
+  "dataReceived": "Received",
+  "@dataReceived": {
+    "description": "Telemetry messages received"
+  },
+  "dataLost": "Lost",
+  "@dataLost": {
+    "description": "Telemetry messages lost"
+  },
+  "dataLastCommand": "Last accepted command",
+  "dataWarnings": "Warnings",
+  "@dataWarnings": {
+    "description": "Card title"
+  },
+  "dataNone": "None",
+  "@dataNone": {
+    "description": "No warnings"
+  },
+  "dataGasDetected": "GAS OR SMOKE DETECTED",
+  "dataHorizon": "Horizon",
+  "@dataHorizon": {
+    "description": "Card title: artificial horizon"
+  },
+  "dataAngles": "Angles",
+  "@dataAngles": {
+    "description": "Card title"
+  },
+  "dataRoll": "Roll (right +)",
+  "@dataRoll": {
+    "description": "Tilt to the side; positive when leaning right"
+  },
+  "dataPitch": "Pitch (nose down +)",
+  "@dataPitch": {
+    "description": "Tilt forward/back; positive with the front down"
+  },
+  "dataYaw": "Yaw",
+  "@dataYaw": {
+    "description": "Rotation around the vertical axis"
+  },
+  "dataQuaternion": "Quaternion",
+  "dataTippedNote": "Above 35° the robot relaxes its legs (TIPPED OVER).",
+  "dataLast30s": "Last 30 s",
+  "@dataLast30s": {
+    "description": "Card title of a chart"
+  },
+  "dataRollLegend": "roll",
+  "@dataRollLegend": {
+    "description": "Chart legend (lowercase)"
+  },
+  "dataPitchLegend": "pitch",
+  "@dataPitchLegend": {
+    "description": "Chart legend (lowercase)"
+  },
+  "dataFront": "Front",
+  "@dataFront": {
+    "description": "Distance sensor direction"
+  },
+  "dataRight": "Right",
+  "@dataRight": {
+    "description": "Distance sensor direction"
+  },
+  "dataBack": "Back",
+  "@dataBack": {
+    "description": "Distance sensor direction"
+  },
+  "dataLeft": "Left",
+  "@dataLeft": {
+    "description": "Distance sensor direction"
+  },
+  "dataOutOfRange": "out of range",
+  "@dataOutOfRange": {
+    "description": "Shown next to a dash when the distance sensor sees nothing"
+  },
+  "dataBlocked": "BLOCKED: the robot won't walk this way",
+  "dataGps": "GPS",
+  "@dataGps": {
+    "description": "Card title"
+  },
+  "dataGpsNoAnswer": "GPS (NEO-6M) not answering",
+  "dataGpsNoAnswerHint": "Not installed, or the GPS TX wire doesn't reach pin 10 of the Pi.",
+  "dataSatellites": "Satellites and accuracy",
+  "@dataSatellites": {
+    "description": "Card title"
+  },
+  "dataSatellitesInUse": "in use · {inView} visible",
+  "@dataSatellitesInUse": {
+    "description": "Shown after the big number of satellites in use",
+    "placeholders": {
+      "inView": {
+        "type": "int"
+      }
+    }
+  },
+  "dataHdop": "Accuracy (HDOP)",
+  "dataAltitude": "Altitude",
+  "dataGpsTime": "GPS time",
+  "dataHdopGreat": "great",
+  "@dataHdopGreat": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataHdopGood": "good",
+  "@dataHdopGood": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataHdopFair": "fair",
+  "@dataHdopFair": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataHdopWeak": "weak",
+  "@dataHdopWeak": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataPosition": "Position",
+  "@dataPosition": {
+    "description": "Card title (GPS position)"
+  },
+  "dataSearchingSatellites": "Searching for satellites…",
+  "dataSearchingHint": "It needs open sky: near a window or outdoors. The first position can take a few minutes; the GPS LED blinks when it finds one.",
+  "dataCoordsCopied": "Coordinates copied",
+  "dataCopyCoords": "Copy coordinates",
+  "dataMovement": "Movement",
+  "@dataMovement": {
+    "description": "Card title (GPS speed and heading)"
+  },
+  "dataStill": "Still",
+  "@dataStill": {
+    "description": "Big text when the GPS speed is just noise"
+  },
+  "dataSpeedNoiseNote": "Below ~3 km/h the GPS speed is just noise (standing still, it reads 1 to 4 km/h). The robot walks slower than that.",
+  "dataCourse": "Heading",
+  "@dataCourse": {
+    "description": "Direction the GPS is moving"
+  },
+  "dataCompassEast": "E",
+  "@dataCompassEast": {
+    "description": "One-letter compass point East (also used in NE, SE)"
+  },
+  "dataCompassWest": "W",
+  "@dataCompassWest": {
+    "description": "One-letter compass point West (also used in SW, NW)"
+  },
+  "dataEspChip": "ESP32 chip",
+  "@dataEspChip": {
+    "description": "Card title: the ESP32's own temperature"
+  },
+  "dataEspChipNote": "Built-in sensor: reads a few degrees above the room.",
+  "dataTemperature": "Temperature",
+  "dataHumidity": "Humidity",
+  "dataPressure": "Pressure",
+  "dataGasUnit": "% of the sensor",
+  "@dataGasUnit": {
+    "description": "Unit after the gas level number"
+  },
+  "dataGasWarming": "Warming up the sensor: reliable readings in a few minutes",
+  "dataGasNormal": "Normal air",
+  "dataGasNote": "Level relative to clean air, not in ppm.",
+  "dataLegLeftFront": "Left front",
+  "@dataLegLeftFront": {
+    "description": "Leg name"
+  },
+  "dataLegLeftMiddle": "Left middle",
+  "@dataLegLeftMiddle": {
+    "description": "Leg name"
+  },
+  "dataLegLeftRear": "Left rear",
+  "@dataLegLeftRear": {
+    "description": "Leg name"
+  },
+  "dataLegRightFront": "Right front",
+  "@dataLegRightFront": {
+    "description": "Leg name"
+  },
+  "dataLegRightMiddle": "Right middle",
+  "@dataLegRightMiddle": {
+    "description": "Leg name"
+  },
+  "dataLegRightRear": "Right rear",
+  "@dataLegRightRear": {
+    "description": "Leg name"
+  },
+  "dataCommandedAngles": "Commanded angles",
+  "@dataCommandedAngles": {
+    "description": "Card title: joint angles the ESP32 computed"
+  },
+  "dataLeg": "Leg",
+  "@dataLeg": {
+    "description": "Table header"
+  },
+  "dataCoxa": "Coxa",
+  "@dataCoxa": {
+    "description": "Table header: hip joint of a leg"
+  },
+  "dataFemur": "Femur",
+  "@dataFemur": {
+    "description": "Table header: middle joint of a leg"
+  },
+  "dataTibia": "Tibia",
+  "@dataTibia": {
+    "description": "Table header: outer joint of a leg"
+  },
+  "dataLegsNote": "What the ESP32 works out every cycle, even with the servos off (walking \"on paper\").",
+  "dataSoftware": "Software",
+  "@dataSoftware": {
+    "description": "Card title"
+  },
+  "dataFirmware": "Firmware (ESP32)",
+  "dataBridge": "Bridge (Pi)",
+  "@dataBridge": {
+    "description": "The hexd service on the Raspberry Pi"
+  },
+  "dataProtocol": "Protocol",
+  "dataEspUptime": "ESP32 on for",
+  "@dataEspUptime": {
+    "description": "Row label; the value is a duration"
+  },
+  "dataLoop": "Control loop (50 Hz)",
+  "@dataLoop": {
+    "description": "Card title"
+  },
+  "dataLoopLimit": "Limit: 20 ms per cycle",
+  "dataChecks": "Checks",
+  "@dataChecks": {
+    "description": "Card title: health checks"
+  },
+  "dataPiWaiting": "Waiting for the Raspberry Pi data… It arrives every 2 seconds (bridge from the version with this screen on).",
+  "dataPower": "Power",
+  "@dataPower": {
+    "description": "Card title: the Pi's power supply"
+  },
+  "dataPowerLowNow": "Weak power right now",
+  "dataPowerLowNowNote": "The Pi is getting less than ~4.63 V: it slows down, and the Wi-Fi and the screen may drop.",
+  "dataPowerDipped": "The power dropped",
+  "dataPowerDippedNote": "Since the bridge started, the voltage dropped at least once. Check the power supply and the cable.",
+  "dataPowerGood": "Power is good",
+  "dataPowerGoodNote": "No voltage drop since the bridge started.",
+  "dataPowerSupplyNote": "On the bench, use the official Raspberry Pi power supply (5.1 V / 2.5 A). A phone charger won't do.",
+  "dataCpu": "Processor",
+  "@dataCpu": {
+    "description": "Card title"
+  },
+  "dataCpuLegend": "usage",
+  "@dataCpuLegend": {
+    "description": "Chart legend (lowercase)"
+  },
+  "dataLoad": "Load (1 min, 4 cores)",
+  "@dataLoad": {
+    "description": "CPU load average"
+  },
+  "dataSpeed": "Speed",
+  "@dataSpeed": {
+    "description": "CPU clock speed"
+  },
+  "dataAmountOf": "{used} of {total} {unit}",
+  "@dataAmountOf": {
+    "description": "Usage like \"255 of 905 MB\"; unit is MHz, MB or GB",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "dataThrottledNote": "Below the maximum: normal when idle; with the Pi busy, it's heat or power.",
+  "dataChipLegend": "chip",
+  "@dataChipLegend": {
+    "description": "Chart legend (lowercase): the Pi's chip temperature"
+  },
+  "dataPiHotNote": "Above 80 °C the Pi slows down to cool off.",
+  "dataMemory": "Memory",
+  "@dataMemory": {
+    "description": "Card title (RAM)"
+  },
+  "dataSdCard": "SD card",
+  "@dataSdCard": {
+    "description": "Card title"
+  },
+  "dataCardProtection": "Card protection",
+  "@dataCardProtection": {
+    "description": "Read-only root file system that protects the SD card"
+  },
+  "dataOn": "on",
+  "@dataOn": {
+    "description": "Card protection is on (lowercase)"
+  },
+  "dataOff": "off",
+  "@dataOff": {
+    "description": "Card protection is off (lowercase)"
+  },
+  "dataNetwork": "Network and uptime",
+  "@dataNetwork": {
+    "description": "Card title"
+  },
+  "dataWifiSignal": "Wi-Fi signal",
+  "dataPiUptime": "Pi on for",
+  "@dataPiUptime": {
+    "description": "Row label; the value is a duration"
+  },
+  "dataNotInstalled": "{chip} not installed",
+  "@dataNotInstalled": {
+    "description": "chip is a part number like BNO085",
+    "placeholders": {
+      "chip": {
+        "type": "String"
+      }
+    }
+  },
+  "dataNotInstalledHint": "Or it isn't answering. The data shows up here on its own once it's turned on.",
+  "dataChartRange": "{min} to {max}{unit} · {span}",
+  "@dataChartRange": {
+    "description": "Chart scale, like \"-40 to 40° · 30 s\"",
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      },
+      "span": {
+        "type": "String"
+      }
+    }
+  },
+  "dataModeSit": "Sitting",
+  "@dataModeSit": {
+    "description": "Robot mode"
+  },
+  "dataModeStand": "Standing (pose)",
+  "@dataModeStand": {
+    "description": "Robot mode"
+  },
+  "dataModeWalk": "Walking",
+  "@dataModeWalk": {
+    "description": "Robot mode"
+  },
+  "dataModeCalibrate": "Calibration",
+  "@dataModeCalibrate": {
+    "description": "Robot mode"
+  },
+  "dataModeFrontLegs": "Front legs",
+  "@dataModeFrontLegs": {
+    "description": "Robot mode: the front legs are raised and steered"
+  },
+  "dataGaitTripod": "Tripod",
+  "@dataGaitTripod": {
+    "description": "Gait name"
+  },
+  "dataGaitWave": "Wave",
+  "@dataGaitWave": {
+    "description": "Gait name"
+  },
+  "dataGaitRipple": "Ripple",
+  "@dataGaitRipple": {
+    "description": "Gait name"
+  },
+  "dataSignalNone": "no Wi-Fi",
+  "dataSignalGreat": "great",
+  "@dataSignalGreat": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataSignalGood": "good",
+  "@dataSignalGood": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataSignalWeak": "weak",
+  "@dataSignalWeak": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataSignalVeryWeak": "very weak",
+  "@dataSignalVeryWeak": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataFaultLeftServos": "Left servos (PCA9685 0x40) not answering",
+  "dataFaultRightServos": "Right servos (PCA9685 0x41) not answering",
+  "dataFaultImu": "IMU (BNO085) missing",
+  "dataFaultDistance": "Distance sensors (VL53L0X) missing",
+  "dataFaultEnvironment": "Environment sensor (BME280) missing",
+  "dataFaultPower": "Battery meter (INA226) missing",
+  "dataFaultOvercurrent": "High current for over 3 s",
+  "dataFaultBatteryCritical": "Battery critical: shutdown requested",
+  "dataFaultLoopOverrun": "Control loop running late (50 Hz)",
+  "dataFaultCalibration": "Servo calibration not loaded",
+  "dataFaultGas": "Gas sensor (MQ-2) missing",
+  "partServosLeft": "Left servos",
+  "@partServosLeft": {
+    "description": "Robot part (card title)"
+  },
+  "partServosRight": "Right servos",
+  "@partServosRight": {
+    "description": "Robot part (card title)"
+  },
+  "partImu": "Orientation",
+  "@partImu": {
+    "description": "Robot part: the orientation sensor (card title)"
+  },
+  "partDistance": "Distance",
+  "@partDistance": {
+    "description": "Robot part (card title)"
+  },
+  "partEnvironment": "Environment",
+  "@partEnvironment": {
+    "description": "Robot part (card title)"
+  },
+  "partPower": "Battery",
+  "@partPower": {
+    "description": "Robot part: the battery meter (card title)"
+  },
+  "partGas": "Gas and smoke",
+  "@partGas": {
+    "description": "Robot part (card title)"
+  },
+  "checkLeftServos": "Left servos (PCA9685 0x40)",
+  "@checkLeftServos": {
+    "description": "Health check; a green tick means it passes"
+  },
+  "checkRightServos": "Right servos (PCA9685 0x41)",
+  "@checkRightServos": {
+    "description": "Health check"
+  },
+  "checkImu": "IMU (BNO085)",
+  "@checkImu": {
+    "description": "Health check"
+  },
+  "checkDistance": "Distance (4x VL53L0X)",
+  "@checkDistance": {
+    "description": "Health check"
+  },
+  "checkEnvironment": "Environment (BME280)",
+  "@checkEnvironment": {
+    "description": "Health check"
+  },
+  "checkPower": "Battery (INA226)",
+  "@checkPower": {
+    "description": "Health check"
+  },
+  "checkCurrent": "Current within the limit",
+  "@checkCurrent": {
+    "description": "Health check"
+  },
+  "checkBatteryLow": "Battery above 3.5 V per cell",
+  "@checkBatteryLow": {
+    "description": "Health check"
+  },
+  "checkBatteryCritical": "Battery above 3.3 V per cell",
+  "@checkBatteryCritical": {
+    "description": "Health check"
+  },
+  "checkLoop": "50 Hz loop on time",
+  "@checkLoop": {
+    "description": "Health check"
+  },
+  "checkCalibration": "Servo calibration loaded",
+  "@checkCalibration": {
+    "description": "Health check"
+  },
+  "checkGas": "Gas and smoke (MQ-2)",
+  "@checkGas": {
+    "description": "Health check"
+  },
+  "settingsRemote": "Remote access",
+  "@settingsRemote": {
+    "description": "Settings entry: Tailscale setup"
+  },
+  "settingsRemoteHelp": "Drive the robot from anywhere (Tailscale)",
+  "remoteTitle": "Remote access",
+  "remoteIntro": "Drive the robot from anywhere with internet (4G, another network) through Tailscale, free for personal use. Set it up once, at home, with the robot nearby.",
+  "remoteRobotStep": "The robot",
+  "remoteRobotHow": "Tap the button: the browser opens; sign in to Tailscale (Google, Microsoft, GitHub...) and confirm with Connect.",
+  "remoteConnect": "Connect the robot",
+  "remoteWaiting": "Sign in in the browser and tap Connect. Waiting for the robot…",
+  "remoteOpenAgain": "Open the link again",
+  "remoteRobotIn": "On Tailscale as {name}",
+  "@remoteRobotIn": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "remoteAccount": "Account: {account}",
+  "@remoteAccount": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "remoteDisconnect": "Disconnect",
+  "remoteDisconnectTitle": "Disconnect the robot from Tailscale?",
+  "remoteDisconnectBody": "The app will only reach it on the same network again, until you connect it once more.",
+  "remoteCancel": "Cancel",
+  "remoteFailed": "The robot could not do that now. Try again.",
+  "remoteUnreachable": "Can't reach the robot. Remote access is set up (or turned back on) with the phone on the same network as the robot: connect the phone to the robot's Wi-Fi network and come back here.",
+  "remoteAbsent": "Tailscale is not installed on this robot. Update its SD card image.",
+  "remotePhoneStep": "This phone",
+  "remotePhoneHow": "Install the Tailscale app and sign in with the same account. Keep its VPN on when you are away from home.",
+  "remoteInstallApp": "Install Tailscale",
+  "remotePhoneIn": "This phone is on Tailscale.",
+  "remoteReady": "All set: away from home, the app finds the robot through Tailscale by itself.",
+  "remoteDisconnectViaTailnet": "You are connected through Tailscale right now: you will lose access, and connecting it again needs the phone on the same network as the robot.",
+  "networkBand24": "2.4 GHz",
+  "networkBand5": "5 GHz",
+  "dataPiModel": "Board",
+  "galleryTitle": "Robot's gallery",
+  "galleryQuality": "Video",
+  "@galleryQuality": {
+    "description": "Label before the 720p/1080p choice"
+  },
+  "galleryQualityFailed": "The camera did not take the new quality.",
+  "galleryCount": "{count, plural, =0{Nothing yet} =1{1 item} other{{count} items}}",
+  "@galleryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryFree": "{gb} GB free on the robot",
+  "@galleryFree": {
+    "placeholders": {
+      "gb": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryEmpty": "No photos or videos yet. Take them from the driving screen with the camera and record buttons.",
+  "galleryOffline": "Can't reach the robot. The gallery comes from the robot, over its Wi-Fi or Tailscale.",
+  "galleryDownload": "Save to phone",
+  "galleryDownloadAll": "Save all",
+  "gallerySelected": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@gallerySelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gallerySaved": "{count, plural, =1{Saved to the phone's gallery (album Hexapod)} other{{count} saved to the phone's gallery (album Hexapod)}}",
+  "@gallerySaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryDownloadFailed": "Could not save {name}",
+  "@galleryDownloadFailed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryDeleteTitle": "{count, plural, =1{Delete from the robot?} other{Delete {count} items from the robot?}}",
+  "@galleryDeleteTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryDeleteBody": "Copies already saved on the phone stay there.",
+  "galleryCancel": "Cancel",
+  "galleryDelete": "Delete",
+  "galleryVideoHint": "Save it to the phone to watch it.",
+  "pilotPhoto": "Take a photo",
+  "pilotRecord": "Record",
+  "pilotStopRecording": "Stop recording",
+  "pilotGallery": "Robot's gallery",
+  "pilotPhotoSaved": "Photo saved on the robot",
+  "pilotRecordSaved": "Video saved on the robot",
+  "pilotSeeGallery": "See",
+  "pilotCameraFailed": "The camera did not answer",
+  "pilotNoSpace": "The robot's SD card is almost full"
+}

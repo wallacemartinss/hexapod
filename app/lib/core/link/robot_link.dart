@@ -1,16 +1,31 @@
 import 'dart:async';
 
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../proto.dart';
 
-enum LinkStatus { disconnected, connecting, connected }
+enum LinkStatus {
+  disconnected,
+  connecting,
+  connected,
+
+  /// The robot refused the pairing key (HTTP 401): pair again.
+  unauthorized,
+}
 
 /// WebSocket to hexd (`ws://<host>:8080/ws`), one Envelope per binary message.
 /// Reconnects by itself with backoff until [close].
 class RobotLink {
-  RobotLink(this.uri, {WebSocketChannel Function(Uri)? connector})
-    : _connect = connector ?? WebSocketChannel.connect;
+  /// [token] is the pairing key from the robot's QR (null: robot without
+  /// pairing, e.g. hexsim in development).
+  RobotLink(this.uri, {String? token, WebSocketChannel Function(Uri)? connector})
+    : _connect =
+          connector ??
+          ((u) => IOWebSocketChannel.connect(
+            u,
+            headers: token == null ? null : {'Authorization': 'Bearer $token'},
+          ));
 
   final Uri uri;
   final WebSocketChannel Function(Uri) _connect;
@@ -19,6 +34,7 @@ class RobotLink {
   final _telemetry = StreamController<Telemetry>.broadcast();
   final _hello = StreamController<Hello>.broadcast();
   final _position = StreamController<Position>.broadcast();
+  final _piStatus = StreamController<PiStatus>.broadcast();
 
   WebSocketChannel? _channel;
   LinkStatus _current = LinkStatus.disconnected;
@@ -27,6 +43,7 @@ class RobotLink {
   bool _closed = false;
   Hello? _lastHello;
   Position? _lastPosition;
+  PiStatus? _lastPiStatus;
 
   Stream<LinkStatus> get status => _status.stream;
   Stream<Telemetry> get telemetry => _telemetry.stream;
@@ -35,6 +52,10 @@ class RobotLink {
   /// GPS positions from hexd, about 1 Hz; none at all without a GPS.
   Stream<Position> get position => _position.stream;
   Position? get lastPosition => _lastPosition;
+
+  /// The Raspberry Pi's own health from hexd, every 2 s.
+  Stream<PiStatus> get piStatus => _piStatus.stream;
+  PiStatus? get lastPiStatus => _lastPiStatus;
 
   /// The last Hello received: it arrives once per connection, so whoever
   /// starts listening later (the settings sheet) still gets the versions.
@@ -56,8 +77,9 @@ class RobotLink {
     _channel = channel;
     try {
       await channel.ready.timeout(const Duration(seconds: 3));
-    } catch (_) {
-      _scheduleRetry();
+    } catch (e) {
+      // dart:io: "... not upgraded to websocket, HTTP status code: 401"
+      _scheduleRetry(refused: e.toString().contains('status code: 401'));
       return;
     }
     if (_closed) {
@@ -78,6 +100,7 @@ class RobotLink {
         if (env.hasTelemetry()) _telemetry.add(env.telemetry);
         if (env.hasHello()) _hello.add(_lastHello = env.hello);
         if (env.hasPosition()) _position.add(_lastPosition = env.position);
+        if (env.hasPiStatus()) _piStatus.add(_lastPiStatus = env.piStatus);
       },
       onDone: _scheduleRetry,
       onError: (_) => _scheduleRetry(),
@@ -85,10 +108,10 @@ class RobotLink {
     );
   }
 
-  void _scheduleRetry() {
+  void _scheduleRetry({bool refused = false}) {
     _channel = null;
     if (_closed) return;
-    _set(LinkStatus.disconnected);
+    _set(refused ? LinkStatus.unauthorized : LinkStatus.disconnected);
     _retry?.cancel();
     _retry = Timer(_backoff, _open);
     _backoff = Duration(milliseconds: (_backoff.inMilliseconds * 2).clamp(250, 3000));
@@ -111,5 +134,6 @@ class RobotLink {
     await _telemetry.close();
     await _hello.close();
     await _position.close();
+    await _piStatus.close();
   }
 }

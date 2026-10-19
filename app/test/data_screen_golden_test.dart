@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
 import 'package:hexapod_app/core/providers.dart';
@@ -70,6 +71,21 @@ pb.Telemetry _bench(int seq) => pb.Telemetry()
   ..loopTimeUs = 330
   ..jointAnglesDeg.addAll([for (var i = 0; i < 18; i++) (i % 3 == 1 ? 35.2 : (i % 3 == 2 ? -106.8 : 0.0))]);
 
+/// The Pi at work, after a supply dip (the bench's weak power).
+pb.PiStatus _pi(int n) => pb.PiStatus()
+  ..cpuPercent = 18.0 + (n % 5) * 4
+  ..load1m = 0.42
+  ..cpuFreqMhz = 1200
+  ..cpuMaxFreqMhz = 1200
+  ..temperatureC = 53.7 + (n % 3) * 0.5
+  ..memUsedMb = 255
+  ..memTotalMb = 905
+  ..diskUsedMb = 4100
+  ..diskTotalMb = 119300
+  ..underVoltageSeen = true
+  ..uptimeS = Int64(30843)
+  ..wifiRssiDbm = -55;
+
 Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry, {pb.Position? position}) async {
   tester.view.physicalSize = const Size(2400, 1080);
   tester.view.devicePixelRatio = 2.625;
@@ -84,6 +100,9 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry, {p
               ? const Stream.empty()
               : Stream.periodic(const Duration(seconds: 1), (_) => GpsReading(position)),
         ),
+        piStatusProvider.overrideWith(
+          (ref) => Stream.periodic(const Duration(seconds: 2), (n) => PiReading(_pi(n))),
+        ),
         telemetryProvider.overrideWith(
           (ref) => Stream.periodic(const Duration(milliseconds: 100), (_) => telemetry(++seq)),
         ),
@@ -96,8 +115,7 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry, {p
           ),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
+      child: testApp(
         theme: ThemeData(brightness: Brightness.dark, fontFamily: 'Roboto'),
         home: const DataScreen(),
       ),
@@ -140,6 +158,14 @@ void main() {
     await _tab(tester, 'Ambiente', 'data_environment');
     await _tab(tester, 'Pernas', 'data_legs');
     await _tab(tester, 'Sistema', 'data_system');
+    // Over 2 min of Pi samples: the charts must keep the old ones inside.
+    for (var i = 0; i < 80; i++) {
+      await tester.pump(const Duration(seconds: 2));
+    }
+    await _tab(tester, 'Raspberry Pi', 'data_pi');
+    await tester.drag(find.text('Processador'), const Offset(0, -150));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await expectLater(find.byType(DataScreen), matchesGoldenFile('goldens/data_pi_charts.png'));
   });
 
   testWidgets('bench board: sensors not fitted', (tester) async {

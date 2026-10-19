@@ -13,7 +13,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 
 | Função | Componente | Observação |
 |---|---|---|
-| Ponte, vídeo e rede | Raspberry Pi 3 Model B v1.2 | Raspberry Pi OS Lite 64-bit. Wi-Fi só 2,4 GHz (802.11n) |
+| Ponte, vídeo e rede | Raspberry Pi 3 Model B v1.2 (Pi 4 também suportado) | Raspberry Pi OS Lite 64-bit. Pi 3: Wi-Fi só 2,4 GHz; Pi 4: rede própria em 5 GHz (README, "Pi 3 ou Pi 4") |
 | Tempo real | ESP32-S3 SuperMini | USB nativa (VID:PID `303a:1001`) ligada ao Pi |
 | Tempo real (só bancada, temporário) | ESP32 DevKit 38 pinos, ESP-WROOM-32 (ESP32-D0WDQ6, 4 MB) | USB via CP2102 (`10c4:ea60`). PlatformIO `esp32dev`. GPIO6–11 = flash (proibidos); 34–39 só entrada |
 | Olhos (fase futura) | 2nd ESP32-S3 SuperMini + 2x GC9A01 1,28" | Recebe comandos simples do ESP32 principal |
@@ -41,7 +41,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 - **USB:** ESP32 ↔ Pi (protocolo + gravação do firmware).
 - **ADC do ESP32:** saída analógica do MQ-2 (pelo divisor).
 - **GPIO do ESP32:** 4x XSHUT, OE das PCA9685 (ligado ao das duas placas: corte de emergência), dados dos WS2812, interrupção do BNO085 (opcional) e UART para o ESP32 dos olhos (futuro).
-- **Mapa de pinos: definido (v1)** em `firmware/include/pins.h` e documentado em `firmware/PINOUT.md`, para o S3 e para a placa de bancada. Pads do SuperMini ainda a conferir quando a placa chegar.
+- **Mapa de pinos: definido (v1)** em `firmware/include/pins.h` e documentado em `firmware/PINOUT.md` (inglês) e `firmware/PINOUT.pt-BR.md` (português, manter os dois iguais), para o S3 e para a placa de bancada. Pads do SuperMini ainda a conferir quando a placa chegar.
 
 ## 2. Regras de segurança (obrigatórias)
 
@@ -274,6 +274,10 @@ Depois do deploy estável: ativar o sistema de arquivos somente leitura (overlay
 - **Go:** `gofmt`, `go vet`, `golangci-lint`.
 - **C++:** `clang-format` (estilo Google, 2 espaços), sem alocação dinâmica dentro do laço de movimento.
 - **Constantes físicas** (dimensões, limites, tempos) ficam em um lugar só (`config.h` / `hexd.yaml`), comentadas com a unidade.
+- **Tag de versão automática:** a cada merge na `main`, crie (sem perguntar) uma tag anotada no commit do merge e envie com `git push origin <tag>`. Ela é a versão de tudo: o `git describe` grava a mesma no hexd, no firmware, no APK (`app/version.sh`) e no nome da imagem do cartão. A tag `v*` também dispara o workflow `image` e publica a imagem no GitHub Releases.
+  - Formato `vMAIOR.MENOR.CORREÇÃO` (SemVer). Até o lançamento público, a série é `v0.x`, e `v1.0.0` é o primeiro lançamento para a comunidade, decidido pelo usuário.
+  - Incremento pelos commits desde a última tag: `feat` → MENOR; só `fix`/`chore`/`docs` → CORREÇÃO; mudança incompatível no contrato (`proto/`) ou `!` → MAIOR (na série `0.x`, MENOR).
+  - Nunca mova nem apague uma tag já enviada: errou, faça a próxima.
 
 ## 6. Failsafe (especificação)
 

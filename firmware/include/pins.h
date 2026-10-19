@@ -1,5 +1,6 @@
 // Pin map and wiring of the hexapod controller.
-// Wiring notes and tables: firmware/PINOUT.md (keep both in sync).
+// Wiring notes and tables: firmware/PINOUT.md and its Portuguese copy
+// firmware/PINOUT.pt-BR.md (keep all three in sync).
 //
 // The board is selected by the target the firmware is built for:
 //   esp32s3  -> ESP32-S3 SuperMini (final robot)

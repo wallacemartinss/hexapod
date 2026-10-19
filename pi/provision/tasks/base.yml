@@ -18,7 +18,25 @@
   ansible.builtin.systemd_service:
     name: avahi-daemon
     enabled: true
-    state: started
+    state: "{{ omit if image_build | bool else 'started' }}"
+
+# The app finds robots by this service (DNS-SD), then asks each one
+# GET /identity to match the id read from the pairing QR.
+- name: Announce the hexapod service on the network
+  ansible.builtin.copy:
+    dest: /etc/avahi/services/hexapod.service
+    mode: "0644"
+    content: |
+      <?xml version="1.0" standalone='no'?>
+      <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+      <service-group>
+        <name replace-wildcards="yes">%h</name>
+        <service>
+          <type>_hexapod._tcp</type>
+          <port>{{ hexd_port }}</port>
+          <txt-record>path=/identity</txt-record>
+        </service>
+      </service-group>
 
 - name: Remove Debian esptool (no stub flasher)
   ansible.builtin.apt:

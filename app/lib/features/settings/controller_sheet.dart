@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/input/gamepad_service.dart';
 import '../../core/providers.dart';
+import '../../l10n/l10n.dart';
 
 const _ok = Color(0xFF3DDC97);
 
@@ -23,6 +24,7 @@ class ControllerSheet extends ConsumerWidget {
     final pad = ref.watch(gamepadNameProvider);
     final platform = ref.watch(controllerPlatformProvider);
     final settings = ref.watch(settingsProvider);
+    final l = context.l10n;
 
     return SafeArea(
       child: Padding(
@@ -32,9 +34,9 @@ class ControllerSheet extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Controle externo',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+              Text(
+                l.controllerTitle,
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Container(
@@ -53,14 +55,14 @@ class ControllerSheet extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            pad != null ? 'Conectado' : 'Nenhum controle conectado',
+                            pad != null ? l.controllerConnected : l.controllerNone,
                             style: TextStyle(
                               color: pad != null ? _ok : Colors.white,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           Text(
-                            pad ?? 'Siga os passos abaixo para parear',
+                            pad ?? l.controllerFollowSteps,
                             style: const TextStyle(color: Colors.white54, fontSize: 12),
                           ),
                         ],
@@ -70,7 +72,7 @@ class ControllerSheet extends ConsumerWidget {
                       OutlinedButton.icon(
                         onPressed: () => ref.read(gamepadServiceProvider).identify(),
                         icon: const Icon(Icons.vibration_rounded, size: 18),
-                        label: const Text('Testar'),
+                        label: Text(l.controllerTest),
                       ),
                     if (platform != null) ...[
                       const SizedBox(width: 8),
@@ -85,12 +87,8 @@ class ControllerSheet extends ConsumerWidget {
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Esconder joysticks da tela', style: TextStyle(color: Colors.white)),
-                subtitle: const Text(
-                  'Com o controle conectado, o vídeo fica livre. O PARAR continua na tela, '
-                  'e os joysticks voltam se o controle desconectar.',
-                  style: TextStyle(color: Colors.white54),
-                ),
+                title: Text(l.controllerHideSticks, style: const TextStyle(color: Colors.white)),
+                subtitle: Text(l.controllerHideSticksHelp, style: const TextStyle(color: Colors.white54)),
                 value: settings.hideSticksWithPad,
                 onChanged: (v) =>
                     ref.read(settingsProvider.notifier).update(settings.copyWith(hideSticksWithPad: v)),
@@ -103,53 +101,38 @@ class ControllerSheet extends ConsumerWidget {
                   initiallyExpanded: pad == null,
                   iconColor: Colors.white70,
                   collapsedIconColor: Colors.white70,
-                  title: const Text(
-                    'Como parear o controle de PS5',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  title: Text(
+                    l.controllerHowToPair,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                   ),
-                  children: const [
-                    _Step(
-                      1,
-                      'Com o controle desligado, segure PS + Create',
-                      'Create é o botão pequeno à esquerda do touchpad. Solte quando a luz piscar rápido, em azul.',
-                    ),
-                    _Step(
-                      2,
-                      'Abra o Bluetooth do celular',
-                      'Toque em "Bluetooth" aqui em cima e depois em "Parear novo dispositivo".',
-                    ),
-                    _Step(
-                      3,
-                      'Escolha "DualSense Wireless Controller"',
-                      'Pode aparecer só como "Wireless Controller".',
-                    ),
-                    _Step(
-                      4,
-                      'Volte para o app',
-                      'O controle vibra duas vezes e o ícone fica verde. Da próxima vez, basta apertar PS.',
-                    ),
+                  children: [
+                    _Step(1, l.controllerStep1, l.controllerStep1Detail),
+                    _Step(2, l.controllerStep2, l.controllerStep2Detail),
+                    _Step(3, l.controllerStep3, l.controllerStep3Detail),
+                    _Step(4, l.controllerStep4, l.controllerStep4Detail),
                   ],
                 ),
               ),
               Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: const ExpansionTile(
+                child: ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   iconColor: Colors.white70,
                   collapsedIconColor: Colors.white70,
                   title: Text(
-                    'Botões',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    l.controllerButtons,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                   children: [
-                    _Button('Bolinha', 'PARAR'),
-                    _Button('Direcional para cima, segurado', 'Levantar'),
-                    _Button('Direcional para baixo', 'Sentar'),
-                    _Button('Xis / Quadrado / Triângulo', 'Andar / Pose / Patas'),
-                    _Button('Sticks', 'Iguais aos joysticks da tela'),
-                    _Button('L2 / R2', 'Abaixa / sobe o corpo'),
-                    _Button('L1 segurado (Pose)', 'Inclinar o controle inclina o robô'),
-                    _Button('L1 / R1 / R3 (Patas)', 'Guarda / Acenar / Golpe'),
+                    _Button(l.controllerCircle, l.controllerStop),
+                    _Button(l.controllerDpadUpHeld, l.controllerStandUp),
+                    _Button(l.controllerDpadDown, l.controllerSit),
+                    _Button(l.controllerFaceButtons, l.controllerModes),
+                    // Stick and trigger names are printed on the controller.
+                    _Button('Sticks', l.controllerSticks),
+                    _Button('L2 / R2', l.controllerBody),
+                    _Button(l.controllerL1Pose, l.controllerTilt),
+                    _Button(l.controllerLegButtons, l.controllerLegMoves),
                   ],
                 ),
               ),
@@ -177,7 +160,7 @@ class _Step extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: const Color(0xFF4FD1FF),
+            backgroundColor: const Color(0xFF3FCDF5),
             child: Text(
               '$n',
               style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w800),

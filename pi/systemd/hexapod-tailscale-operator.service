@@ -1,0 +1,13 @@
+[Unit]
+Description=Let hexd (user hexapod) run tailscale, so the app can set up remote access
+After=tailscaled.service
+Requires=tailscaled.service
+Before=hexd.service
+
+[Service]
+Type=oneshot
+# tailscaled may take a moment to answer after it starts.
+ExecStart=/bin/sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do /usr/bin/tailscale set --operator=hexapod && exit 0; sleep 1; done; exit 1'
+
+[Install]
+WantedBy=multi-user.target

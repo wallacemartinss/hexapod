@@ -1,0 +1,12 @@
+[Unit]
+Description=Unblock Wi-Fi (a fresh Raspberry Pi OS keeps it blocked until a country is set)
+DefaultDependencies=no
+After=systemd-rfkill.service
+Before=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/rfkill unblock wlan
+
+[Install]
+WantedBy=multi-user.target

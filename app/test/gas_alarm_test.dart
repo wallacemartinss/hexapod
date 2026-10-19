@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/app.dart';
 import 'package:hexapod_app/core/input/gamepad_interpreter.dart';
 import 'package:hexapod_app/core/input/gamepad_service.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
@@ -18,6 +19,7 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry t) async {
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        piStatusProvider.overrideWith((ref) => const Stream.empty()),
         gamepadServiceProvider.overrideWith((ref) => GamepadInterpreter(ref.read(controlProvider.notifier))),
         controllerPlatformProvider.overrideWith((ref) => null),
         videoViewProvider.overrideWith(
@@ -30,7 +32,7 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry t) async {
         settingsProvider.overrideWith(() => SettingsNotifier(const Settings(onboarded: true))),
         robotAddressProvider.overrideWith((ref) async => '127.0.0.1'),
       ],
-      child: const MaterialApp(home: PilotScreen()),
+      child: testApp(home: const PilotScreen()),
     ),
   );
   await tester.pump(const Duration(milliseconds: 300));

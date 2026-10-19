@@ -42,6 +42,14 @@ serial:
   silence_limit: 1s
 shutdown:
   enabled: false
+auth:
+  identity: $ROOT/shared/config/identity.json   # created by hexd on first start, as on the robot
+gps:
+  enabled: false
+wifi:
+  enabled: false
+display:
+  enabled: false
 EOF
 
 start_sim() { # firmware_version
@@ -128,7 +136,9 @@ deploy "$P1" --bootstrap || fail "bootstrap deploy"
 
 echo "== 2. robot standing"
 P2=$(mkpkg v2 good)
-"$BIN/hexctl" -url "ws://127.0.0.1:$HTTP_PORT/ws" -for 3s stand >/dev/null &
+# Paired like an app: the key hexd created on its first start.
+HEXAPOD_TOKEN=$(jq -r .token "$ROOT/shared/config/identity.json") \
+  "$BIN/hexctl" -url "ws://127.0.0.1:$HTTP_PORT/ws" -for 3s stand >/dev/null &
 wait_state NORMAL || fail "robot did not stand"
 deploy "$P2" && fail "deployed while standing"
 grep -q "robot is NORMAL: sit it down first" "$STATE/deploy.log" || fail "refused for another reason"

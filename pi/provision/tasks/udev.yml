@@ -1,13 +1,15 @@
 ---
 # ID_MM_DEVICE_IGNORE keeps ModemManager (4G modem, future) away from the ESP32 port.
+# SYSTEMD_WANTS: a board plugged in gets the release's firmware if it has none
+# (hexapod-firmware-sync; a board already running hexapod firmware is left alone).
 - name: ESP32-S3 symlink /dev/hexapod-esp32
   ansible.builtin.copy:
     dest: /etc/udev/rules.d/99-hexapod-esp32.rules
     content: |
-      SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ esp32_usb_vid }}", ATTRS{idProduct}=="{{ esp32_usb_pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"
+      SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ esp32_usb_vid }}", ATTRS{idProduct}=="{{ esp32_usb_pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="hexapod-firmware-sync.service"
       {% for id in esp32_test_usb_ids %}
       # Bench test board (esp32_test_usb_ids)
-      SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ id.vid }}", ATTRS{idProduct}=="{{ id.pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"
+      SUBSYSTEM=="tty", ATTRS{idVendor}=="{{ id.vid }}", ATTRS{idProduct}=="{{ id.pid }}", SYMLINK+="hexapod-esp32", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="hexapod-firmware-sync.service"
       {% endfor %}
     mode: "0644"
   notify: Reload udev

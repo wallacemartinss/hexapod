@@ -23,6 +23,7 @@
   register: data_mount
   changed_when: false
   failed_when: false
+  check_mode: false # read-only: --check must see the real answer
 
 - name: Read-only needs the data partition
   ansible.builtin.assert:
@@ -57,6 +58,34 @@
         line: >-
           {{ hexapod_root }}/shared/state/tailscale  /var/lib/tailscale  none
           bind,x-systemd.requires-mounts-for={{ hexapod_root }}  0  0
+      notify: [Reboot, Reboot pending]
+
+# Wi-Fi networks saved from the app (NetworkManager keyfiles) must survive
+# reboots too. (The network typed in Raspberry Pi Imager lives in
+# /etc/netplan, part of the image.)
+- name: Saved Wi-Fi networks on the data partition
+  when: data_mount.rc == 0
+  block:
+    - name: Keyfile directory
+      ansible.builtin.file:
+        path: "{{ hexapod_root }}/shared/state/nm-connections"
+        state: directory
+        mode: "0700"
+
+    - name: Keep the networks saved so far
+      ansible.builtin.command: >-
+        rsync -a --ignore-existing /etc/NetworkManager/system-connections/
+        {{ hexapod_root }}/shared/state/nm-connections/
+      changed_when: false
+      when: ansible_mounts | selectattr('mount', 'equalto', '/etc/NetworkManager/system-connections') | list | length == 0
+
+    - name: Bind it over /etc/NetworkManager/system-connections at boot
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '\s/etc/NetworkManager/system-connections\s'
+        line: >-
+          {{ hexapod_root }}/shared/state/nm-connections  /etc/NetworkManager/system-connections  none
+          bind,x-systemd.requires-mounts-for={{ hexapod_root }},x-systemd.before=NetworkManager.service  0  0
       notify: [Reboot, Reboot pending]
 
 # With the root in RAM, logs on disk would only fill the overlay.

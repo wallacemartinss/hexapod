@@ -17,6 +17,27 @@ No celular: **Depuração USB** ligada e cabo de dados. Alguns aparelhos (Redmi/
 
 Para testar sem o robô: `hexsim` + `hexd -serial tcp://127.0.0.1:7777` (ver `pi/`) e, nos ajustes do app, endereço `127.0.0.1`.
 
+## Parear um robô
+
+Cada robô cria, no primeiro boot, uma **chave de pareamento** própria. Sem ela o robô recusa o app (ninguém na mesma rede pilota o robô de outro).
+
+1. Com nenhum app conectado, a **tela OLED do robô mostra um QR**.
+2. No app: **Novo robô** (aparece sozinho quando não há robô pareado; também em Ajustes → Meus robôs) e aponte a câmera para o QR.
+3. O app procura o robô na rede (serviço `_hexapod._tcp`, confirmado por `GET /identity`), **testa a chave** e só então salva.
+
+Sem câmera (ou no PC), digite o código: `HXP1 <ID> <CHAVE>`. No modo maker, ele sai no terminal do Pi, com o QR desenhado: `sudo -u hexapod /opt/hexapod/current/bin/hexd -pairing`.
+
+Vários robôs: **Meus robôs** escolhe qual pilotar. Se o robô recusar a chave (foi trocada), o app pede para parear de novo.
+
+## Rede do robô (Wi-Fi)
+
+- **Primeiro boot:** sem rede salva, o robô abre a **rede própria** `Hexapode-<ID>`. Ao parear, se o robô não aparece na rede do celular, o app **conecta sozinho nessa rede** (o Android pergunta "Conectar?"). A senha vem da chave do QR, por hash: ninguém digita nada.
+- **Ajustes → Rede do robô:**
+  - **Rede de casa:** "Conectar a uma rede" lista as redes que o **robô** enxerga (só 2,4 GHz no Pi 3); a senha é digitada no celular e gravada no robô. Se ela estiver errada (ou a rede sumir), o robô **volta sozinho para a rede própria** e o app mostra o motivo.
+  - **Direto:** o robô fica sempre na rede própria; o celular conecta nela. Funciona em qualquer lugar, sem roteador.
+  - Redes salvas (esquecer) e o nome do robô.
+- No modo Rede de casa, se nenhuma rede salva funcionar por 45 s, o robô abre a rede própria; depois procura as salvas de tempos em tempos, **nunca** com um app conectado.
+
 ## Testes
 
 ```bash

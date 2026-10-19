@@ -20,10 +20,12 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
     // it the mDNS lookup of hexapod.local never gets an answer.
     private var multicastLock: WifiManager.MulticastLock? = null
     private var controller: ControllerChannel? = null
+    private var robotWifi: RobotWifiChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         controller = ControllerChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        robotWifi = RobotWifiChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,6 +39,7 @@ class MainActivity : FlutterActivity(), GamepadsCompatibleActivity {
 
     override fun onDestroy() {
         controller?.dispose()
+        robotWifi?.release()
         multicastLock?.release()
         super.onDestroy()
     }

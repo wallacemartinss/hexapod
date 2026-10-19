@@ -1,0 +1,12 @@
+[Unit]
+Description=Flash the ESP32 when it has no hexapod firmware (fresh image, new board)
+After=hexd.service
+ConditionPathExists=/opt/hexapod/current/manifest.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/hexapod-firmware-sync
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

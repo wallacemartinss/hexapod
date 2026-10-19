@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../core/link/robot_link.dart';
 import '../../../core/proto.dart' as pb;
 import '../state_texts.dart';
+import 'camera_controls.dart';
+import '../../../l10n/l10n.dart';
 import 'controls.dart';
 
 /// Top bar: link quality, robot state, battery, faults and settings.
@@ -21,6 +23,8 @@ class StatusBar extends StatelessWidget {
     this.onGamepad,
     this.audio = false,
     this.onAudio,
+    this.recordingS,
+    this.center,
   });
 
   final LinkStatus link;
@@ -42,53 +46,99 @@ class StatusBar extends StatelessWidget {
   final bool audio;
   final VoidCallback? onAudio;
 
+  /// Shown in the middle (the obstacle radar), with room kept on both sides.
+  final Widget? center;
+
+  /// Seconds recorded so far while the robot records (null: not recording).
+  final int? recordingS;
+
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final t = telemetry;
     final stale = telemetryAge == null || telemetryAge! > const Duration(seconds: 1);
     final (linkText, linkColor) = switch (link) {
-      LinkStatus.connected when !stale => ('Conectado', severityColor(Severity.ok)),
-      LinkStatus.connected => ('Sinal fraco', severityColor(Severity.warning)),
-      LinkStatus.connecting => ('Conectando…', severityColor(Severity.info)),
-      LinkStatus.disconnected => ('Sem conexão', severityColor(Severity.danger)),
+      LinkStatus.connected when !stale => (l.hudConnected, severityColor(Severity.ok)),
+      LinkStatus.connected => (l.hudWeakSignal, severityColor(Severity.warning)),
+      LinkStatus.connecting => (l.hudConnecting, severityColor(Severity.info)),
+      LinkStatus.disconnected => (l.hudDisconnected, severityColor(Severity.danger)),
+      LinkStatus.unauthorized => (l.hudPairAgain, severityColor(Severity.danger)),
     };
-    final state = t != null && !stale ? describeState(t.state) : null;
-    final faults = t == null ? const <String>[] : describeFaults(t.faultFlags);
+    final state = t != null && !stale ? describeState(l, t.state) : null;
+    final faults = t == null ? const <String>[] : describeFaults(l, t.faultFlags);
     final volts = t?.batteryVoltageV ?? 0;
 
+    return _row(context, l, linkText, linkColor, state, faults, volts);
+  }
+
+  Widget _row(
+    BuildContext context,
+    AppLocalizations l,
+    String linkText,
+    Color linkColor,
+    StateText? state,
+    List<String> faults,
+    double volts,
+  ) {
+    // The buttons on the right keep their size; of the room left, the
+    // status (and REC) gets two thirds and only shrinks when it does not
+    // fit, and the radar one third, shown only when it fits.
     return Row(
       children: [
-        Glass(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Dot(linkColor),
-              const SizedBox(width: 8),
-              Text(
-                linkText,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-              if (state != null) ...[
-                Container(
-                  width: 1,
-                  height: 16,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: Colors.white24,
-                ),
-                Text(
-                  state.label,
-                  style: TextStyle(
-                    color: severityColor(state.severity),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+        Expanded(
+          flex: 2,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Glass(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Dot(linkColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        linkText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (state != null) ...[
+                        Container(
+                          width: 1,
+                          height: 16,
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          color: Colors.white24,
+                        ),
+                        Text(
+                          state.label,
+                          style: TextStyle(
+                            color: severityColor(state.severity),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                if (recordingS != null) ...[const SizedBox(width: 8), RecBadge(recordingS!)],
               ],
-            ],
+            ),
           ),
         ),
-        const Spacer(),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (_, box) => center != null && box.maxWidth >= 124
+                ? Center(heightFactor: 1, child: center)
+                : const SizedBox.shrink(),
+          ),
+        ),
         if (faults.isNotEmpty) ...[
           GestureDetector(
             onTap: onFaults,
@@ -128,7 +178,7 @@ class StatusBar extends StatelessWidget {
           GestureDetector(
             onTap: onGamepad,
             child: Tooltip(
-              message: gamepad ?? 'Controle externo',
+              message: gamepad ?? l.hudGamepad,
               child: Glass(
                 padding: const EdgeInsets.all(8),
                 child: Icon(
@@ -292,7 +342,7 @@ class ProximityRadar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('frente', style: TextStyle(color: Colors.white54, fontSize: 10)),
+              Text(context.l10n.hudFront, style: const TextStyle(color: Colors.white54, fontSize: 10)),
               Text(
                 front > 0 ? _fmt(front) : '—',
                 style: TextStyle(
