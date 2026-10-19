@@ -31,6 +31,7 @@ class DataScreen extends ConsumerStatefulWidget {
 
 class _DataScreenState extends ConsumerState<DataScreen> {
   final _log = TelemetryLog();
+  final _pi = PiLog();
   // package:clock, so tests with simulated time get real-looking charts.
   final _start = clock.now();
   Duration get _elapsed => clock.now().difference(_start);
@@ -45,6 +46,8 @@ class _DataScreenState extends ConsumerState<DataScreen> {
     final now = ref.read(telemetryProvider).value;
     if (now != null) _log.add(_elapsed, now);
     if (ref.read(positionProvider).value != null) _positionAt = _elapsed;
+    final pi = ref.read(piStatusProvider).value;
+    if (pi != null) _pi.add(_elapsed, pi.status);
     _tick = Timer.periodic(const Duration(milliseconds: 250), (_) => setState(() {}));
   }
 
@@ -61,7 +64,12 @@ class _DataScreenState extends ConsumerState<DataScreen> {
       if (t != null) _log.add(_elapsed, t);
     });
     ref.listen(positionProvider, (_, _) => _positionAt = _elapsed);
+    ref.listen(piStatusProvider, (_, next) {
+      final pi = next.value;
+      if (pi != null) _pi.add(_elapsed, pi.status);
+    });
     final position = ref.watch(positionProvider).value?.position;
+    ref.watch(piStatusProvider); // a listen alone does not start the stream
     final gpsTalking = _positionAt != null && _elapsed - _positionAt! < const Duration(seconds: 3);
     final link = ref.watch(linkStatusProvider).value ?? LinkStatus.connecting;
     final hello = ref.watch(helloProvider).value;
@@ -76,6 +84,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
       (Icons.thermostat_rounded, 'Ambiente'),
       (Icons.pest_control_rounded, 'Pernas'),
       (Icons.memory_rounded, 'Sistema'),
+      (Icons.developer_board_rounded, 'Raspberry Pi'),
     ];
 
     return DefaultTabController(
@@ -129,6 +138,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
                     _EnvironmentTab(t),
                     _LegsTab(t),
                     _SystemTab(t, _log, now, hello),
+                    _PiTab(_pi, now),
                   ],
                 ),
         ),
@@ -644,6 +654,183 @@ class _SystemTab extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+class _PiTab extends StatelessWidget {
+  const _PiTab(this.log, this.now);
+
+  final PiLog log;
+  final Duration now;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = log.last;
+    final at = log.lastAt;
+    if (p == null || at == null || now - at > const Duration(seconds: 6)) {
+      return const _Grid([
+        _Card(
+          icon: Icons.developer_board_off_rounded,
+          title: 'Raspberry Pi',
+          wide: true,
+          child: Text(
+            'Aguardando os dados do Raspberry Pi… Eles chegam a cada 2 segundos (ponte a partir da versão com esta tela).',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      ]);
+    }
+    const ok = Color(0xFF3DDC97);
+    const warn = Color(0xFFFFB547);
+    const bad = Color(0xFFFF5A5F);
+    final (powerColor, powerText, powerNote) = p.underVoltage
+        ? (
+            bad,
+            'Energia fraca agora',
+            'O Pi está recebendo menos de ~4,63 V: ele reduz a velocidade e o Wi-Fi e a tela podem cair.',
+          )
+        : p.underVoltageSeen
+        ? (
+            warn,
+            'Houve queda de energia',
+            'Desde que a ponte ligou, a tensão caiu pelo menos uma vez. Confira a fonte e o cabo.',
+          )
+        : (ok, 'Energia boa', 'Nenhuma queda de tensão desde que a ponte ligou.');
+    final throttled = p.cpuMaxFreqMhz > 0 && p.cpuFreqMhz < p.cpuMaxFreqMhz;
+    String gb(int mb) => (mb / 1024).toStringAsFixed(1);
+    return _Grid([
+      _Card(
+        icon: Icons.bolt_rounded,
+        title: 'Energia',
+        wide: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  p.underVoltage || p.underVoltageSeen ? Icons.warning_rounded : Icons.check_circle_rounded,
+                  color: powerColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  powerText,
+                  style: TextStyle(color: powerColor, fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            _Note(powerNote),
+            if (p.underVoltage || p.underVoltageSeen)
+              const _Note(
+                'Na bancada, use a fonte oficial do Raspberry (5,1 V / 2,5 A). Carregador de celular não serve.',
+              ),
+          ],
+        ),
+      ),
+      _Card(
+        icon: Icons.memory_rounded,
+        title: 'Processador',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Big(p.cpuPercent.toStringAsFixed(0), '%'),
+            const SizedBox(height: 8),
+            _Chart(
+              lines: [(log.series(now, (s) => s.cpuPercent), _accent, 'uso')],
+              min: 0,
+              max: 100,
+              unit: ' %',
+              height: 90,
+            ),
+            const SizedBox(height: 4),
+            _Row('Carga (1 min, 4 núcleos)', p.load1m.toStringAsFixed(2)),
+            _Row('Velocidade', '${p.cpuFreqMhz} de ${p.cpuMaxFreqMhz} MHz'),
+            if (throttled)
+              const _Note('Abaixo do máximo: normal em repouso; com o Pi ocupado, é calor ou energia.'),
+          ],
+        ),
+      ),
+      _Card(
+        icon: Icons.device_thermostat_rounded,
+        title: 'Temperatura',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Big(p.temperatureC.toStringAsFixed(1), '°C'),
+            const SizedBox(height: 8),
+            _Chart(
+              lines: [(log.series(now, (s) => s.temperatureC), warn, 'chip')],
+              min: 20,
+              max: 90,
+              unit: ' °C',
+              height: 90,
+            ),
+            const _Note('Acima de 80 °C o Pi reduz a velocidade para esfriar.'),
+          ],
+        ),
+      ),
+      _Card(
+        icon: Icons.storage_rounded,
+        title: 'Memória',
+        child: _Usage(p.memUsedMb, p.memTotalMb, '${p.memUsedMb} de ${p.memTotalMb} MB'),
+      ),
+      _Card(
+        icon: Icons.sd_card_rounded,
+        title: 'Cartão SD',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Usage(p.diskUsedMb, p.diskTotalMb, '${gb(p.diskUsedMb)} de ${gb(p.diskTotalMb)} GB'),
+            const SizedBox(height: 4),
+            _Row('Proteção do cartão', p.readOnly ? 'ligada' : 'desligada'),
+          ],
+        ),
+      ),
+      _Card(
+        icon: Icons.wifi_rounded,
+        title: 'Rede e tempo ligado',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Row('Sinal do Wi-Fi', describeSignal(p.wifiRssiDbm)),
+            _Row('Pi ligado há', formatUptime(p.uptimeS.toInt() * 1000)),
+          ],
+        ),
+      ),
+    ]);
+  }
+}
+
+/// "used of total" with a bar that turns amber above 80 % and red above 95 %.
+class _Usage extends StatelessWidget {
+  const _Usage(this.used, this.total, this.text);
+
+  final int used;
+  final int total;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final f = total == 0 ? 0.0 : used / total;
+    final color = f > 0.95 ? const Color(0xFFFF5A5F) : (f > 0.8 ? const Color(0xFFFFB547) : _accent);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Big((f * 100).toStringAsFixed(0), '%'),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: f,
+            minHeight: 8,
+            color: color,
+            backgroundColor: Colors.white12,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+      ],
+    );
   }
 }
 

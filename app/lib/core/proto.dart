@@ -4,6 +4,7 @@ export '../gen/hexapod/v1/common.pb.dart';
 export '../gen/hexapod/v1/common.pbenum.dart';
 export '../gen/hexapod/v1/envelope.pb.dart';
 export '../gen/hexapod/v1/hello.pb.dart';
+export '../gen/hexapod/v1/pi_status.pb.dart';
 export '../gen/hexapod/v1/position.pb.dart';
 export '../gen/hexapod/v1/telemetry.pb.dart';
 export '../gen/hexapod/v1/telemetry.pbenum.dart';

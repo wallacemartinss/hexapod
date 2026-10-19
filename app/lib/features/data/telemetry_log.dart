@@ -104,3 +104,33 @@ String formatUptime(int ms) {
   if (s >= 60) return '${s ~/ 60} min ${(s % 60).toString().padLeft(2, '0')} s';
   return '$s s';
 }
+
+/// Recent PiStatus samples (every 2 s) for the Raspberry Pi charts.
+class PiLog {
+  PiLog({this.window = const Duration(minutes: 2)});
+
+  final Duration window;
+  final _samples = <(Duration, pb.PiStatus)>[];
+
+  void add(Duration at, pb.PiStatus s) {
+    _samples.add((at, s));
+    while (_samples.isNotEmpty && at - _samples.first.$1 > window) {
+      _samples.removeAt(0);
+    }
+  }
+
+  /// When the last sample arrived (null: none yet).
+  Duration? get lastAt => _samples.isEmpty ? null : _samples.last.$1;
+  pb.PiStatus? get last => _samples.isEmpty ? null : _samples.last.$2;
+
+  List<(double, double)> series(Duration now, double Function(pb.PiStatus) value) => [
+    for (final (at, s) in _samples) (-(now - at).inMilliseconds / 1000, value(s)),
+  ];
+}
+
+/// "-55 dBm · bom": Wi-Fi signal in words a beginner understands.
+String describeSignal(int dbm) {
+  if (dbm == 0) return 'sem Wi-Fi';
+  final word = dbm >= -60 ? 'ótimo' : (dbm >= -70 ? 'bom' : (dbm >= -80 ? 'fraco' : 'muito fraco'));
+  return '$dbm dBm · $word';
+}

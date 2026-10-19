@@ -131,6 +131,21 @@ final positionProvider = StreamProvider<GpsReading>((ref) async* {
   yield* link.position.map(GpsReading.new);
 });
 
+/// A PiStatus as it arrived: like [GpsReading], every sample notifies,
+/// even when the values repeat (the data screen times them).
+class PiReading {
+  PiReading(this.status);
+
+  final PiStatus status;
+}
+
+final piStatusProvider = StreamProvider<PiReading>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastPiStatus;
+  if (last != null) yield PiReading(last);
+  yield* link.piStatus.map(PiReading.new);
+});
+
 final controlProvider = NotifierProvider<ControlNotifier, ControlState>(ControlNotifier.new);
 
 class ControlNotifier extends Notifier<ControlState> {

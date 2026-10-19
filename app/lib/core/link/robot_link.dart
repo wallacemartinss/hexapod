@@ -34,6 +34,7 @@ class RobotLink {
   final _telemetry = StreamController<Telemetry>.broadcast();
   final _hello = StreamController<Hello>.broadcast();
   final _position = StreamController<Position>.broadcast();
+  final _piStatus = StreamController<PiStatus>.broadcast();
 
   WebSocketChannel? _channel;
   LinkStatus _current = LinkStatus.disconnected;
@@ -42,6 +43,7 @@ class RobotLink {
   bool _closed = false;
   Hello? _lastHello;
   Position? _lastPosition;
+  PiStatus? _lastPiStatus;
 
   Stream<LinkStatus> get status => _status.stream;
   Stream<Telemetry> get telemetry => _telemetry.stream;
@@ -50,6 +52,10 @@ class RobotLink {
   /// GPS positions from hexd, about 1 Hz; none at all without a GPS.
   Stream<Position> get position => _position.stream;
   Position? get lastPosition => _lastPosition;
+
+  /// The Raspberry Pi's own health from hexd, every 2 s.
+  Stream<PiStatus> get piStatus => _piStatus.stream;
+  PiStatus? get lastPiStatus => _lastPiStatus;
 
   /// The last Hello received: it arrives once per connection, so whoever
   /// starts listening later (the settings sheet) still gets the versions.
@@ -94,6 +100,7 @@ class RobotLink {
         if (env.hasTelemetry()) _telemetry.add(env.telemetry);
         if (env.hasHello()) _hello.add(_lastHello = env.hello);
         if (env.hasPosition()) _position.add(_lastPosition = env.position);
+        if (env.hasPiStatus()) _piStatus.add(_lastPiStatus = env.piStatus);
       },
       onDone: _scheduleRetry,
       onError: (_) => _scheduleRetry(),
@@ -127,5 +134,6 @@ class RobotLink {
     await _telemetry.close();
     await _hello.close();
     await _position.close();
+    await _piStatus.close();
   }
 }
