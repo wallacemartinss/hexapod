@@ -85,4 +85,5 @@ message NavStatus {
   float arrive_m = 15; // a point counts as reached this close (GPS accuracy)
   NavRefusal refused = 16; // the answer to the last NavRequest
   bool resumable = 17; // the link went during a mission: RESUME continues it
+  bool drive_enabled = 18; // hexd.yaml nav.drive: off, missions wait in READY
 }
