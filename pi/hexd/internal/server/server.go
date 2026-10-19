@@ -24,6 +24,7 @@ import (
 	"github.com/coder/websocket"
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -43,6 +44,8 @@ type Config struct {
 	// Position is the latest GPS reading and whether the GPS is talking
 	// (nil: no GPS). Sent to every app once a second.
 	Position func() (*pb.Position, bool)
+	// Identity of the robot; when set, /ws requires its key (pairing).
+	Identity *pairing.Identity
 }
 
 // Server is created once and serves until its context ends.
@@ -86,6 +89,7 @@ func (s *Server) Clients() int {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ws", s.handleWS)
+	mux.HandleFunc("GET /identity", s.handleIdentity)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /version", s.handleVersion)
 	mux.HandleFunc("GET /status", s.handleStatus)
@@ -162,6 +166,11 @@ func (s *Server) forward(cmd *pb.Command, profile pb.LinkProfile) error {
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
+	// Only paired apps: the key comes from the QR on the robot's screen.
+	if id := s.cfg.Identity; id != nil && !id.Allowed(r) {
+		http.Error(w, "pairing key required", http.StatusUnauthorized)
+		return
+	}
 	// Default options reject cross-origin browsers: a web page opened on the
 	// LAN must not be able to drive the robot. The app sends no Origin header.
 	conn, err := websocket.Accept(w, r, nil)
@@ -340,6 +349,17 @@ func (s *Server) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 	if !snap.LastRx.IsZero() {
 		v["last_rx_age_ms"] = time.Since(snap.LastRx).Milliseconds()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// handleIdentity tells apps on the network which robot this is (never the
+// key): the app matches the id read from the QR code.
+func (s *Server) handleIdentity(w http.ResponseWriter, _ *http.Request) {
+	v := map[string]any{"hexd_version": s.cfg.HexdVersion, "pairing": s.cfg.Identity != nil}
+	if id := s.cfg.Identity; id != nil {
+		v["id"], v["name"] = id.ID, id.Name
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)

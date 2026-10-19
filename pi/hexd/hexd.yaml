@@ -21,6 +21,10 @@ metrics:
   wireless_path: /proc/net/wireless
   wifi_interface: wlan0
 
+auth:
+  required: true               # apps must pair (QR on the OLED); false only for development
+  identity: /opt/hexapod/shared/config/identity.json   # id, name, key (created on first start)
+
 gps:                           # NEO-6M on the Pi's UART (firmware/PINOUT.md)
   enabled: true                # without a GPS hexd only logs it and retries
   device: /dev/serial0

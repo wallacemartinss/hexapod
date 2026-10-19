@@ -32,6 +32,10 @@ type Config struct {
 		WirelessPath      string `yaml:"wireless_path"`
 		WifiInterface     string `yaml:"wifi_interface"`
 	} `yaml:"metrics"`
+	Auth struct {
+		Required bool   `yaml:"required"` // apps must present the pairing key (QR on the OLED)
+		Identity string `yaml:"identity"` // robot id, name and key; created on first start
+	} `yaml:"auth"`
 	GPS struct {
 		Enabled  bool    `yaml:"enabled"`
 		Device   string  `yaml:"device"`
@@ -69,6 +73,8 @@ func Default() Config {
 	c.Metrics.PiTemperaturePath = "/sys/class/thermal/thermal_zone0/temp"
 	c.Metrics.WirelessPath = "/proc/net/wireless"
 	c.Metrics.WifiInterface = "wlan0"
+	c.Auth.Required = true
+	c.Auth.Identity = "/opt/hexapod/shared/config/identity.json"
 	c.GPS.Enabled = true // a missing GPS is only logged
 	c.GPS.Device = "/dev/serial0"
 	c.GPS.Baud = 9600

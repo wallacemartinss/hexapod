@@ -35,6 +35,9 @@ enable_gps_uart: true  # enable_uart=1, no serial console: NEO-6M GPS on GPIO14/
 # hand on the Pi with: sudo hexapod-readonly on|off|status (then reboot).
 readonly_root: false
 
+# hexd's HTTP/WebSocket port (hexd.yaml listen), announced as _hexapod._tcp.
+hexd_port: 8080
+
 # Reboot automatically when boot config changes.
 provision_reboot: true
 

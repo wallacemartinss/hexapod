@@ -3,6 +3,7 @@
 //	hexd -config /opt/hexapod/shared/config/hexd.yaml
 //	hexd -serial tcp://127.0.0.1:7777 -listen :8080     # against hexsim
 //	hexd -boot-screen   # boot checklist on the OLED until the network is up
+//	hexd -pairing       # print the robot's id, key and pairing QR (as the service user)
 package main
 
 import (
@@ -24,6 +25,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/display"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/gps"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
 )
@@ -39,6 +41,7 @@ func main() {
 	serial := flag.String("serial", "", "override serial.device")
 	listen := flag.String("listen", "", "override listen")
 	bootScreen := flag.Bool("boot-screen", false, "show the boot checklist on the OLED, then exit")
+	showPairing := flag.Bool("pairing", false, "print the pairing key and QR, then exit")
 	flag.Parse()
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
@@ -52,6 +55,15 @@ func main() {
 	}
 	if *listen != "" {
 		cfg.Listen = *listen
+	}
+	if *showPairing {
+		id, err := pairing.LoadOrCreate(cfg.Auth.Identity)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "pairing:", err, "(run as the service user: sudo -u hexapod ...)")
+			os.Exit(1)
+		}
+		fmt.Printf("Robô %s (%s)\nChave: %s\n\nNo app: Novo robô > escanear este QR\n%s\n", id.ID, id.Name, id.Token, pairing.TerminalQR(id.QR()))
+		return
 	}
 	if *bootScreen {
 		runBootScreen(cfg, log.With("component", "boot-screen"))
@@ -70,6 +82,20 @@ func main() {
 		Logger:       log.With("component", "device"),
 	})
 	go dev.Run(ctx)
+
+	// Pairing: without the key from the robot's screen, no app connects.
+	var identity *pairing.Identity
+	if cfg.Auth.Required {
+		id, err := pairing.LoadOrCreate(cfg.Auth.Identity)
+		if err != nil { // fail closed: never serve without the key
+			log.Error("pairing identity", "path", cfg.Auth.Identity, "err", err)
+			os.Exit(1)
+		}
+		identity = &id
+		log.Info("pairing on", "id", id.ID)
+	} else {
+		log.Warn("pairing off: any app on the network can drive the robot (auth.required: false)")
+	}
 
 	// GPS on the Pi's UART (or simulated); nil when disabled.
 	var position func() (*pb.Position, bool)
@@ -94,6 +120,7 @@ func main() {
 		WirelessPath:       cfg.Metrics.WirelessPath,
 		WifiInterface:      cfg.Metrics.WifiInterface,
 		Position:           position,
+		Identity:           identity,
 	}, dev, log.With("component", "server"))
 	go srv.Run(ctx)
 
@@ -109,7 +136,7 @@ func main() {
 	if cfg.Display.Enabled {
 		go func() {
 			defer close(displayDone)
-			runDisplay(ctx, cfg, dev, srv, position, log.With("component", "display"))
+			runDisplay(ctx, cfg, dev, srv, position, identity, log.With("component", "display"))
 		}()
 	} else {
 		close(displayDone)
@@ -136,7 +163,7 @@ func main() {
 // runDisplay keeps the OLED status screen up to date. The network is looked
 // up every 10 s (it shells out to iw), the rest every refresh.
 func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
-	position func() (*pb.Position, bool), log *slog.Logger) {
+	position func() (*pb.Position, bool), identity *pairing.Identity, log *slog.Logger) {
 	var label, ip, ts string
 	var netAt time.Time
 	status := func() display.Status {
@@ -148,7 +175,7 @@ func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv 
 		if ctx.Err() != nil { // stopping: say why, if the whole Pi is going down
 			return display.Status{Stopped: true, Shutdown: systemShutdown(), Version: version}
 		}
-		return display.Status{
+		st := display.Status{
 			ESP32:     snap.Connected && time.Since(snap.LastRx) < cfg.HealthMaxAge,
 			Telemetry: snap.Telemetry,
 			Apps:      srv.Clients(),
@@ -158,6 +185,10 @@ func runDisplay(ctx context.Context, cfg config.Config, dev *device.Device, srv 
 			Version:   version,
 			GPS:       gpsLine(position),
 		}
+		if identity != nil {
+			st.Pairing, st.RobotID = identity.QR(), identity.ID
+		}
+		return st
 	}
 	display.Run(ctx, display.Options{
 		Bus:      cfg.Display.Bus,

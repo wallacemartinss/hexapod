@@ -16,6 +16,7 @@ import (
 	"github.com/coder/websocket"
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/internal/sim"
 	"google.golang.org/protobuf/proto"
 )
@@ -309,5 +310,45 @@ func TestNoPositionWithoutGPS(t *testing.T) {
 		case <-deadline:
 			return
 		}
+	}
+}
+
+func TestPairingKeyRequired(t *testing.T) {
+	id, _ := pairing.New()
+	r := newRig(t, Config{Identity: &id})
+	url := "ws" + strings.TrimPrefix(r.http.URL, "http") + "/ws"
+	dial := func(key string) (int, error) {
+		opts := &websocket.DialOptions{}
+		if key != "" {
+			opts.HTTPHeader = http.Header{"Authorization": []string{"Bearer " + key}}
+		}
+		conn, resp, err := websocket.Dial(context.Background(), url, opts)
+		if conn != nil {
+			conn.CloseNow()
+		}
+		if resp == nil {
+			return 0, err
+		}
+		return resp.StatusCode, err
+	}
+	for _, key := range []string{"", "WRONGKEYWRONGKEYWRON"} {
+		if code, err := dial(key); err == nil || code != http.StatusUnauthorized {
+			t.Fatalf("key %q: status %d err %v, want 401", key, code, err)
+		}
+	}
+	if code, err := dial(id.Token); err != nil || code != http.StatusSwitchingProtocols {
+		t.Fatalf("right key: status %d err %v", code, err)
+	}
+}
+
+func TestIdentityNeverShowsTheKey(t *testing.T) {
+	id, _ := pairing.New()
+	r := newRig(t, Config{Identity: &id, HexdVersion: "v-id"})
+	code, body := get(t, r.http.URL+"/identity")
+	if code != http.StatusOK || !strings.Contains(body, `"id":"`+id.ID+`"`) || !strings.Contains(body, "v-id") {
+		t.Fatalf("identity: %d %s", code, body)
+	}
+	if strings.Contains(body, id.Token) {
+		t.Fatal("/identity leaks the pairing key")
 	}
 }

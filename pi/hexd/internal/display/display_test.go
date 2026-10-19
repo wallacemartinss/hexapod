@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -242,6 +243,7 @@ func TestPreview(t *testing.T) {
 		"alert":   Render(estop, PageAlert, 0),
 		"stopped": Render(stopped, PageStatus, 0),
 		"boot":    RenderBoot(Boot{Elapsed: 7 * time.Second, ESP32: true}),
+		"pairing": Render(paired(), PagePairing, 0),
 		"poweroff": func() *Frame {
 			s := stopped
 			s.Shutdown = "poweroff"
@@ -348,5 +350,51 @@ func TestWakeNeverBlanks(t *testing.T) {
 	}
 	if !bytes.Contains(w, []byte{0x20, 0x00}) || !bytes.Contains(w, []byte{0x8D, 0x14}) {
 		t.Fatalf("wake must restore addressing and the charge pump: % x", w)
+	}
+}
+
+func paired() Status {
+	s := seated()
+	s.Apps = 0
+	s.Pairing, s.RobotID = "HXP1 7F3A ABCDEFGHJKLMNPQRSTUV", "7F3A"
+	return s
+}
+
+func TestPairingPageOnlyWithoutApps(t *testing.T) {
+	s := paired()
+	if !slices.Contains(Pages(s), PagePairing) {
+		t.Fatalf("no app connected: pairing page missing from %v", Pages(s))
+	}
+	s.Apps = 1
+	if slices.Contains(Pages(s), PagePairing) {
+		t.Fatal("the key must not be on display while an app is connected")
+	}
+	s.Apps, s.Pairing = 0, ""
+	if slices.Contains(Pages(s), PagePairing) {
+		t.Fatal("pairing off: no QR page")
+	}
+}
+
+func TestQRFitsWithQuietZone(t *testing.T) {
+	var f Frame
+	w := f.QR(paired().Pairing)
+	if w == 0 || w > Height {
+		t.Fatalf("QR width %d", w)
+	}
+	lit := func(x, y int) bool { return f[y/8][x]>>(y%8)&1 == 1 }
+	if !lit(0, (Height-w)/2) || !lit(w-1, Height/2) {
+		t.Fatal("quiet zone must be lit")
+	}
+	// Somewhere inside there must be dark modules (the finder patterns).
+	dark := 0
+	for y := 0; y < Height; y++ {
+		for x := 0; x < w; x++ {
+			if !lit(x, y) {
+				dark++
+			}
+		}
+	}
+	if dark < w*w/5 {
+		t.Fatalf("only %d dark pixels: no QR drawn", dark)
 	}
 }

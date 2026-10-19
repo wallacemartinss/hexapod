@@ -1,6 +1,7 @@
 // hexctl drives the robot through hexd's WebSocket, like the app will.
 //
 //	hexctl -url ws://hexapod.local:8080/ws watch      print state changes
+//	(paired robots need -token KEY or HEXAPOD_TOKEN=KEY)
 //	hexctl -url ws://hexapod.local:8080/ws trace      telemetry at 5 Hz: mode, seq, leg angles
 //	hexctl -url ws://hexapod.local:8080/ws demo       STAND, walk, release, SIT, then go silent
 //	hexctl -url ws://hexapod.local:8080/ws estop      one emergency stop
@@ -15,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -26,9 +28,15 @@ import (
 func main() {
 	url := flag.String("url", "ws://hexapod.local:8080/ws", "hexd WebSocket")
 	hold := flag.Duration("for", 5*time.Second, "how long `stand` keeps commanding")
+	token := flag.String("token", os.Getenv("HEXAPOD_TOKEN"),
+		"pairing key (default $HEXAPOD_TOKEN; on the Pi: sudo -u hexapod hexd -pairing)")
 	flag.Parse()
 	ctx := context.Background()
-	conn, _, err := websocket.Dial(ctx, *url, nil)
+	var opts *websocket.DialOptions
+	if *token != "" {
+		opts = &websocket.DialOptions{HTTPHeader: http.Header{"Authorization": []string{"Bearer " + *token}}}
+	}
+	conn, _, err := websocket.Dial(ctx, *url, opts)
 	if err != nil {
 		log.Fatalf("connect %s: %v", *url, err)
 	}
