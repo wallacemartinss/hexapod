@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,9 +39,13 @@ func (r *Reader) feed(line string) {
 	}
 }
 
-// Serial opens a NMEA serial port.
+// Serial opens a NMEA serial port, or a TCP stream for "tcp://host:port"
+// (hexsim -gps).
 func Serial(device string, baud int) func() (io.ReadCloser, error) {
 	return func() (io.ReadCloser, error) {
+		if addr, ok := strings.CutPrefix(device, "tcp://"); ok {
+			return net.DialTimeout("tcp", addr, 2*time.Second)
+		}
 		return serial.Open(device, &serial.Mode{BaudRate: baud})
 	}
 }

@@ -47,6 +47,7 @@ type Sim struct {
 	telSeq   uint32
 	faults   uint32
 	walkTime float64
+	world    *world
 	rng      *rand.Rand
 }
 
@@ -62,7 +63,8 @@ func New(opt Options) *Sim {
 		opt.BatteryDrain = 1
 	}
 	return &Sim{opt: opt, fs: NewFailsafe(), booted: opt.Now(), mode: pb.Mode_MODE_SIT,
-		battery: 12.4, dist: [4]uint32{1200, 900, 1500, 800}, rng: rand.New(rand.NewPCG(1, 2))}
+		battery: 12.4, dist: [4]uint32{1200, 900, 1500, 800}, rng: rand.New(rand.NewPCG(1, 2)),
+		world: newWorld(WorldOptions{Latitude: -23.5505, Longitude: -46.6333})}
 }
 
 // InjectTilt and InjectDistance drive the failsafe from tests or the CLI.
@@ -159,6 +161,9 @@ func (s *Sim) Serve(ctx context.Context, rw io.ReadWriter) error {
 			if n%5 == 0 {
 				send(s.telemetry())
 			}
+			if n%10 == 0 {
+				send(s.compass())
+			}
 		}
 	}
 }
@@ -207,6 +212,13 @@ func (s *Sim) step(dt float64) {
 	if s.walking() {
 		s.walkTime += dt
 	}
+	if s.fs.Posture == postFollow && s.mode == pb.Mode_MODE_WALK {
+		vx := float64(s.vx)
+		if s.fs.BlockedMask()&1 != 0 && vx > 0 { // front sensor: no walking into it
+			vx = 0
+		}
+		s.world.walk(vx, float64(s.vy), float64(s.yaw), dt)
+	}
 	if s.gestureT > 0 {
 		s.gestureT -= dt
 	}
@@ -241,7 +253,8 @@ func (s *Sim) telemetry() *pb.Envelope {
 		sway = 2 * math.Sin(2*math.Pi*s.walkTime)
 	}
 	roll, pitch := sway+s.rng.NormFloat64()*0.2, s.rng.NormFloat64()*0.2+s.tilt
-	qw, qx, qy, qz := quaternion(roll, pitch, 0)
+	yaw := s.world.gyroYaw()
+	qw, qx, qy, qz := quaternion(roll, pitch, yaw)
 	dist := make([]uint32, 4)
 	for i, d := range s.dist {
 		dist[i] = uint32(max(30, float64(d)+s.rng.NormFloat64()*5))
@@ -283,12 +296,20 @@ func (s *Sim) telemetry() *pb.Envelope {
 		Mode: s.mode, Gait: pb.Gait_GAIT_TRIPOD,
 		BatteryVoltageV: float32(s.loadedVoltage()), BatteryCurrentA: float32(s.current()),
 		Orientation: &pb.Quaternion{W: qw, X: qx, Y: qy, Z: qz},
-		RollDeg:     float32(roll), PitchDeg: float32(pitch),
+		RollDeg:     float32(roll), PitchDeg: float32(pitch), YawDeg: float32(yaw),
 		DistancesMm: dist, BlockedMask: s.fs.BlockedMask(),
 		TemperatureC: 24.5, HumidityPct: 52, PressureHpa: 1013.2, Esp32TemperatureC: 46,
 		LoopTimeUs: 300 + uint32(s.rng.IntN(40)), JointAnglesDeg: angles,
 		GasLevelPct: float32(18 + s.rng.Float64()), GasWarming: up < 3*time.Minute,
 	}}}
+}
+
+// compass is the BNO085 rotation vector's heading: magnetic, a little noisy.
+func (s *Sim) compass() *pb.Envelope {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h := math.Mod(s.world.magnetic()+s.rng.NormFloat64()*2+360, 360)
+	return &pb.Envelope{Payload: &pb.Envelope_Compass{Compass: &pb.Compass{HeadingDeg: float32(h), AccuracyDeg: 8}}}
 }
 
 // quaternion from roll, pitch, yaw in degrees (ZYX).

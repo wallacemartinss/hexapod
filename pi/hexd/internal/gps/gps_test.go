@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wallacemartinss/hexapod/pi/internal/sim"
 )
 
 // Lines captured from the bench GY-NEO6MV2 indoors (no fix), plus a
@@ -107,4 +109,26 @@ func TestReaderLatestAndMissingGPS(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+func TestSimulatedGPSParses(t *testing.T) {
+	s := sim.New(sim.Options{})
+	s.SetWorld(sim.WorldOptions{Latitude: -23.5505, Longitude: -46.6333})
+	r, w := io.Pipe()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = s.ServeGPS(ctx, w) }()
+	var reader Reader
+	go reader.Run(ctx, func() (io.ReadCloser, error) { return r, nil }, slog.Default())
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if p, ok := reader.Latest(time.Second); ok && p.Fix {
+			if math.Abs(p.LatitudeDeg+23.5505) > 1e-6 || math.Abs(p.LongitudeDeg+46.6333) > 1e-6 {
+				t.Fatalf("position %v", p)
+			}
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("no fix from the simulated GPS")
 }
