@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/config"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/display"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/eye"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/gps"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/media"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
@@ -207,6 +209,7 @@ func main() {
 		camera = &media.Camera{API: cfg.Media.API, Path: "cam", Settings: cfg.Media.Settings}
 		go camera.Keep(ctx, 30*time.Second)
 	}
+	var photos atomic.Int64 // photos taken, for the eye's shutter
 	// The Pi's health, plus whether the camera is recording (for the app's REC badge).
 	piStatus := func() *pb.PiStatus {
 		st := pi.Latest()
@@ -231,7 +234,7 @@ func main() {
 		WifiInterface:      cfg.Metrics.WifiInterface,
 		Position:           position,
 		PiStatus:           piStatus,
-		Media:              mediaAPI(gallery),
+		Media:              mediaAPI(gallery, &photos),
 		Camera:             cameraAPI(camera),
 		Identity:           identity,
 		WiFi:               wifiAPI(wifiMgr),
@@ -262,6 +265,16 @@ func main() {
 	} else {
 		close(displayDone)
 	}
+	// The cyclops eye closes on the way out: main waits for it too.
+	eyeDone := make(chan struct{})
+	if cfg.Eye.Enabled {
+		go func() {
+			defer close(eyeDone)
+			runEye(ctx, cfg, dev, srv, gallery, &photos, identity, &idMu, codes, log.With("component", "eye"))
+		}()
+	} else {
+		close(eyeDone)
+	}
 
 	httpServer := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	go func() {
@@ -274,11 +287,60 @@ func main() {
 		log.Error("http", "err", err)
 		os.Exit(1)
 	}
-	select {
-	case <-displayDone:
-	case <-time.After(time.Second):
+	deadline := time.After(time.Second)
+	for _, done := range []chan struct{}{displayDone, eyeDone} {
+		select {
+		case <-done:
+		case <-deadline:
+		}
 	}
 	log.Info("hexd stopped")
+}
+
+// runEye animates the cyclops eye from the robot's situation.
+func runEye(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
+	gallery *media.Gallery, photos *atomic.Int64, identity *pairing.Identity, idMu *sync.Mutex,
+	codes *pairing.Codes, log *slog.Logger) {
+	director := eye.NewDirector(time.Now())
+	var network bool
+	var netAt time.Time
+	situation := func() eye.Situation {
+		now := time.Now()
+		if now.Sub(netAt) > 5*time.Second { // shells out: not every frame
+			_, ip, _ := display.Network(cfg.Metrics.WifiInterface, cfg.Display.Wired, cfg.Display.Tailnet)
+			network, netAt = ip != "", now
+		}
+		snap := dev.Snapshot()
+		s := eye.Situation{Now: now, Apps: srv.Clients(), Network: network, Photos: int(photos.Load()),
+			Shutdown: ctx.Err() != nil}
+		if snap.Connected && now.Sub(snap.LastRx) < cfg.HealthMaxAge {
+			s.Telemetry = snap.Telemetry
+		}
+		s.Command, s.CommandAt = srv.LastCommand()
+		if gallery != nil {
+			s.Recording, _ = gallery.Recording()
+		}
+		if identity != nil && codes != nil {
+			code := codes.Current()
+			idMu.Lock()
+			s.Paired, s.PairQR, s.PairCode = identity.Paired, identity.PairingQR(code), code
+			idMu.Unlock()
+		} else {
+			s.Paired = true // pairing off: no QR to show
+		}
+		return s
+	}
+	eye.Run(ctx, eye.Options{
+		Open: func() (eye.Bus, error) {
+			return eye.OpenLinuxBus(cfg.Eye.SPI, uint8(cfg.Eye.SPIMode), uint32(cfg.Eye.SPIHz),
+				cfg.Eye.GPIOChip, cfg.Eye.DC, cfg.Eye.Reset, cfg.Eye.Backlight)
+		},
+		Rotation: cfg.Eye.Rotation,
+		BGR:      cfg.Eye.BGR,
+		FPS:      cfg.Eye.FPS,
+		Retry:    30 * time.Second,
+		Log:      log,
+	}, func() eye.Inputs { return director.Inputs(situation()) })
 }
 
 // runDisplay keeps the OLED status screen up to date. The network is looked
@@ -381,11 +443,25 @@ func gpsLine(position func() (*pb.Position, bool)) string {
 // wifiAPI keeps a nil manager a nil interface (no Wi-Fi API).
 // mediaAPI and cameraAPI keep a nil pointer from becoming a non-nil
 // interface (the API then answers "camera off").
-func mediaAPI(g *media.Gallery) server.Media {
+func mediaAPI(g *media.Gallery, photos *atomic.Int64) server.Media {
 	if g == nil {
 		return nil
 	}
-	return g
+	return countingGallery{g, photos}
+}
+
+// countingGallery counts the photos taken, for the eye's shutter.
+type countingGallery struct {
+	*media.Gallery
+	photos *atomic.Int64
+}
+
+func (g countingGallery) Photo(ctx context.Context) (media.Item, error) {
+	it, err := g.Gallery.Photo(ctx)
+	if err == nil {
+		g.photos.Add(1)
+	}
+	return it, err
 }
 
 func cameraAPI(c *media.Camera) server.CameraQuality {

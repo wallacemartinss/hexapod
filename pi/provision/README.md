@@ -1,96 +1,106 @@
-# Provisionamento do Raspberry Pi
+# Raspberry Pi setup (Ansible)
 
-Playbook Ansible idempotente que prepara o Pi do hexápode (Fase 1.2) e um script de validação (Fase 1.3). Pode rodar quantas vezes quiser: só muda o que estiver diferente.
+**English** · [Português](README.pt-BR.md)
 
-## Pré-requisitos
+This playbook turns a stock Raspberry Pi OS Lite into the robot's "brain". It is **idempotent**: run it as many times as you like, it only changes what differs. It is the same playbook that builds the ready-made SD card image (`pi/image/build-image.sh`, in `image_build` mode), so the maker path and the simple path end up with the same system.
 
-- Pi gravado conforme o runbook do cartão SD (usuário `wallace`, acesso por chave SSH).
-- `ssh wallace@hexapod.local` funcionando a partir do PC.
-- Ansible no PC (`ansible --version`).
+## What Ansible is (if you never used it)
 
-## Uso
+[Ansible](https://docs.ansible.com) runs **on your PC** and sets up another machine **over the network, through SSH**. Nothing gets installed on the Pi beyond what the playbook asks for. Instead of a list of commands to copy and paste, the playbook describes **how the Pi should be** ("this package installed", "this line in `config.txt`", "this service on"). Ansible checks each item and only touches what differs. That makes it:
+
+- **Repeatable:** a new Pi ends up the same as the last one, with no step forgotten.
+- **Safe to run again:** after updating the code, just run it again; what is already right stays as it is.
+- **Readable:** each step is a short YAML file in `tasks/`, with the reason in a comment.
+
+## Requirements
+
+- A Pi flashed with **Raspberry Pi OS Lite (64-bit)**, with hostname `hexapod`, the user `hexasys` and your **SSH key** (see the [maker guide](../../docs/maker-install.md#1-flash-raspberry-pi-os) and [SSH key, step by step](../../docs/ssh-key.md)).
+- `ssh hexasys@hexapod.local` working from the PC.
+- Ansible on the PC: `pipx install ansible-core` or your distribution's package (`ansible --version`).
+
+## Use
 
 ```bash
 cd pi/provision
-ansible-playbook site.yml --check --diff   # simulação, não altera nada
-ansible-playbook site.yml                  # aplica
-ansible-playbook site.yml --tags mediamtx  # só uma parte
-ansible-playbook site.yml -e ansible_host=10.0.0.86   # sem mDNS
+ansible-playbook site.yml --check --diff   # dry run: shows what would change, touches nothing
+ansible-playbook site.yml                  # apply (reboots the Pi if a boot setting changed)
+ansible-playbook site.yml --tags mediamtx  # only one part (tags below)
+ansible-playbook site.yml -e ansible_host=10.0.0.86               # no mDNS: by IP
 ```
 
-**Tailscale:** a auth key nunca entra no repositório. Para fazer login pelo playbook:
+Two users live on the Pi: **`hexasys`**, the admin you log in with (made when flashing the card), and **`hexapod`**, the service user that runs hexd with no login and only the permissions it needs. The inventory (`inventory.yml`) logs in as `hexasys@hexapod.local`; another admin name: `HEXAPOD_SSH_USER=<name>` in your environment (or `-e ansible_user=<name>`), another address: `-e ansible_host=<ip>`.
+
+**Check** (runs on the Pi: camera, microphone, power, ESP32, screen, GPS and Tailscale):
+
+```bash
+ssh hexasys@hexapod.local 'bash -s' < check.sh
+```
+
+**Tailscale:** the auth key never goes into the repository. The simplest way is from the app (Settings → Remote access). From the playbook:
 
 ```bash
 TS_AUTHKEY=tskey-... ansible-playbook site.yml --tags tailscale -e tailscale_authkey="$TS_AUTHKEY"
 ```
 
-Ou, manualmente no Pi: `sudo tailscale up --hostname=hexapod`.
+## What the playbook does
 
-**Validação** (roda no Pi):
-
-```bash
-ssh wallace@hexapod.local 'bash -s' < check.sh
-```
-
-## O que o playbook faz
-
-| Parte | Tag | Detalhe |
+| Part | Tag | Details |
 |---|---|---|
-| Pacotes | `base` | `apt dist-upgrade` (desligável com `apt_upgrade: false`), `rpicam-apps`, `alsa-utils`, `ffmpeg`, `avahi-daemon`, `git`, `rsync`; `esptool` do PyPI com versão fixa em `/opt/esptool` (o pacote do Debian não traz o *stub flasher*) |
-| Boot | `boot` | Câmera (`camera_auto_detect=1`, ou `dtoverlay=ov5647` com `camera_force_ov5647: true`) e economia de energia. **Reinicia o Pi** se mudar algo (`provision_reboot`) |
-| Layout | `layout` | Usuário de serviço `hexapod` (grupos `dialout`, `video`, `audio`), `/opt/hexapod/{releases,shared/{config,logs,firmware}}`, `hexd.yaml` (só se não existir) e regra polkit que deixa o `hexapod` **apenas** desligar o Pi (bateria crítica) |
-| udev | `udev` | ESP32-S3 `303a:1001` → `/dev/hexapod-esp32`, ignorado pelo ModemManager (para o modem 4G no futuro). **Temporário:** CP2102/CH340 de DevKits clássicos para testes de bancada (`esp32_test_usb_ids`; esvaziar quando o S3 chegar) |
-| Tailscale | `tailscale` | Repositório oficial; `tailscale up` só com `tailscale_authkey` |
-| MediaMTX | `mediamtx` | Binário arm64 com versão fixa (`mediamtx_version`) e checksum conferido; config em `pi/mediamtx/mediamtx.yml` |
-| Serviços | `services` | `hexd`, `mediamtx` e `mic-stream` com `Restart=always`. O `hexd` fica habilitado, mas só sobe depois do primeiro deploy |
-| Watchdog | `watchdog` | `RuntimeWatchdogSec=14s`, sobrescrevendo o padrão de 1 min do Raspberry Pi OS (`40-rpi-enable-watchdog.conf`) |
+| Packages | `base` | `apt dist-upgrade` (off with `apt_upgrade: false`), `rpicam-apps`, `alsa-utils`, `ffmpeg`, `avahi-daemon` (+ the `_hexapod._tcp` announcement the app looks for), `i2c-tools`, `jq`, `polkitd`; `esptool` from PyPI at a pinned version in `/opt/esptool` (Debian's package lacks the stub flasher) |
+| Boot | `boot` | Camera (`camera_auto_detect=1`, or `dtoverlay=ov5647`), **I2C** (OLED screen), **SPI** (ST7789 eye), the GPS **UART** with no serial console, the Wi-Fi country (`regdom`) and power savings. **Reboots the Pi** if anything changed |
+| Layout | `layout` | Service user `hexapod` (groups `dialout`, `video`, `audio`, `i2c`, `spi`, `gpio`), `/opt/hexapod/{releases,shared/{config,logs,firmware}}`, `hexd.yaml` (only if missing) and **minimal** polkit rules: power off the Pi (critical battery), drive the Wi-Fi through NetworkManager and restore the Tailscale operator |
+| udev | `udev` | ESP32-S3 `303a:1001` → `/dev/hexapod-esp32`, ignored by ModemManager; plugging a board in flashes the firmware if it does not have the hexapod's. **Temporary:** classic DevKit IDs for the bench (`esp32_test_usb_ids`) |
+| Tailscale | `tailscale` | Official repository; `tailscale up` only with `tailscale_authkey` |
+| MediaMTX | `mediamtx` | arm64 binary at a pinned version (`mediamtx_version`), checksum verified; config in `pi/mediamtx/mediamtx.yml` |
+| Services | `services` | `hexd`, `mediamtx`, `mic-stream`, the boot screen, automatic ESP32 flashing, Wi-Fi unblocking and the Tailscale operator. `hexd` starts after the first deploy |
+| Watchdog | `watchdog` | `RuntimeWatchdogSec=14s`: if the system hangs, the chip reboots the Pi |
+| Read-only | `readonly` | Root as an overlay with `/opt/hexapod` on its own partition (below); only with `readonly_root: true` |
 
-### Economia de energia
+Every option lives in [`group_vars/all.yml`](group_vars/all.yml), with comments.
 
-Tudo controlado em `group_vars/all.yml`; cada item exige reboot.
+### Power savings
 
-| Opção | Efeito | Por que pode desligar |
+Each one needs a reboot.
+
+| Option | Effect | Why it can go |
 |---|---|---|
-| `disable_bluetooth` | `dtoverlay=disable-bt` | O robô não usa Bluetooth |
-| `disable_onboard_audio` | `dtparam=audio=off` | O microfone é USB e o Pi não tem alto-falante |
-| `disable_hdmi` | `video=HDMI-A-1:d` no `cmdline.txt` | Robô sem tela. Para depurar com monitor, ponha `false` e reaplique |
+| `disable_bluetooth` | `dtoverlay=disable-bt` | The robot does not use Bluetooth, and it frees the good UART for the GPS |
+| `disable_onboard_audio` | `dtparam=audio=off` | The microphone is USB and the Pi has no speaker |
+| `disable_hdmi` | `video=HDMI-A-1:d` and `HDMI-A-2:d` in `cmdline.txt` | No monitor on the robot (a Pi 4 has two outputs). To debug with a monitor, set `false` and run again |
 
-**Não** ativa o sistema de arquivos somente leitura (overlay): isso fica para a Fase 5.
+## Read-only (protecting the SD card)
 
-## Somente leitura (proteger o cartão)
+With a read-only root the system runs on a layer in RAM (`overlayroot`): cutting the power any way you like never corrupts the card, and system changes vanish at reboot. What must persist lives on its **own writable partition**: `/opt/hexapod` (releases, settings, the previous firmware, the camera gallery, the pairing key) and the Tailscale login.
 
-Com a raiz só leitura, o sistema roda numa camada em memória (`overlayroot`): desligar o robô de qualquer jeito não corrompe o cartão, e mudanças no sistema somem ao reiniciar. O que precisa persistir fica numa **partição própria**, gravável: `/opt/hexapod` (versões, configuração, firmware anterior) e o login do Tailscale.
-
-**Uma vez só, com o cartão no PC** (faça antes uma imagem de backup do cartão):
+**Once, with the card in the PC** (make a backup image of the card first):
 
 ```bash
-lsblk                                              # ache o cartão (ex.: /dev/sdb, ~119 GB, partições bootfs e rootfs)
-sudo pi/provision/make-data-partition.sh /dev/sdX  # raiz vai para 24 GB, cria "hexdata" com o resto
+lsblk                                              # find the card (e.g. /dev/sdb, partitions bootfs and rootfs)
+sudo pi/provision/make-data-partition.sh /dev/sdX  # root shrinks to 24 GB, "hexdata" takes the rest
 ```
 
-O script confere se é um cartão do Pi (rótulos `bootfs`/`rootfs`, removível, nada montado), mostra o plano e só segue com **SIM**. Nada é apagado: o `/opt/hexapod` antigo fica em `/opt/hexapod.before-data`.
+The script checks it is a Pi card (labels `bootfs`/`rootfs`, removable, nothing mounted), shows the plan and only goes on after you type **SIM** (yes). Nothing is erased: the old `/opt/hexapod` stays in `/opt/hexapod.before-data`.
 
-**Depois, com o cartão de volta no Pi:**
+**Then, with the card back in the Pi:**
 
 ```bash
-ansible-playbook site.yml --tags readonly -e readonly_root=true   # liga e reinicia
+ansible-playbook site.yml --tags readonly -e readonly_root=true   # turns it on and reboots
 ```
 
-**No dia a dia, no Pi:**
+**Day to day, on the Pi:**
 
-| Comando | Para quê |
+| Command | What for |
 |---|---|
-| `hexapod-readonly status` | Como está agora e no próximo boot |
-| `sudo hexapod-readonly off && sudo reboot` | **Antes** de `apt`, Ansible ou qualquer mudança no sistema |
-| `sudo hexapod-readonly on && sudo reboot` | Proteger de novo |
+| `hexapod-readonly status` | How it is now and at the next boot |
+| `sudo hexapod-readonly off && sudo reboot` | **Before** `apt`, Ansible or any system change |
+| `sudo hexapod-readonly on && sudo reboot` | Protect it again |
 
-- O playbook **recusa rodar** com a raiz só leitura (as mudanças sumiriam).
-- O `deploy.sh` continua funcionando: só escreve em `/opt/hexapod`.
-- Não use a opção de overlay do `raspi-config`: ela congela também o `/opt/hexapod` (falta o `recurse=0`).
-- Os logs ficam em memória (até 32 MB) e somem ao reiniciar.
-- Sem relógio de bateria, a hora salva também não persiste: depois de ligar, o relógio fica errado até o NTP responder (ou, no futuro, o GPS).
+- The playbook **refuses to run** on a read-only root (the changes would vanish).
+- `deploy.sh` keeps working: it only writes to `/opt/hexapod`.
+- Do not use `raspi-config`'s overlay option: it freezes `/opt/hexapod` too (it lacks `recurse=0`).
+- Logs live in RAM (up to 32 MB) and vanish at reboot.
 
-## Pendências de hardware
+## Hardware to-dos
 
-- `mic_alsa_device`: confirmar o nome com `arecord -L` quando o microfone USB estiver plugado.
-- Caminho `mic` separado do `cam`: validar no hardware; se for melhor juntar áudio e vídeo num caminho só, ajustar o `mediamtx.yml`.
+- `mic_alsa_device`: confirm the name with `arecord -L` once the USB microphone is plugged in.
+- `esp32_test_usb_ids`: empty it when the ESP32-S3 arrives.

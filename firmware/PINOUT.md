@@ -19,8 +19,8 @@ Every ESP32 pin and what it does, for both boards. The code's source of truth is
 | `XSHUT0..3` | Output | XSHUT of each VL53L0X | Turns the sensors on one at a time at boot to move them from 0x29 to 0x30–0x33 |
 | `IMU_INT` | Input | BNO085 INT | New reading ready (active low) |
 | `IMU_RST` | Output | BNO085 RST | Resets the IMU if it hangs (active low) |
-| `LED_DATA` | Output | DIN of the first WS2812 | Status LED strip |
-| `EYES_TX` / `EYES_RX` | UART | RX/TX of the eyes' ESP32 (crossed) | Future phase |
+| `LED_DATA` | Output | DIN of the first WS2812 | The two headlights, one on each side of the camera |
+| `EYES_TX` / `EYES_RX` | — | **Free** | Reserved for an eyes' ESP32 that is no longer planned: the eye is on the Pi |
 | USB | — | Raspberry Pi | Protocol (COBS + CRC16 + nanopb) and firmware flashing |
 
 ## ESP32-S3 SuperMini (the robot)
@@ -40,8 +40,8 @@ Every ESP32 pin and what it does, for both boards. The code's source of truth is
 | 12 | `IMU_INT` | |
 | 13 | `IMU_RST` | |
 | 10 | `GAS_AO` | MQ-2 analog output, **through the 10 kΩ/15 kΩ divider** (see below). ADC1 |
-| 43 | `EYES_TX` | Also carries the ROM log at boot; the eyes' protocol must ignore garbage |
-| 44 | `EYES_RX` | |
+| 43 | (free) | Was `EYES_TX`. Carries the ROM log at boot: fine for a debug UART |
+| 44 | (free) | Was `EYES_RX` |
 | 48 | On-board RGB LED | Firmware status |
 | 0 | — | BOOT button, do not use |
 | 3 | — | Strapping pin, free but avoided |
@@ -66,16 +66,16 @@ Every ESP32 pin and what it does, for both boards. The code's source of truth is
 | 34 | `IMU_INT` | Input-only pin, ideal for an interrupt |
 | 25 | `IMU_RST` | |
 | 35 | `GAS_AO` | MQ-2 analog output, **through the 10 kΩ/15 kΩ divider**. ADC1, input only |
-| 17 | `EYES_TX` | UART2 |
-| 16 | `EYES_RX` | UART2 |
+| 17 | (free) | Was `EYES_TX` (UART2) |
+| 16 | (free) | Was `EYES_RX` (UART2) |
 | 1, 3 | USB (CP2102) | UART0 = the link to the Pi. **Do not use** |
 | 6–11 | — | Flash memory, **off limits** (SD0–SD3, CMD, CLK on the board) |
 | 0, 2, 5, 12, 15 | — | Strapping pins: they affect boot, avoided |
 | 4, 26, 36 (VP), 39 (VN) | free | 36/39 are input only |
 
-## Raspberry Pi: GPS and OLED screen
+## Raspberry Pi: GPS, the eye and the OLED screen
 
-Both live on the Pi, not on the ESP32: the ESP32's serial frame is full (250 of 254 bytes), GPS is not real time, and only the Pi knows the IP, the network and whether an app is connected (so the screen can show the pairing QR code). Turned on by Ansible (`enable_i2c`, `enable_gps_uart`).
+They live on the Pi, not on the ESP32: the ESP32's serial frame is full (250 of 254 bytes), GPS is not real time, and only the Pi knows the IP, the network and whether an app is connected (so the screen can show the pairing QR code). Turned on by Ansible (`enable_i2c`, `enable_gps_uart`).
 
 | Module | Module pin | Pi physical pin | Notes |
 |---|---|---|---|
@@ -83,6 +83,14 @@ Both live on the Pi, not on the ESP32: the ESP32's serial frame is full (250 of 
 | | GND | 9 | |
 | | SDA | 3 (GPIO2) | `/dev/i2c-1` |
 | | SCL | 5 (GPIO3) | |
+| ST7789 1.54" eye (SPI, 240×240) | VCC | 1 (3.3 V) | Takes the OLED's place (the eye replaces it) |
+| | GND | 20 | |
+| | SCL / SCK | 23 (GPIO11, SPI0 SCLK) | |
+| | SDA / MOSI | 19 (GPIO10, SPI0 MOSI) | |
+| | CS | 24 (GPIO8, SPI0 CE0) | Many 1.54" boards have no CS pin: then SPI mode 3 |
+| | DC | 22 (GPIO25) | Data / command |
+| | RES | 18 (GPIO24) | Reset |
+| | BLK | 12 (GPIO18) | Backlight (PWM: brightness) |
 | GY-NEO6MV2 GPS (UART, 9600) | VCC | 17 (3.3 V) | The module takes 3.3–5 V |
 | | GND | 14 | |
 | | TX | 10 (GPIO15, the Pi's RX) | `/dev/serial0` |
@@ -91,7 +99,7 @@ Both live on the Pi, not on the ESP32: the ESP32's serial frame is full (250 of 
 Pins 2 and 4 (5 V) and 6 (GND) power the Pi from the Mini560 on the robot. **Plug and unplug modules with the Pi off.** The same pins on a Pi 3 and a Pi 4.
 
 - **GPS:** it only gets a position (fix) with open sky. The first fix can take minutes; the module's backup battery keeps the almanac for the next ones.
-- **Check:** `ssh <you>@hexapod.local 'bash -s' < pi/provision/check.sh` (OLED and GPS sections).
+- **Check:** `ssh hexasys@hexapod.local 'bash -s' < pi/provision/check.sh` (OLED and GPS sections).
 
 ## MQ-2 (gas and smoke)
 

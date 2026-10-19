@@ -32,11 +32,11 @@ cd hexapod
 In Raspberry Pi Imager: **Raspberry Pi OS Lite (64-bit)**, then *Edit settings*:
 
 - hostname `hexapod`;
-- your user and password;
-- **SSH with your public key** (*Services → Allow public-key authentication only*);
+- user **`hexasys`** (the project's admin user: the robot's own service user is `hexapod`) and a password;
+- **SSH with your public key** (*Services → Allow public-key authentication only*). No key yet, or never used one? [SSH key, step by step](ssh-key.md);
 - your Wi-Fi (a Pi 3 only sees 2.4 GHz) and country.
 
-Boot the Pi and check you can get in: `ssh <you>@hexapod.local`. No mDNS on your network? Use its IP everywhere below.
+Boot the Pi and check you can get in: `ssh hexasys@hexapod.local`. No mDNS on your network? Use its IP everywhere below.
 
 ## 2. Prepare the Pi with Ansible
 
@@ -44,9 +44,9 @@ The playbook installs and configures everything: camera, MediaMTX (video and aud
 
 ```bash
 cd pi/provision
-ansible-playbook site.yml -e ansible_user=<you> --check --diff   # dry run: shows what would change
-ansible-playbook site.yml -e ansible_user=<you>                  # apply (reboots when boot settings change)
-ssh <you>@hexapod.local 'bash -s' < check.sh                     # validation
+ansible-playbook site.yml --check --diff   # dry run: shows what would change
+ansible-playbook site.yml                  # apply (reboots when boot settings change)
+ssh hexasys@hexapod.local 'bash -s' < check.sh                     # validation
 ```
 
 `check.sh` lists the camera, the microphone, the power state, the ESP32, the OLED (0x3C), the GPS and Tailscale. Fix what it flags before going on. Details and options: [`pi/provision/README.md`](../pi/provision/README.md).
@@ -57,8 +57,8 @@ One package carries `hexd` and the ESP32 firmware, built for your board (`esp32s
 
 ```bash
 BOARD=esp32s3 pi/deploy/package.sh            # → dist/hexapod-<version>.tar.gz
-scp dist/hexapod-<version>.tar.gz <you>@hexapod.local:/tmp/
-ssh <you>@hexapod.local
+scp dist/hexapod-<version>.tar.gz hexasys@hexapod.local:/tmp/
+ssh hexasys@hexapod.local
 cd /tmp && tar -xzf hexapod-<version>.tar.gz --wildcards '*/deploy.sh' --strip-components=1
 sudo bash ./deploy.sh /tmp/hexapod-<version>.tar.gz --bootstrap
 ```
@@ -83,12 +83,12 @@ Type `HXP1 <id> <key>` in the pairing screen instead of the short code. The comm
 Drive it from anywhere through Tailscale: set it up from the app ([step by step](remote-access.md)) or from a terminal:
 
 ```bash
-ssh <you>@hexapod.local 'sudo tailscale up --hostname=hexapod'   # opens a login link
+ssh hexasys@hexapod.local 'sudo tailscale up --hostname=hexapod'   # opens a login link
 ```
 
 ## 6. Protect the SD card (optional)
 
-A read-only root means pulling the power never corrupts the card; `/opt/hexapod` (releases, settings, pairing key) moves to its own partition. It needs the card in your PC once, to split it: [`pi/provision/README.md`](../pi/provision/README.md#somente-leitura-proteger-o-cartão).
+A read-only root means pulling the power never corrupts the card; `/opt/hexapod` (releases, settings, pairing key) moves to its own partition. It needs the card in your PC once, to split it: [`pi/provision/README.md`](../pi/provision/README.md#read-only-protecting-the-sd-card).
 
 ## Keeping it up to date
 

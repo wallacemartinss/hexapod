@@ -2,7 +2,7 @@
 
 [English](install.md) · **Português**
 
-Este guia é para quem **não usa terminal**: você grava um cartão no PC, liga o robô e configura tudo pelo celular. Quem quiser mexer no sistema (SSH, Ansible) tem o caminho do maker em [`pi/provision/README.md`](../pi/provision/README.md).
+Este guia é para quem **não usa terminal**: você grava um cartão no PC, liga o robô e configura tudo pelo celular. Quem quiser mexer no sistema (SSH, Ansible) tem o caminho do maker em [`pi/provision/README.pt-BR.md`](../pi/provision/README.pt-BR.md).
 
 ## Do que você precisa
 

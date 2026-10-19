@@ -156,3 +156,7 @@ func glyph(r rune) [5]byte {
 	}
 	return glyphs['?']
 }
+
+// Glyph is a character's 5x7 bitmap (one byte per column, bit 0 at the
+// top), for other screens (the eye) that draw text.
+func Glyph(r rune) [5]byte { return glyph(r) }

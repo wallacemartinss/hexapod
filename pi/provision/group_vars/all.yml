@@ -32,6 +32,7 @@ wifi_country: BR
 
 # Peripherals on the Pi's own header (firmware/PINOUT.md, section "Raspberry Pi").
 enable_i2c: true       # dtparam=i2c_arm=on: SSD1306 OLED on GPIO2/3 (pins 3/5)
+enable_spi: true       # dtparam=spi=on: the cyclops eye (ST7789) on SPI0 (pins 19/23/24)
 enable_gps_uart: true  # enable_uart=1, no serial console: NEO-6M GPS on GPIO14/15 (pins 8/10)
 
 # Read-only root (overlay in RAM). Needs /opt/hexapod on its own partition:

@@ -3,4 +3,7 @@ all:
     hexapod:
       # Override with -e ansible_host=<ip> if mDNS is not available.
       ansible_host: hexapod.local
-      ansible_user: wallace
+      # The admin user made when the card was flashed: hexasys by convention
+      # (the service user that runs hexd is "hexapod"). Another name:
+      # HEXAPOD_SSH_USER=<name> in the environment, or -e ansible_user=<name>.
+      ansible_user: "{{ lookup('env', 'HEXAPOD_SSH_USER') | default('hexasys', true) }}"

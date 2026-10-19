@@ -77,6 +77,7 @@ type Server struct {
 	name         string     // robot name, changed by /api/name
 	pairMu       sync.Mutex // /pair tries go one at a time
 	lastAppCmd   time.Time
+	lastCmd      *pb.Command // the last one an app sent (the eye follows the sticks)
 	deadmanFired bool
 	deadmanTrips uint64
 	profile      pb.LinkProfile
@@ -108,6 +109,14 @@ func (s *Server) Clients() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.clients
+}
+
+// LastCommand is the last command an app sent and when (nil before any).
+// The caller must not change it.
+func (s *Server) LastCommand() (*pb.Command, time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastCmd, s.lastAppCmd
 }
 
 // Handler returns the HTTP routes.
@@ -190,6 +199,7 @@ func (s *Server) checkDeadman(now time.Time) {
 func (s *Server) forward(cmd *pb.Command, profile pb.LinkProfile) error {
 	s.mu.Lock()
 	s.lastAppCmd = time.Now()
+	s.lastCmd = cmd
 	s.deadmanFired = false
 	if profile != s.profile {
 		s.log.Info("link profile changed", "profile", profile)

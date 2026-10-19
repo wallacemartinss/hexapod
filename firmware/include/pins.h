@@ -34,7 +34,7 @@ constexpr uint8_t kImuInt = 12;    // BNO085 INT (active low)
 constexpr uint8_t kImuReset = 13;  // BNO085 RST (active low)
 constexpr uint8_t kGasAdc = 10;    // MQ-2 AO through a 10k/15k divider (ADC1)
 // UART to the eyes ESP32 (future). The ROM boot log also appears on TX.
-constexpr uint8_t kEyesTx = 43;
+constexpr uint8_t kEyesTx = 43;  // free: the eye moved to the Pi (ADR-0015)
 constexpr uint8_t kEyesRx = 44;
 constexpr uint8_t kStatusLed = 48;  // on-board RGB LED
 
@@ -59,7 +59,7 @@ constexpr uint8_t kImuReset = 25;  // BNO085 RST (active low)
 constexpr uint8_t kGasAdc =
     35;  // MQ-2 AO through a 10k/15k divider (ADC1, input-only)
 // UART2 to the eyes ESP32 (future).
-constexpr uint8_t kEyesTx = 17;
+constexpr uint8_t kEyesTx = 17;  // free: the eye moved to the Pi (ADR-0015)
 constexpr uint8_t kEyesRx = 16;
 
 #else

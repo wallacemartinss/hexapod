@@ -59,6 +59,19 @@ type Config struct {
 		Wired    string        `yaml:"wired_interface"`
 		Tailnet  string        `yaml:"tailnet_interface"`
 	} `yaml:"display"`
+	Eye struct {
+		Enabled   bool   `yaml:"enabled"`   // the cyclops eye (ST7789 on SPI0, docs: firmware/PINOUT.md)
+		SPI       string `yaml:"spi"`       // /dev/spidev0.0
+		SPIMode   int    `yaml:"spi_mode"`  // 3 for boards without a CS pin, else 0
+		SPIHz     int    `yaml:"spi_hz"`    // SPI clock (Hz)
+		GPIOChip  string `yaml:"gpio_chip"` // /dev/gpiochip0 on a Pi 3/4
+		DC        int    `yaml:"dc"`        // BCM numbers
+		Reset     int    `yaml:"reset"`     //
+		Backlight int    `yaml:"backlight"` //
+		Rotation  int    `yaml:"rotation"`  // 0, 90, 180, 270: how the panel sits behind the window
+		BGR       bool   `yaml:"bgr"`       // colors red/blue swapped: set true
+		FPS       int    `yaml:"fps"`       // frames per second (still frames are skipped)
+	} `yaml:"eye"`
 	Media struct {
 		Enabled   bool          `yaml:"enabled"`     // photos and recordings for the app's gallery
 		Dir       string        `yaml:"dir"`         // on the data partition
@@ -109,6 +122,13 @@ func Default() Config {
 	c.Display.PageTime = 5 * time.Second
 	c.Display.Wired = "eth0"
 	c.Display.Tailnet = "tailscale0"
+	c.Eye.Enabled = true // without the panel hexd only logs it and retries
+	c.Eye.SPI = "/dev/spidev0.0"
+	c.Eye.SPIMode = 3
+	c.Eye.SPIHz = 40_000_000
+	c.Eye.GPIOChip = "/dev/gpiochip0"
+	c.Eye.DC, c.Eye.Reset, c.Eye.Backlight = 25, 24, 18
+	c.Eye.FPS = 15
 	c.Media.Enabled = true // without a camera, photo and record answer "camera did not answer"
 	c.Media.Dir = "/opt/hexapod/shared/media"
 	c.Media.Source = "rtsp://127.0.0.1:8554/cam"
