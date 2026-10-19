@@ -77,9 +77,11 @@
     cmdline_new: >-
       {{ ((cmdline_raw.content | b64decode | trim).split()
           | reject('equalto', 'video=HDMI-A-1:d')
+          | reject('match', '^cfg80211.ieee80211_regdom=')
           | reject('match', '^console=(serial0|ttyAMA0|ttyS0),' if enable_gps_uart | bool else '^$')
           | list
-          + (['video=HDMI-A-1:d'] if disable_hdmi | bool else []))
+          + (['video=HDMI-A-1:d'] if disable_hdmi | bool else [])
+          + ['cfg80211.ieee80211_regdom=' ~ wifi_country])
          | join(' ') }}
 
 - name: Write kernel cmdline

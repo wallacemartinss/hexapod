@@ -2,6 +2,8 @@
 # Provision the hexapod Raspberry Pi (Phase 1.2). Idempotent: safe to re-run.
 #   ansible-playbook site.yml            # apply
 #   ansible-playbook site.yml --check    # dry run
+# The same playbook builds the SD card image (pi/image/build-image.sh) with
+# image_build=true: services are enabled for the first boot, never started.
 - name: Provision hexapod Raspberry Pi
   hosts: hexapod
   become: true
@@ -64,29 +66,33 @@
     - name: Reload udev
       ansible.builtin.shell: udevadm control --reload && udevadm trigger --subsystem-match=tty
       changed_when: true
+      when: not image_build | bool
 
     - name: Reexec systemd
       ansible.builtin.systemd_service:
         daemon_reexec: true
+      when: not image_build | bool
 
     - name: Restart mediamtx
       ansible.builtin.systemd_service:
         name: mediamtx
         state: restarted
       ignore_errors: "{{ ansible_check_mode }}"
+      when: not image_build | bool
 
     - name: Restart mic-stream
       ansible.builtin.systemd_service:
         name: mic-stream
         state: restarted
       ignore_errors: "{{ ansible_check_mode }}"
+      when: not image_build | bool
 
     - name: Reboot
       ansible.builtin.reboot:
         reboot_timeout: 300
-      when: provision_reboot | bool
+      when: provision_reboot | bool and not image_build | bool
 
     - name: Reboot pending
       ansible.builtin.debug:
         msg: "Boot config changed: reboot the Pi to apply (provision_reboot=false)."
-      when: not provision_reboot | bool
+      when: not provision_reboot | bool and not image_build | bool

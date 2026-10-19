@@ -18,7 +18,7 @@
   ansible.builtin.systemd_service:
     name: avahi-daemon
     enabled: true
-    state: started
+    state: "{{ omit if image_build | bool else 'started' }}"
 
 # The app finds robots by this service (DNS-SD), then asks each one
 # GET /identity to match the id read from the pairing QR.

@@ -26,6 +26,10 @@ disable_bluetooth: true      # dtoverlay=disable-bt: BT is unused
 disable_onboard_audio: true  # dtparam=audio=off: the mic is USB, no speaker on the Pi
 disable_hdmi: true           # video=HDMI-A-1:d: headless robot
 
+# Wi-Fi regulatory country (channels, power). Raspberry Pi OS keeps Wi-Fi
+# off until it is set; the robot's own network needs it.
+wifi_country: BR
+
 # Peripherals on the Pi's own header (firmware/PINOUT.md, section "Raspberry Pi").
 enable_i2c: true       # dtparam=i2c_arm=on: SSD1306 OLED on GPIO2/3 (pins 3/5)
 enable_gps_uart: true  # enable_uart=1, no serial console: NEO-6M GPS on GPIO14/15 (pins 8/10)
@@ -37,6 +41,10 @@ readonly_root: false
 
 # hexd's HTTP/WebSocket port (hexd.yaml listen), announced as _hexapod._tcp.
 hexd_port: 8080
+
+# true only while pi/image/build-image.sh runs this playbook inside an
+# image: nothing is started, reloaded or rebooted (no running system).
+image_build: false
 
 # Reboot automatically when boot config changes.
 provision_reboot: true

@@ -25,7 +25,7 @@
   ansible.builtin.systemd_service:
     name: tailscaled
     enabled: true
-    state: started
+    state: "{{ omit if image_build | bool else 'started' }}"
   # Depends on earlier steps that --check does not perform.
   ignore_errors: "{{ ansible_check_mode }}"
 
@@ -34,6 +34,7 @@
   register: tailscale_status
   changed_when: false
   failed_when: false
+  when: not image_build | bool # no daemon inside an image being built
 
 - name: Tailscale up (only with tailscale_authkey)
   ansible.builtin.command: >-
@@ -41,5 +42,6 @@
   no_log: true
   changed_when: true
   when:
+    - not image_build | bool
     - tailscale_authkey | length > 0
     - (tailscale_status.stdout | default('{}') | from_json).BackendState | default('') != 'Running'
