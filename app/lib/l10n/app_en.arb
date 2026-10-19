@@ -1391,5 +1391,178 @@
         "type": "String"
       }
     }
+  },
+  "navTitle": "Map",
+  "@navTitle": {
+    "description": "GPS map screen title"
+  },
+  "navGoHere": "Go here",
+  "@navGoHere": {
+    "description": "Button: walk to the tapped point"
+  },
+  "navGoHome": "Go home",
+  "@navGoHome": {
+    "description": "Button: walk back home"
+  },
+  "navSetHome": "Home here",
+  "@navSetHome": {
+    "description": "Button: mark home where the robot is"
+  },
+  "navPatrol": "Patrol",
+  "@navPatrol": {
+    "description": "Button: walk the saved route"
+  },
+  "navPatrolLoop": "Repeat",
+  "@navPatrolLoop": {
+    "description": "Switch: start the route over at the end"
+  },
+  "navFence": "Fence",
+  "@navFence": {
+    "description": "Button: draw the virtual fence"
+  },
+  "navRoute": "Route",
+  "@navRoute": {
+    "description": "Button: draw the patrol route"
+  },
+  "navFenceHint": "Tap the map to mark the fence's corners",
+  "@navFenceHint": {
+    "description": "Hint while drawing the fence"
+  },
+  "navRouteHint": "Tap the map to mark the route's points, in order",
+  "@navRouteHint": {
+    "description": "Hint while drawing the route"
+  },
+  "navSave": "Save",
+  "@navSave": {
+    "description": "Save the drawing"
+  },
+  "navUndo": "Undo",
+  "@navUndo": {
+    "description": "Remove the last drawn point"
+  },
+  "navRemove": "Remove",
+  "@navRemove": {
+    "description": "Delete the saved fence or route"
+  },
+  "navCancel": "Cancel",
+  "@navCancel": {
+    "description": "Leave drawing without saving"
+  },
+  "navCancelMission": "Cancel mission",
+  "@navCancelMission": {
+    "description": "Stop the GPS mission"
+  },
+  "navResume": "Resume mission",
+  "@navResume": {
+    "description": "Continue the mission the lost link interrupted"
+  },
+  "navCenter": "Center on the robot",
+  "@navCenter": {
+    "description": "Move the map to the robot"
+  },
+  "navNoFix": "No GPS position (it needs open sky)",
+  "@navNoFix": {
+    "description": "No GPS position on the map"
+  },
+  "navStateIdle": "No mission",
+  "@navStateIdle": {
+    "description": "Navigation state: no mission"
+  },
+  "navStateWaitingGps": "Waiting for the GPS…",
+  "@navStateWaitingGps": {
+    "description": "Mission paused: no good GPS fix"
+  },
+  "navStateWaitingHeading": "Settling the compass…",
+  "@navStateWaitingHeading": {
+    "description": "Mission paused: compass not trusted yet"
+  },
+  "navStateReady": "Ready: walk mode and sticks released to go",
+  "@navStateReady": {
+    "description": "Mission set, waiting for the pilot to walk with the sticks released"
+  },
+  "navStateDriving": "On the way · {meters} m",
+  "@navStateDriving": {
+    "description": "Robot walking to the point, distance left",
+    "placeholders": {
+      "meters": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        }
+      }
+    }
+  },
+  "navStateBlocked": "Obstacle ahead, waiting",
+  "@navStateBlocked": {
+    "description": "Mission paused by an obstacle ahead"
+  },
+  "navStateArrived": "Arrived",
+  "@navStateArrived": {
+    "description": "Mission ended at the point"
+  },
+  "navStateOutside": "Outside the fence: only back in",
+  "@navStateOutside": {
+    "description": "Robot beyond the fence"
+  },
+  "navMissionGoTo": "Going to the point",
+  "@navMissionGoTo": {
+    "description": "Mission: going to a point"
+  },
+  "navMissionHome": "Going home",
+  "@navMissionHome": {
+    "description": "Mission: going home"
+  },
+  "navMissionPatrol": "Patrol · point {n} of {total}",
+  "@navMissionPatrol": {
+    "description": "Mission: patrolling, current point of the route",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "navBatteryLow": "Battery low: go home?",
+  "@navBatteryLow": {
+    "description": "Suggestion when the battery runs low"
+  },
+  "navDriveOff": "GPS driving is off on the robot (nav.drive in hexd.yaml)",
+  "@navDriveOff": {
+    "description": "GPS driving disabled in the robot's config"
+  },
+  "navRefusedNoPosition": "No GPS position yet",
+  "@navRefusedNoPosition": {
+    "description": "Refused: no GPS fix"
+  },
+  "navRefusedNoHome": "Home is not set yet",
+  "@navRefusedNoHome": {
+    "description": "Refused: no home"
+  },
+  "navRefusedNoRoute": "Mark a route of 2 points or more",
+  "@navRefusedNoRoute": {
+    "description": "Refused: no route"
+  },
+  "navRefusedOutsideFence": "That point is outside the fence",
+  "@navRefusedOutsideFence": {
+    "description": "Refused: point beyond the fence"
+  },
+  "navRefusedBadPoints": "Invalid points (a fence needs 3 or more)",
+  "@navRefusedBadPoints": {
+    "description": "Refused: invalid points"
+  },
+  "navRefusedFollowing": "Cancel follow me first",
+  "@navRefusedFollowing": {
+    "description": "Refused: follow me is on"
+  },
+  "navRefusedNothingToResume": "No mission to resume",
+  "@navRefusedNothingToResume": {
+    "description": "Refused: nothing to resume"
+  },
+  "navInterrupted": "Mission interrupted (link lost)",
+  "@navInterrupted": {
+    "description": "Chip after the lost link stopped a mission"
   }
 }

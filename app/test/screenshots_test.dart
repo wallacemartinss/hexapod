@@ -167,6 +167,7 @@ Future<void> _pump(
         ),
         targetsProvider.overrideWith((ref) => const Stream<pb.Targets>.empty()),
         followStatusProvider.overrideWith((ref) => const Stream<pb.FollowStatus>.empty()),
+        navStatusProvider.overrideWith((ref) => const Stream<pb.NavStatus>.empty()),
         piStatusProvider.overrideWith(
           (ref) => Stream.periodic(
             const Duration(seconds: 2),

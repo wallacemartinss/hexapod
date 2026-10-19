@@ -18,6 +18,8 @@ import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
 import '../follow/target_overlay.dart';
+import '../nav/map_screen.dart';
+import '../nav/nav_chip.dart';
 import 'widgets/camera_controls.dart';
 import '../../l10n/l10n.dart';
 import 'widgets/center_feedback.dart';
@@ -136,6 +138,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final age = _lastTelemetry == null ? null : DateTime.now().difference(_lastTelemetry!);
     final fresh = link == LinkStatus.connected && age != null && age < const Duration(seconds: 1);
     final pi = ref.watch(piStatusProvider).value?.status;
+    final hasNav = ref.watch(navStatusProvider).value != null; // hexd has navigation (and a GPS)
     final lost = link != LinkStatus.connected || age == null || age > const Duration(seconds: 3);
     if (lost && !_wasLost && settings.haptics) HapticFeedback.vibrate(); // signal just dropped
     if (lost && robots.active != null) {
@@ -238,6 +241,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                       gamepad: gamepad,
                       onGamepad: () => showControllerSheet(context),
                       onData: () => showDataScreen(context),
+                      onMap: hasNav ? () => showMapScreen(context) : null,
                       audio: settings.robotAudio,
                       onAudio: () => ref
                           .read(settingsProvider.notifier)
@@ -268,6 +272,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                                 banner.severity != Severity.ok)
                               const SizedBox(height: 8),
                             if (banner != null && banner.severity != Severity.ok) StateBanner(text: banner),
+                            if (link == LinkStatus.connected) ...[const SizedBox(height: 8), const NavChip()],
                           ],
                         ),
                       ),

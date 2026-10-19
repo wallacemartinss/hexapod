@@ -176,6 +176,14 @@ final followStatusProvider = StreamProvider<FollowStatus>((ref) async* {
   yield* link.follow;
 });
 
+/// GPS navigation: the mission, home, fence and route (idle until set).
+final navStatusProvider = StreamProvider<NavStatus>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastNav;
+  if (last != null) yield last;
+  yield* link.nav;
+});
+
 final controlProvider = NotifierProvider<ControlNotifier, ControlState>(ControlNotifier.new);
 
 class ControlNotifier extends Notifier<ControlState> {
