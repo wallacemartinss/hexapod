@@ -29,6 +29,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/eye"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/gps"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/media"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/nav"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
@@ -259,6 +260,34 @@ func main() {
 		}()
 	}
 
+	// GPS navigation: missions walk the robot only with nav.drive on; the
+	// fence holds the pilot's own Commands either way.
+	var navAPI server.Nav // stays a nil interface without navigation
+	if cfg.Nav.Enabled && position != nil {
+		nc := nav.DefaultConfig()
+		nc.Drive, nc.ArriveM, nc.MaxHdop, nc.Declination = cfg.Nav.Drive, cfg.Nav.ArriveM, cfg.Nav.MaxHdop, cfg.Nav.Declination
+		nc.MaxSpeed, nc.MaxTurn, nc.Store = cfg.Nav.MaxSpeed, cfg.Nav.MaxTurn, cfg.Nav.Store
+		navigator := nav.New(nc, nav.Inputs{
+			Position: position,
+			Telemetry: func() *pb.Telemetry {
+				if snap := dev.Snapshot(); snap.Connected && time.Since(snap.LastRx) < cfg.HealthMaxAge {
+					return snap.Telemetry
+				}
+				return nil
+			},
+			Compass: func() (*pb.Compass, time.Time) {
+				snap := dev.Snapshot()
+				return snap.Compass, snap.CompassAt
+			},
+			Following: func() bool { return hub != nil && hub.Status().State != pb.FollowState_FOLLOW_STATE_IDLE },
+		}, log.With("component", "nav"))
+		go navigator.Run(ctx)
+		navAPI = navigator
+		if nc.Drive {
+			log.Warn("GPS missions drive the robot", "max_speed", nc.MaxSpeed)
+		}
+	}
+
 	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
@@ -280,6 +309,7 @@ func main() {
 		Codes:              codes,
 		OnPaired:           onPaired,
 		Vision:             visionAPI,
+		Nav:                navAPI,
 	}, dev, log.With("component", "server"))
 	if wifiMgr != nil {
 		go wifiMgr.Run(ctx)

@@ -565,3 +565,69 @@ func TestFollowSteersTheAppsWalkCommands(t *testing.T) {
 		t.Fatalf("stick did not cancel following: %v", st.State)
 	}
 }
+
+type fakeNav struct {
+	ch        chan *pb.NavStatus
+	requests  chan *pb.NavRequest
+	suspended chan struct{}
+	steer     func(*pb.Command) *pb.Command
+}
+
+func (f *fakeNav) Subscribe() (<-chan *pb.NavStatus, func()) { return f.ch, func() {} }
+func (f *fakeNav) Request(r *pb.NavRequest) *pb.NavStatus {
+	f.requests <- r
+	return &pb.NavStatus{}
+}
+func (f *fakeNav) Status() *pb.NavStatus { return &pb.NavStatus{State: pb.NavState_NAV_STATE_IDLE} }
+func (f *fakeNav) Steer(c *pb.Command) *pb.Command {
+	if f.steer != nil {
+		return f.steer(c)
+	}
+	return c
+}
+func (f *fakeNav) Suspend() { f.suspended <- struct{}{} }
+
+func TestGPSNavigationOverTheWebSocket(t *testing.T) {
+	n := &fakeNav{ch: make(chan *pb.NavStatus, 4), requests: make(chan *pb.NavRequest, 4), suspended: make(chan struct{}, 1),
+		steer: func(c *pb.Command) *pb.Command {
+			if c.Mode != pb.Mode_MODE_WALK {
+				return c
+			}
+			out := proto.CloneOf(c)
+			out.YawRate = 0.4 // as a mission turning towards its point
+			return out
+		}}
+	r := newRig(t, Config{Nav: n})
+	a := connectApp(t, r)
+	n.ch <- &pb.NavStatus{State: pb.NavState_NAV_STATE_READY, DistanceM: 12}
+	waitFor(t, "the nav status at the app", func() bool {
+		select {
+		case env := <-a.in:
+			return env.GetNavStatus().GetDistanceM() == 12
+		default:
+			return false
+		}
+	})
+	b, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_NavRequest{NavRequest: &pb.NavRequest{Action: pb.NavAction_NAV_ACTION_GO_HOME}}})
+	if err := a.conn.Write(context.Background(), websocket.MessageBinary, b); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-n.requests; got.Action != pb.NavAction_NAV_ACTION_GO_HOME {
+		t.Fatalf("request %v", got.Action)
+	}
+	a.send(&pb.Command{Seq: 1, Mode: pb.Mode_MODE_STAND})
+	seq := uint32(1)
+	waitFor(t, "the mission's turn at the simulated ESP32", func() bool {
+		seq++
+		a.send(&pb.Command{Seq: seq, Mode: pb.Mode_MODE_WALK})
+		_, _, yaw := r.sim.Motion()
+		return yaw > 0.3
+	})
+	// The app is the dead man: the last one leaving suspends the mission.
+	a.conn.CloseNow()
+	select {
+	case <-n.suspended:
+	case <-time.After(3 * time.Second):
+		t.Fatal("mission not suspended when the app left")
+	}
+}

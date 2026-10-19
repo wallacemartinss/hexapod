@@ -83,6 +83,19 @@ type Config struct {
 		MaxSpeed float64 `yaml:"max_speed"` // 0..1 of the walking speed
 		MaxTurn  float64 `yaml:"max_turn"`  // 0..1 of the turning speed
 	} `yaml:"vision"`
+	Nav struct {
+		Enabled bool `yaml:"enabled"` // GPS navigation: go to, home, patrol, fence (needs gps)
+		// Drive: hexd steers the app's walk Commands during a mission
+		// (sticks at rest; a stick or STOP cancels). Off until tested on the
+		// robot with the pilot's go-ahead; the fence holds either way.
+		Drive       bool    `yaml:"drive"`
+		ArriveM     float64 `yaml:"arrive_m"`    // a point counts as reached this close, m
+		MaxHdop     float64 `yaml:"max_hdop"`    // poorer fixes are not used
+		Declination float64 `yaml:"declination"` // deg, true = magnetic + this (the GPS refines it)
+		MaxSpeed    float64 `yaml:"max_speed"`   // 0..1 of the walking speed
+		MaxTurn     float64 `yaml:"max_turn"`    // 0..1 of the turning speed
+		Store       string  `yaml:"store"`       // the fence and the route, kept across restarts
+	} `yaml:"nav"`
 	Media struct {
 		Enabled   bool          `yaml:"enabled"`     // photos and recordings for the app's gallery
 		Dir       string        `yaml:"dir"`         // on the data partition
@@ -143,6 +156,9 @@ func Default() Config {
 	c.Vision.Enabled = true // without hexvision running, the app just sees no targets
 	c.Vision.Listen = "127.0.0.1:47300"
 	c.Vision.Distance, c.Vision.MaxSpeed, c.Vision.MaxTurn = 1.2, 0.5, 0.6
+	c.Nav.Enabled = true // without a fix, missions just wait
+	c.Nav.ArriveM, c.Nav.MaxHdop, c.Nav.MaxSpeed, c.Nav.MaxTurn = 3, 3, 0.6, 0.6
+	c.Nav.Store = "/opt/hexapod/shared/config/nav.json"
 	c.Media.Enabled = true // without a camera, photo and record answer "camera did not answer"
 	c.Media.Dir = "/opt/hexapod/shared/media"
 	c.Media.Source = "rtsp://127.0.0.1:8554/cam"
