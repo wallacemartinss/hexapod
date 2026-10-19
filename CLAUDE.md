@@ -274,6 +274,10 @@ Depois do deploy estável: ativar o sistema de arquivos somente leitura (overlay
 - **Go:** `gofmt`, `go vet`, `golangci-lint`.
 - **C++:** `clang-format` (estilo Google, 2 espaços), sem alocação dinâmica dentro do laço de movimento.
 - **Constantes físicas** (dimensões, limites, tempos) ficam em um lugar só (`config.h` / `hexd.yaml`), comentadas com a unidade.
+- **Tag de versão automática:** a cada merge na `main`, crie (sem perguntar) uma tag anotada no commit do merge e envie com `git push origin <tag>`. Ela é a versão de tudo: o `git describe` grava a mesma no hexd, no firmware, no APK (`app/version.sh`) e no nome da imagem do cartão. A tag `v*` também dispara o workflow `image` e publica a imagem no GitHub Releases.
+  - Formato `vMAIOR.MENOR.CORREÇÃO` (SemVer). Até o lançamento público, a série é `v0.x`, e `v1.0.0` é o primeiro lançamento para a comunidade, decidido pelo usuário.
+  - Incremento pelos commits desde a última tag: `feat` → MENOR; só `fix`/`chore`/`docs` → CORREÇÃO; mudança incompatível no contrato (`proto/`) ou `!` → MAIOR (na série `0.x`, MENOR).
+  - Nunca mova nem apague uma tag já enviada: errou, faça a próxima.
 
 ## 6. Failsafe (especificação)
 

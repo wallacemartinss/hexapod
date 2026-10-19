@@ -19,6 +19,8 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags and history: version.sh stamps the APK
 
       - uses: actions/setup-go@v7
         with:
@@ -53,7 +55,7 @@ jobs:
       - name: Tests (unit, gamepad, hexd + hexsim integration)
         run: flutter test --exclude-tags golden
       - name: Android APK (arm64)
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 $(./version.sh)
 
       - uses: actions/upload-artifact@v7
         with:

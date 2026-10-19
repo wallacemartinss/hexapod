@@ -3,6 +3,8 @@ FLUTTER ?= flutter
 ADB     ?= adb
 APP_ID  := com.wallacemartinss.hexapod_app
 APK     := build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+# Same version as the robot: last tag, commit count and git describe.
+VERSION_FLAGS = $(shell ./version.sh)
 
 .DEFAULT_GOAL := help
 .PHONY: help gen run analyze test golden apk wait-device install crash
@@ -14,7 +16,7 @@ gen: ## Generate the Dart protobuf code (proto/ -> lib/gen)
 	cd ../proto && buf generate --template buf.gen.app.yaml
 
 run: ## Run on the PC (Linux), against hexsim/hexd or the robot
-	$(FLUTTER) run -d linux
+	$(FLUTTER) run -d linux $(VERSION_FLAGS)
 
 analyze: ## Static analysis
 	$(FLUTTER) analyze
@@ -26,7 +28,7 @@ golden: ## Re-render the screen captures in test/goldens/
 	$(FLUTTER) test --update-goldens test/pilot_screen_golden_test.dart
 
 apk: ## Build the release APK (arm64)
-	$(FLUTTER) build apk --release --split-per-abi --target-platform android-arm64
+	$(FLUTTER) build apk --release --split-per-abi --target-platform android-arm64 $(VERSION_FLAGS)
 
 # Some phones (e.g. Redmi) take ~30 s to show up after the adb server starts:
 # wait instead of restarting the server.
