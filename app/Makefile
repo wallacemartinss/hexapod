@@ -7,13 +7,17 @@ APK     := build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 VERSION_FLAGS = $(shell ./version.sh)
 
 .DEFAULT_GOAL := help
-.PHONY: help gen run analyze test golden apk wait-device install crash
+.PHONY: help gen brand run analyze test golden apk wait-device install crash
 
 help: ## List the commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
 
 gen: ## Generate the Dart protobuf code (proto/ -> lib/gen)
 	cd ../proto && buf generate --template buf.gen.app.yaml
+
+brand: ## Regenerate the app icon and splash from assets/brand/
+	dart run flutter_launcher_icons
+	dart run flutter_native_splash:create
 
 run: ## Run on the PC (Linux), against hexsim/hexd or the robot
 	$(FLUTTER) run -d linux $(VERSION_FLAGS)

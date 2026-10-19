@@ -177,7 +177,7 @@ class _Step extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: const Color(0xFF4FD1FF),
+            backgroundColor: const Color(0xFF3FCDF5),
             child: Text(
               '$n',
               style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w800),

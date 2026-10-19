@@ -6,6 +6,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'core/robots.dart';
 import 'core/providers.dart';
 import 'core/settings.dart';
+import 'features/brand/brand.dart';
 import 'features/pilot/pilot_screen.dart';
 
 Future<void> main() async {
@@ -41,10 +42,10 @@ class HexapodApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4FD1FF), brightness: Brightness.dark),
+        colorScheme: ColorScheme.fromSeed(seedColor: Brand.cyan, brightness: Brightness.dark),
         useMaterial3: true,
       ),
-      home: const PilotScreen(),
+      home: const BrandSplash(child: PilotScreen()),
     );
   }
 }

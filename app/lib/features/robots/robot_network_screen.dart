@@ -9,8 +9,8 @@ import '../../core/link/robot_wifi.dart';
 import '../../core/providers.dart';
 import '../../core/robots.dart';
 
-const _bg = Color(0xFF0E1013);
-const _card = Color(0xFF171A1F);
+const _bg = Color(0xFF0C1428);
+const _card = Color(0xFF121C34);
 const _ok = Color(0xFF3DDC97);
 const _warn = Color(0xFFFFB547);
 const _bad = Color(0xFFFF5A5F);

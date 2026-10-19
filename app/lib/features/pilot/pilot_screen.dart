@@ -559,7 +559,7 @@ class _ConnectionOverlay extends StatelessWidget {
       status,
     )) {
       (false, _) => (
-        const Icon(Icons.qr_code_2_rounded, size: 40, color: Color(0xFF4FD1FF)),
+        const Icon(Icons.qr_code_2_rounded, size: 40, color: Color(0xFF3FCDF5)),
         'Nenhum robô pareado',
         'Ligue o robô: quando nenhum app está conectado, a tela dele mostra um QR.',
         'Parear um robô',
@@ -686,7 +686,7 @@ class _Onboarding extends StatelessWidget {
                 ),
                 tip(
                   Icons.radio_button_checked_rounded,
-                  const Color(0xFF4FD1FF),
+                  const Color(0xFF3FCDF5),
                   'Joysticks flutuantes',
                   'Toque em qualquer lugar de cada metade da tela: o joystick nasce sob o seu polegar. As barras somem enquanto você pilota; um toque rápido traz de volta.',
                 ),

@@ -13,9 +13,9 @@ import '../../core/link/discovery.dart';
 import '../../core/link/robot_wifi.dart';
 import '../../core/robots.dart';
 
-const _bg = Color(0xFF0E1013);
+const _bg = Color(0xFF0C1428);
 const _ok = Color(0xFF3DDC97);
-const _accent = Color(0xFF4FD1FF);
+const _accent = Color(0xFF3FCDF5);
 const _bad = Color(0xFFFF5A5F);
 
 Future<void> showPairScreen(BuildContext context) =>

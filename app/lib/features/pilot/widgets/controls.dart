@@ -212,7 +212,7 @@ class RailButton extends StatelessWidget {
       },
       child: Opacity(
         opacity: enabled ? 1 : 0.45,
-        child: _RailItem(label: label, icon: icon, selected: selected, color: const Color(0xFF4FD1FF)),
+        child: _RailItem(label: label, icon: icon, selected: selected, color: const Color(0xFF3FCDF5)),
       ),
     );
   }

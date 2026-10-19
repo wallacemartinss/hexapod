@@ -16,7 +16,7 @@ class FloatingJoystick extends StatefulWidget {
     this.hint,
     this.enabled = true,
     this.haptics = true,
-    this.accent = const Color(0xFF4FD1FF),
+    this.accent = const Color(0xFF3FCDF5),
     this.restAlignment = const Alignment(0, 0.45),
     this.radius = 64,
   });

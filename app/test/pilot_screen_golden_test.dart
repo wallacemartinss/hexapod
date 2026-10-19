@@ -74,7 +74,7 @@ Future<void> _pump(
         theme: ThemeData(
           brightness: Brightness.dark,
           fontFamily: 'Roboto',
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4FD1FF), brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3FCDF5), brightness: Brightness.dark),
         ),
         home: const PilotScreen(),
       ),

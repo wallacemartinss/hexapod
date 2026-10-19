@@ -12,9 +12,9 @@ import '../../core/providers.dart';
 import '../pilot/state_texts.dart';
 import 'telemetry_log.dart';
 
-const _bg = Color(0xFF0E1013);
-const _card = Color(0xFF171A1F);
-const _accent = Color(0xFF4FD1FF);
+const _bg = Color(0xFF0C1428);
+const _card = Color(0xFF121C34);
+const _accent = Color(0xFF3FCDF5);
 
 Future<void> showDataScreen(BuildContext context) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DataScreen()));
