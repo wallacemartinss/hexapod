@@ -49,6 +49,10 @@ Without setting anything up, the robot creates **its own network** and the phone
 2. Choose your network and type the password. It is stored **only on the robot**.
 3. If the password is wrong, the robot **goes back to its own network by itself**, and the app tells you why.
 
+## 5. Remote access (optional)
+
+To drive the robot away from home (4G, another network): **Settings → Remote access**, step by step in [`remote-access.md`](remote-access.md).
+
 ## If something goes wrong
 
 | What happens | What to do |

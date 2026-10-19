@@ -49,6 +49,10 @@ Sem configurar nada, o robô cria a **própria rede**, e o celular conecta nela.
 2. Escolha a sua rede e digite a senha. Ela fica gravada **só no robô**.
 3. Se a senha estiver errada, o robô **volta sozinho** para a rede dele, e o app avisa o motivo.
 
+## 5. Acesso remoto (opcional)
+
+Para pilotar fora de casa (4G, outra rede): **Ajustes → Acesso remoto**, passo a passo em [`acesso-remoto.md`](acesso-remoto.md).
+
 ## Se algo der errado
 
 | O que acontece | O que fazer |

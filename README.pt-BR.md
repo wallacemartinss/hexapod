@@ -37,6 +37,7 @@ São duas portas de entrada, de propósito:
 **Configuração sem computador**
 - **Pareamento em segundos:** a tela do robô mostra um QR e um código de 5 letras e números; o app acha o robô (ou entra na rede própria dele) e pareia. Cada robô tem a sua chave: ninguém mais na rede consegue pilotá-lo.
 - **Wi-Fi pelo celular:** no primeiro boot o robô abre a rede própria (`Hexapode-XXXX`); para usar a rede de casa, escolha a rede e digite a senha no celular. Com a senha errada, o robô volta sozinho para a rede dele.
+- **Acesso remoto pelo app:** pilote de qualquer lugar (4G, outra rede) pelo Tailscale, configurado com um login no navegador: [passo a passo](docs/acesso-remoto.md).
 - **Vários robôs** no mesmo app ("Meus robôs"), cada um com o seu nome.
 - **Imagem pronta do cartão SD**, que grava o ESP32 sozinha no primeiro boot.
 
@@ -67,6 +68,7 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 | ![Distância](docs/screenshots/pt/data_distance.png) **Dados: radar de distância** | ![Posição](docs/screenshots/pt/data_position.png) **Dados: GPS** |
 | ![Ambiente](docs/screenshots/pt/data_environment.png) **Dados: ambiente e gás** | ![Pernas](docs/screenshots/pt/data_legs.png) **Dados: ângulos das pernas** |
 | ![Sistema](docs/screenshots/pt/data_system.png) **Dados: ESP32** | ![Raspberry Pi](docs/screenshots/pt/data_pi.png) **Dados: saúde do Raspberry Pi** |
+| ![Acesso remoto](docs/screenshots/pt/remote_setup.png) **Acesso remoto: configurar** | ![Acesso remoto pronto](docs/screenshots/pt/remote_ready.png) **Acesso remoto: pronto** |
 | ![Meus robôs](docs/screenshots/pt/robots.png) **Meus robôs** | ![Controle](docs/screenshots/pt/controller.png) **Controle PS5** |
 | ![Pareamento](docs/screenshots/pt/pairing.png) **Pareamento pelo código** | ![No celular](docs/screenshots/phone_bench_pt.png) **No celular de verdade, robô de bancada** |
 
@@ -129,11 +131,11 @@ Você precisa de: o robô montado, um cartão microSD (16 GB ou mais), um PC com
 | A rede **Hexapode-…** não aparece | O Wi-Fi do Pi não ligou: confira a energia e espere um minuto depois de ligar |
 | A tela mostra **ESP32 sem resposta** | Confira o cabo USB entre o Pi e o ESP32 |
 
-Guia completo: [`docs/instalar.md`](docs/instalar.md).
+Guia completo: [`docs/instalar.md`](docs/instalar.md). Acesso remoto (pilotar fora de casa): [`docs/acesso-remoto.md`](docs/acesso-remoto.md).
 
 ## Instalação: caminho maker
 
-Tudo o que o caminho simples faz, na mão e sob o seu controle.
+Tudo o que o caminho simples faz, na mão e sob o seu controle. **Guia completo: [`docs/instalacao-maker.md`](docs/instalacao-maker.md)**; a versão curta:
 
 **1. Prepare o Pi** a partir do Raspberry Pi OS Lite 64-bit (hostname `hexapod`, seu usuário e chave SSH) e provisione com Ansible a partir do PC:
 

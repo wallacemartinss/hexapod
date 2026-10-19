@@ -37,6 +37,7 @@ There are two ways in, on purpose:
 **Setup without a computer**
 - **Pairing in seconds:** the robot's screen shows a QR code and a 5-character code; the app finds the robot (or joins its own Wi-Fi) and pairs. Each robot has its own key, so nobody else on the network can drive it.
 - **Wi-Fi from the phone:** the robot opens its own network (`Hexapode-XXXX`) on first boot; to use your home network, pick it and type the password on the phone. A wrong password makes the robot fall back to its own network by itself.
+- **Remote access from the app:** drive from anywhere (4G, another network) through Tailscale, set up with a login in the browser: [step by step](docs/remote-access.md).
 - **Several robots** in one app ("My robots"), each with its own name.
 - **Ready-made SD card image** that programs the ESP32 by itself on first boot.
 
@@ -67,6 +68,7 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 | ![Distance](docs/screenshots/en/data_distance.png) **Data: distance radar** | ![Position](docs/screenshots/en/data_position.png) **Data: GPS** |
 | ![Environment](docs/screenshots/en/data_environment.png) **Data: environment and gas** | ![Legs](docs/screenshots/en/data_legs.png) **Data: leg angles** |
 | ![System](docs/screenshots/en/data_system.png) **Data: ESP32** | ![Raspberry Pi](docs/screenshots/en/data_pi.png) **Data: Raspberry Pi health** |
+| ![Remote access](docs/screenshots/en/remote_setup.png) **Remote access: setup** | ![Remote access ready](docs/screenshots/en/remote_ready.png) **Remote access: ready** |
 | ![My robots](docs/screenshots/en/robots.png) **My robots** | ![Controller](docs/screenshots/en/controller.png) **PS5 controller** |
 | ![Pairing](docs/screenshots/en/pairing.png) **Pairing by code** | ![On a real phone](docs/screenshots/phone_bench_pt.png) **On a real phone, bench robot (Portuguese)** |
 
@@ -129,11 +131,11 @@ What you need: the assembled robot, a microSD card (16 GB or more), a PC with a 
 | The **Hexapode-…** network doesn't show up | The Pi's Wi-Fi didn't start: check the power, wait a minute after switching on |
 | The screen says **ESP32 sem resposta** (ESP32 not answering) | Check the USB cable between the Pi and the ESP32 |
 
-Full guide: [`docs/install.md`](docs/install.md).
+Full guide: [`docs/install.md`](docs/install.md). Remote access (drive away from home): [`docs/remote-access.md`](docs/remote-access.md).
 
 ## Install: maker path
 
-Everything the simple path does, by hand and under your control.
+Everything the simple path does, by hand and under your control. **Full guide: [`docs/maker-install.md`](docs/maker-install.md)**; the short version:
 
 **1. Prepare the Pi** from stock Raspberry Pi OS Lite 64-bit (hostname `hexapod`, your user and SSH key), then provision it with Ansible from your PC:
 

@@ -5,6 +5,7 @@
 @Tags(['golden'])
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fixnum/fixnum.dart';
@@ -12,18 +13,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hexapod_app/core/control/control_state.dart';
 import 'package:hexapod_app/core/input/gamepad_interpreter.dart';
 import 'package:hexapod_app/core/input/gamepad_service.dart';
 import 'package:hexapod_app/core/link/robot_link.dart';
 import 'package:hexapod_app/core/proto.dart' as pb;
 import 'package:hexapod_app/core/providers.dart';
+import 'package:hexapod_app/core/link/robot_api.dart';
 import 'package:hexapod_app/core/robots.dart';
 import 'package:hexapod_app/core/settings.dart';
 import 'package:hexapod_app/features/brand/brand.dart';
 import 'package:hexapod_app/features/data/data_screen.dart';
 import 'package:hexapod_app/features/pilot/pilot_screen.dart';
 import 'package:hexapod_app/features/robots/pair_screen.dart';
+import 'package:hexapod_app/features/robots/remote_access_screen.dart';
 import 'package:hexapod_app/features/robots/robots_sheet.dart';
 import 'package:hexapod_app/features/settings/controller_sheet.dart';
 import 'package:hexapod_app/features/settings/settings_sheet.dart';
@@ -192,8 +198,24 @@ Future<void> _open(WidgetTester tester, Future<void> Function(BuildContext) show
   }
 }
 
+/// The robot's setup API for the remote access screen, in a given state.
+RobotApi _tailscaleApi(Map<String, Object?> status) => RobotApi(
+  '10.42.0.1',
+  'demo',
+  client: MockClient((r) async {
+    if (r.url.path == '/api/tailscale/login') {
+      return http.Response(
+        jsonEncode({'state': 'needs_login', 'auth_url': 'https://login.tailscale.com/a/demo'}),
+        200,
+      );
+    }
+    return http.Response(jsonEncode(status), 200);
+  }),
+);
+
 void main() {
   setUpAll(_loadFonts);
+  setUp(() => SharedPreferences.setMockInitialValues({})); // remote access saves the robot
 
   for (final lang in ['en', 'pt']) {
     group(lang, () {
@@ -273,6 +295,42 @@ void main() {
         await _pump(tester, lang);
         await _open(tester, showControllerSheet);
         await _shot(tester, lang, 'controller');
+      });
+
+      testWidgets('remote access', (tester) async {
+        Future<void> remote(
+          String name,
+          Map<String, Object?> status, {
+          bool phoneIn = false,
+          bool tap = false,
+        }) async {
+          await _pump(
+            tester,
+            lang,
+            home: RemoteAccessScreen(
+              api: () => _tailscaleApi(status),
+              onTailnet: () async => phoneIn,
+              open: (_) async => true,
+            ),
+          );
+          if (tap) {
+            await tester.tap(find.byIcon(Icons.login_rounded));
+            for (var i = 0; i < 5; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+          }
+          await _shot(tester, lang, name);
+        }
+
+        await remote('remote_setup', {'state': 'needs_login'});
+        await remote('remote_waiting', {'state': 'needs_login'}, tap: true);
+        await remote('remote_ready', {
+          'state': 'running',
+          'name': 'hexapod-k7f2',
+          'ip': '100.101.102.103',
+          'account': 'maker@example.com',
+        }, phoneIn: true);
+        await tester.pumpWidget(const SizedBox()); // stop the screen's poll
       });
 
       testWidgets('pairing', (tester) async {
