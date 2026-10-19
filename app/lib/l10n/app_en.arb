@@ -5,5 +5,89 @@
     "description": "App name (launcher, task switcher)"
   },
   "settingsLanguage": "Language",
-  "settingsLanguageSystem": "Phone language"
+  "settingsLanguageSystem": "Phone language",
+  "stateNormal": "Ready",
+  "@stateNormal": {
+    "description": "Robot state label: walking/standing normally"
+  },
+  "stateGas": "Gas or smoke",
+  "@stateGas": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateGasDetail": "The MQ-2 sensor detected gas or smoke near the robot.",
+  "stateGasAction": "Check the surroundings",
+  "@stateGasAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateStopping": "Stopping",
+  "@stateStopping": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateStoppingDetail": "The app's signal dropped for a moment.",
+  "stateStoppingAction": "Hold STAND UP to resume",
+  "@stateStoppingAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateSafeSit": "Sat down for safety",
+  "@stateSafeSit": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateSafeSitDetail": "The robot lost the signal and rested on its 6 legs.",
+  "stateSafeSitAction": "Hold STAND UP to resume",
+  "@stateSafeSitAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateRelaxed": "Relaxed",
+  "@stateRelaxed": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateRelaxedDetail": "Servos without power.",
+  "stateRelaxedAction": "Hold STAND UP to stand",
+  "@stateRelaxedAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateBlocked": "Obstacle",
+  "@stateBlocked": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateBlockedDetail": "Walking that way is blocked; the other directions stay free.",
+  "stateLowBattery": "Battery critical",
+  "@stateLowBattery": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateLowBatteryDetail": "The robot sat down and the Raspberry Pi will shut down.",
+  "stateLowBatteryAction": "Swap or charge the battery",
+  "@stateLowBatteryAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateTipped": "Tipped over",
+  "@stateTipped": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateTippedDetail": "Tilted over 35°: legs relaxed.",
+  "stateTippedAction": "Turn the robot upright and hold STAND UP",
+  "@stateTippedAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "stateEstop": "STOPPED",
+  "@stateEstop": {
+    "description": "Robot state label (short, shown in a chip)"
+  },
+  "stateEstopDetail": "Emergency stop: servos without power.",
+  "stateEstopAction": "Hold STAND UP to power back on",
+  "@stateEstopAction": {
+    "description": "What the pilot should do; STAND UP is the button label"
+  },
+  "faultLeftServos": "Left servos not answering",
+  "faultRightServos": "Right servos not answering",
+  "faultImu": "IMU missing: no fall detection",
+  "faultDistance": "Distance sensors missing",
+  "faultEnvironment": "Environment sensor missing",
+  "faultPower": "Battery meter missing",
+  "faultOvercurrent": "High current",
+  "faultBatteryLow": "Battery low: speed reduced",
+  "faultBatteryCritical": "Battery critical: shutting down",
+  "faultLoopOverrun": "Control loop running late",
+  "faultCalibration": "Calibration not loaded",
+  "faultGas": "Gas sensor missing"
 }

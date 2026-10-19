@@ -17,6 +17,7 @@ import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
+import '../../l10n/l10n.dart';
 import 'widgets/center_feedback.dart';
 import 'widgets/controls.dart';
 import 'widgets/floating_joystick.dart';
@@ -148,7 +149,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final canMove = robotState != null && _moving.contains(robotState) && !control.estop;
     final needsStand = control.estop || (robotState != null && !_moving.contains(robotState));
     final standing = robotState != null && _moving.contains(robotState);
-    final banner = robotState == null ? null : describeState(robotState);
+    final banner = robotState == null ? null : describeState(context.l10n, robotState);
     final sticksLive = canMove && control.scheme != Scheme.sit && !control.standRequested;
 
     // The height slider and the mode bar hide only while actually piloting;
@@ -248,7 +249,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                         child: Column(
                           children: [
                             // Gas first: it is not a robot state and can come with any.
-                            if (fresh && gasAlarmOn(telemetry)) const StateBanner(text: gasAlarmText),
+                            if (fresh && gasAlarmOn(telemetry)) StateBanner(text: gasAlarmText(context.l10n)),
                             if (fresh &&
                                 gasAlarmOn(telemetry) &&
                                 banner != null &&
@@ -331,7 +332,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
   }
 
   void _showFaults(BuildContext context, pb.Telemetry? t) {
-    final faults = t == null ? const <String>[] : describeFaults(t.faultFlags);
+    final faults = t == null ? const <String>[] : describeFaults(context.l10n, t.faultFlags);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF15181D),

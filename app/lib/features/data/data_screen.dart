@@ -10,6 +10,7 @@ import '../../core/link/robot_link.dart';
 import '../../core/proto.dart' as pb;
 import '../../core/providers.dart';
 import '../pilot/state_texts.dart';
+import '../../l10n/l10n.dart';
 import 'telemetry_log.dart';
 
 const _bg = Color(0xFF0C1428);
@@ -158,7 +159,7 @@ class _SummaryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = describeState(t.state);
+    final state = describeState(context.l10n, t.state);
     final faults = [
       if (t.gasAlarm && Part.gas.presentIn(t)) 'GÁS OU FUMAÇA DETECTADO',
       for (final (bit, text) in faultTexts)
@@ -1032,7 +1033,7 @@ class _StateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = describeState(state);
+    final s = describeState(context.l10n, state);
     final color = severityColor(s.severity);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

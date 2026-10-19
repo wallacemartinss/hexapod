@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/proto.dart' as pb;
+import '../../l10n/l10n.dart';
 
 export '../../core/alarms.dart' show gasAlarmOn;
 
@@ -18,73 +19,60 @@ class StateText {
 }
 
 /// Banner for the gas alarm: informative, the robot keeps doing what it does.
-const gasAlarmText = StateText(
-  'Gás ou fumaça',
-  Severity.danger,
-  'O sensor MQ-2 detectou gás ou fumaça perto do robô.',
-  'Verifique o ambiente',
-);
+StateText gasAlarmText(AppLocalizations l) =>
+    StateText(l.stateGas, Severity.danger, l.stateGasDetail, l.stateGasAction);
 
-StateText describeState(pb.State s) => switch (s) {
-  pb.State.STATE_NORMAL => const StateText('Pronto', Severity.ok),
-  pb.State.STATE_STOPPING => const StateText(
-    'Parando',
+StateText describeState(AppLocalizations l, pb.State s) => switch (s) {
+  pb.State.STATE_NORMAL => StateText(l.stateNormal, Severity.ok),
+  pb.State.STATE_STOPPING => StateText(
+    l.stateStopping,
     Severity.warning,
-    'O sinal do app falhou por um instante.',
-    'Segure LEVANTAR para retomar',
+    l.stateStoppingDetail,
+    l.stateStoppingAction,
   ),
-  pb.State.STATE_SAFE_SIT => const StateText(
-    'Sentado por segurança',
+  pb.State.STATE_SAFE_SIT => StateText(
+    l.stateSafeSit,
     Severity.warning,
-    'O robô perdeu o sinal e se apoiou nas 6 patas.',
-    'Segure LEVANTAR para retomar',
+    l.stateSafeSitDetail,
+    l.stateSafeSitAction,
   ),
-  pb.State.STATE_RELAXED => const StateText(
-    'Relaxado',
+  pb.State.STATE_RELAXED => StateText(
+    l.stateRelaxed,
     Severity.info,
-    'Servos sem força.',
-    'Segure LEVANTAR para ficar em pé',
+    l.stateRelaxedDetail,
+    l.stateRelaxedAction,
   ),
-  pb.State.STATE_BLOCKED => const StateText(
-    'Obstáculo',
-    Severity.warning,
-    'Andar nessa direção está bloqueado; as outras continuam livres.',
-  ),
-  pb.State.STATE_LOW_BATTERY => const StateText(
-    'Bateria crítica',
+  pb.State.STATE_BLOCKED => StateText(l.stateBlocked, Severity.warning, l.stateBlockedDetail),
+  pb.State.STATE_LOW_BATTERY => StateText(
+    l.stateLowBattery,
     Severity.danger,
-    'O robô sentou e o Raspberry Pi vai desligar.',
-    'Troque ou carregue a bateria',
+    l.stateLowBatteryDetail,
+    l.stateLowBatteryAction,
   ),
-  pb.State.STATE_TIPPED => const StateText(
-    'Tombou',
+  pb.State.STATE_TIPPED => StateText(
+    l.stateTipped,
     Severity.danger,
-    'Inclinação acima de 35°: patas relaxadas.',
-    'Desvire o robô e segure LEVANTAR',
+    l.stateTippedDetail,
+    l.stateTippedAction,
   ),
-  pb.State.STATE_ESTOP => const StateText(
-    'PARADO',
-    Severity.danger,
-    'Parada de emergência: servos sem força.',
-    'Segure LEVANTAR para religar',
-  ),
+  pb.State.STATE_ESTOP => StateText(l.stateEstop, Severity.danger, l.stateEstopDetail, l.stateEstopAction),
   _ => const StateText('—', Severity.info),
 };
 
 /// Fault bits worth telling the pilot (hexapod.v1.Fault).
-List<String> describeFaults(int flags) => [
-  if (flags & 1 != 0) 'Servos esquerdos sem resposta',
-  if (flags & 2 != 0) 'Servos direitos sem resposta',
-  if (flags & 4 != 0) 'IMU ausente: sem detecção de queda',
-  if (flags & 8 != 0) 'Sensores de distância ausentes',
-  if (flags & 16 != 0) 'Sensor de ambiente ausente',
-  if (flags & 32 != 0) 'Medidor de bateria ausente',
-  if (flags & 64 != 0) 'Corrente alta',
-  if (flags & 128 != 0) 'Bateria baixa: velocidade reduzida',
-  if (flags & 256 != 0) 'Bateria crítica: desligando',
-  if (flags & 512 != 0) 'Laço de controle atrasado',
-  if (flags & 1024 != 0) 'Calibração não carregada',
-  if (flags & 2048 != 0) 'Sensor de gás ausente',
+List<String> describeFaults(AppLocalizations l, int flags) => [
+  if (flags & 1 != 0) l.faultLeftServos,
+  if (flags & 2 != 0) l.faultRightServos,
+  if (flags & 4 != 0) l.faultImu,
+  if (flags & 8 != 0) l.faultDistance,
+  if (flags & 16 != 0) l.faultEnvironment,
+  if (flags & 32 != 0) l.faultPower,
+  if (flags & 64 != 0) l.faultOvercurrent,
+  if (flags & 128 != 0) l.faultBatteryLow,
+  if (flags & 256 != 0) l.faultBatteryCritical,
+  if (flags & 512 != 0) l.faultLoopOverrun,
+  if (flags & 1024 != 0) l.faultCalibration,
+  if (flags & 2048 != 0) l.faultGas,
 ];
 
 Color severityColor(Severity s) => switch (s) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/link/robot_link.dart';
 import '../../../core/proto.dart' as pb;
 import '../state_texts.dart';
+import '../../../l10n/l10n.dart';
 import 'controls.dart';
 
 /// Top bar: link quality, robot state, battery, faults and settings.
@@ -53,8 +54,8 @@ class StatusBar extends StatelessWidget {
       LinkStatus.disconnected => ('Sem conexão', severityColor(Severity.danger)),
       LinkStatus.unauthorized => ('Pareie de novo', severityColor(Severity.danger)),
     };
-    final state = t != null && !stale ? describeState(t.state) : null;
-    final faults = t == null ? const <String>[] : describeFaults(t.faultFlags);
+    final state = t != null && !stale ? describeState(context.l10n, t.state) : null;
+    final faults = t == null ? const <String>[] : describeFaults(context.l10n, t.faultFlags);
     final volts = t?.batteryVoltageV ?? 0;
 
     return Row(
