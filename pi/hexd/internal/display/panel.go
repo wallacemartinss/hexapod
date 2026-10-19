@@ -11,6 +11,9 @@ import (
 // i2cSlave is the i2c-dev ioctl that sets the target address.
 const i2cSlave = 0x0703
 
+// chunk is the most pixel bytes sent in one I2C write (plus the 0x40 byte).
+const chunk = 16
+
 // Panel is an SSD1306 128x64 on an I2C bus.
 type Panel struct {
 	w io.WriteCloser
@@ -74,10 +77,15 @@ func (p *Panel) Show(f *Frame) error {
 	if err := p.cmd(0x21, 0, Width-1, 0x22, 0, pages-1); err != nil { // full window
 		return err
 	}
+	// Small transfers, like the known SSD1306 drivers: this panel loses
+	// long ones (129 bytes) and turned dark, taking pixels for commands.
 	for page := range f {
-		buf := append([]byte{0x40}, f[page][:]...) // 0x40: data stream
-		if _, err := p.w.Write(buf); err != nil {
-			return err
+		row := f[page][:]
+		for i := 0; i < len(row); i += chunk {
+			buf := append([]byte{0x40}, row[i:min(i+chunk, len(row))]...) // 0x40: data stream
+			if _, err := p.w.Write(buf); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

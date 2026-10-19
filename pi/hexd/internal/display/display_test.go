@@ -162,13 +162,19 @@ func TestPanelProtocol(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := bus.writes[3:]
-	if len(data) != pages {
-		t.Fatalf("%d data writes, want %d", len(data), pages)
+	if len(data) != pages*Width/chunk {
+		t.Fatalf("%d data writes, want %d", len(data), pages*Width/chunk)
 	}
+	sent := 0
 	for _, w := range data {
-		if w[0] != 0x40 || len(w) != Width+1 {
+		// Small writes only: this panel lost 129-byte ones and went dark.
+		if w[0] != 0x40 || len(w) > chunk+1 {
 			t.Fatalf("data write: len %d prefix %#x", len(w), w[0])
 		}
+		sent += len(w) - 1
+	}
+	if sent != pages*Width {
+		t.Fatalf("%d pixel bytes sent, want %d", sent, pages*Width)
 	}
 }
 
