@@ -450,7 +450,9 @@
   "followTargetDistance": "Marcador {id} · {meters} m",
   "followStart": "Seguir",
   "followCancel": "Cancelar",
-  "followLocked": "Alvo travado: marcador {id}",
+  "followLocked": "Alvo travado: {label}",
   "followLost": "Alvo fora de vista, aguardando…",
-  "followHint": "Toque num alvo para segui-lo"
+  "followHint": "Toque num alvo para segui-lo",
+  "followPerson": "Pessoa",
+  "followPersonDistance": "Pessoa · {meters} m"
 }

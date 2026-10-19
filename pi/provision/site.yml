@@ -50,6 +50,10 @@
       ansible.builtin.import_tasks: tasks/mediamtx.yml
       tags: [mediamtx]
 
+    - name: Follow-me person detector
+      ansible.builtin.import_tasks: tasks/vision.yml
+      tags: [vision]
+
     - name: Systemd units
       ansible.builtin.import_tasks: tasks/services.yml
       tags: [services]

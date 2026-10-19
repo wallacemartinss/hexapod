@@ -1,7 +1,7 @@
 """hexvision: camera -> follow-me targets -> hexd (UDP, one Envelope per frame).
 
     python3 -m hexvision                       # on the robot (systemd)
-    python3 -m hexvision --source 0 --show     # on a PC, with its webcam
+    python3 -m hexvision --source 0 --show --models models   # on a PC, with its webcam
 """
 
 import argparse
@@ -15,7 +15,9 @@ import time
 import cv2
 
 from hexvision.camera import Camera
-from hexvision.detect import MarkerFinder
+from hexvision.detect import Found, MarkerFinder
+from hexvision.people import PersonFinder
+from hexvision.tracker import MarkerConfirm, PeopleTracker
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gen"))
 from hexapod.v1 import envelope_pb2, vision_pb2  # noqa: E402
@@ -80,7 +82,7 @@ def build_targets(seq, width, height, found, fps, calibrated):
     for f in sorted(found, key=lambda f: -f.confidence)[:MAX_TARGETS]:
         msg.targets.add(
             track_id=f.track_id,
-            kind=vision_pb2.TARGET_KIND_MARKER,
+            kind=vision_pb2.TARGET_KIND_PERSON if f.person else vision_pb2.TARGET_KIND_MARKER,
             marker_id=f.marker_id,
             x=f.x,
             y=f.y,
@@ -100,7 +102,8 @@ def draw(image, found, fps):
         p0 = (int(f.x * w), int(f.y * h))
         p1 = (int((f.x + f.w) * w), int((f.y + f.h) * h))
         cv2.rectangle(image, p0, p1, (255, 220, 0), 2)
-        label = f"#{f.marker_id} {f.bearing_deg:+.0f}deg {f.distance_m:.2f}m"
+        name = f"person {f.track_id}" if f.person else f"#{f.marker_id}"
+        label = f"{name} {f.bearing_deg:+.0f}deg {f.distance_m:.2f}m"
         cv2.putText(image, label, (p0[0], p0[1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 220, 0), 1)
     cv2.putText(image, f"{fps:.1f} fps", (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
 
@@ -114,6 +117,12 @@ def main():
     ap.add_argument("--hfov", type=float, default=100, help="horizontal field of view without calibration, deg")
     ap.add_argument("--calibration", default="/opt/hexapod/shared/config/camera_calibration.json")
     ap.add_argument("--marker-size", type=float, default=0.05, help="marker side (black square), m")
+    ap.add_argument(
+        "--models",
+        default="/opt/hexapod/shared/models/mobilenet-ssd",
+        help="person detector (MobileNet-SSD) folder; missing: markers only",
+    )
+    ap.add_argument("--people-min", type=float, default=0.5, help="person detector confidence, 0..1")
     ap.add_argument("--show", action="store_true", help="window with what is seen (PC only)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -123,7 +132,9 @@ def main():
     host, port = args.hexd.rsplit(":", 1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    camera = finder = None
+    camera = finder = people = None
+    tracker, confirm = PeopleTracker(), MarkerConfirm()
+    people_warned = False
     seq, count, fps = 0, 0, 0.0
     window_start, window_frames = time.monotonic(), 0
     period = 1 / args.fps
@@ -143,8 +154,36 @@ def main():
                 if not isinstance(e, FileNotFoundError):
                     log.warning("calibration not used: %s", e)
             finder = MarkerFinder(camera, args.marker_size)
+            try:
+                people = PersonFinder(camera, args.models, args.people_min)
+                log.info("person detector loaded from %s", args.models)
+            except cv2.error as e:
+                people = None
+                if not people_warned:
+                    log.warning("no person detector (%s): markers only", e.msg if hasattr(e, "msg") else e)
+                    people_warned = True
         small = cv2.resize(frame, size, interpolation=cv2.INTER_AREA) if size[0] != w else frame
-        found = finder.find(small)
+        now = time.monotonic()
+        found = confirm.update(finder.find(small), now)
+        if people is not None:
+            for t in tracker.update(small, people.detect(small), now):
+                bearing, elevation, distance = people.measure(t.box)
+                x0, y0, x1, y1 = t.box
+                found.append(
+                    Found(
+                        track_id=t.id,
+                        marker_id=0,
+                        x=x0 / size[0],
+                        y=y0 / size[1],
+                        w=(x1 - x0) / size[0],
+                        h=(y1 - y0) / size[1],
+                        bearing_deg=bearing,
+                        elevation_deg=elevation,
+                        distance_m=distance,
+                        confidence=t.confidence,
+                        person=True,
+                    )
+                )
 
         window_frames += 1
         if time.monotonic() - window_start >= 1:

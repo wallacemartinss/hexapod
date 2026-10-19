@@ -16,7 +16,7 @@ DICTIONARY = cv2.aruco.DICT_4X4_50  # big cells: readable small and blurred
 @dataclass
 class Found:
     track_id: int
-    marker_id: int
+    marker_id: int  # 0 for people
     x: float  # box, normalized 0..1
     y: float
     w: float
@@ -25,6 +25,7 @@ class Found:
     elevation_deg: float
     distance_m: float  # 0 = unknown
     confidence: float
+    person: bool = False
 
 
 class MarkerFinder:

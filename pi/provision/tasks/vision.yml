@@ -1,0 +1,23 @@
+---
+# Person detector for hexvision (follow me, ADR-0017): MobileNet-SSD, MIT
+# licence, at a fixed commit and checked by SHA-256. ~23 MB on the data
+# partition, so it survives the read-only root and every deploy.
+- name: Model folder
+  ansible.builtin.file:
+    path: "{{ vision_model_dir }}"
+    state: directory
+    owner: "{{ hexapod_user }}"
+    group: "{{ hexapod_user }}"
+    mode: "0755"
+
+- name: Person detector files
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/{{ vision_model_commit }}/{{ item.file }}"
+    dest: "{{ vision_model_dir }}/{{ item.file }}"
+    checksum: "sha256:{{ item.sha256 }}"
+    owner: "{{ hexapod_user }}"
+    group: "{{ hexapod_user }}"
+    mode: "0644"
+  loop: "{{ vision_model_files }}"
+  loop_control:
+    label: "{{ item.file }}"

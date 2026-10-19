@@ -86,3 +86,13 @@ esp32_test_usb_ids:
 # Hardware watchdog (Raspberry Pi OS default is 1 min; we want faster recovery).
 watchdog_runtime_sec: 14s
 watchdog_reboot_sec: 2min
+
+# --- Follow me (hexvision, ADR-0017) ---
+# Person detector: MobileNet-SSD (github.com/chuanqi305/MobileNet-SSD, MIT).
+vision_model_dir: "{{ hexapod_root }}/shared/models/mobilenet-ssd"
+vision_model_commit: bb17b6c3eef36d80be441ae8e5339be66e8e3b7a
+vision_model_files:
+  - file: deploy.prototxt
+    sha256: 2d180f723b3109e21f8287f6b3c691390d07b60eed998327cd3259ffa0e50608
+  - file: mobilenet_iter_73000.caffemodel
+    sha256: 52eed8be80522c152a17fb56740de705b79881bde1a167e0e747310523685fc7

@@ -68,9 +68,7 @@ class _TargetOverlayState extends ConsumerState<TargetOverlay> {
             final locked = following && follow.trackId == t.trackId;
             final picked = _picked == t.trackId;
             final color = locked ? _locked : (picked ? Colors.white : Brand.cyan);
-            final label = t.distanceM > 0
-                ? l.followTargetDistance(t.markerId, t.distanceM)
-                : l.followTarget(t.markerId);
+            final label = _label(l, t);
             // At least a finger wide, whatever the marker's size on screen.
             final hit = Rect.fromCenter(
               center: r.center,
@@ -138,7 +136,7 @@ class _TargetOverlayState extends ConsumerState<TargetOverlay> {
               top: 76,
               child: Center(
                 child: _FollowBar(
-                  text: lost ? l.followLost : l.followLocked(follow.trackId - 1),
+                  text: lost ? l.followLost : l.followLocked(_lockedName(l, targets, follow.trackId)),
                   color: lost ? Colors.amber : _locked,
                   cancel: l.followCancel,
                   onCancel: () => _follow(0),
@@ -151,6 +149,23 @@ class _TargetOverlayState extends ConsumerState<TargetOverlay> {
       },
     );
   }
+}
+
+String _label(AppLocalizations l, Target t) {
+  final person = t.kind == TargetKind.TARGET_KIND_PERSON;
+  if (t.distanceM <= 0) return person ? l.followPerson : l.followTarget(t.markerId);
+  return person ? l.followPersonDistance(t.distanceM) : l.followTargetDistance(t.markerId, t.distanceM);
+}
+
+/// The locked target's name, from the frame when it is in view.
+String _lockedName(AppLocalizations l, List<Target> targets, int trackId) {
+  for (final t in targets) {
+    if (t.trackId == trackId) {
+      return t.kind == TargetKind.TARGET_KIND_PERSON ? l.followPerson : l.followTarget(t.markerId);
+    }
+  }
+  // Markers carry their id in the track (id + 1); people start at 1000.
+  return trackId >= 1000 ? l.followPerson : l.followTarget(trackId - 1);
 }
 
 /// Four corner brackets, like a camera's focus box.

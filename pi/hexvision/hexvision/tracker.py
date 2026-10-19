@@ -1,0 +1,117 @@
+"""Keeps the same id on the same target from frame to frame, and only
+reports a target once it was seen in a few frames in a row: a texture that
+looks like a marker for one frame never reaches the app.
+
+People are matched by overlap (IoU) and, after a short occlusion, by the
+colours of their clothes. Markers carry their own id; they are only
+confirmed.
+"""
+
+from dataclasses import dataclass, field
+
+import cv2
+import numpy as np
+
+MIN_HITS = 3  # frames in a row before a target is reported
+MAX_AGE_S = 2.0  # a target not seen for this long is forgotten
+PERSON_IDS = 1000  # people get ids from here (markers: marker id + 1)
+
+
+def iou(a, b):
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def appearance(image, box):
+    """Hue/saturation histogram of the torso (middle of the box)."""
+    x0, y0, x1, y1 = (int(v) for v in box[:4])
+    h = y1 - y0
+    roi = image[y0 + h // 5 : y0 + h * 3 // 5, x0 + (x1 - x0) // 6 : x1 - (x1 - x0) // 6]
+    if roi.size == 0 or image.ndim != 3:
+        return None
+    hist = cv2.calcHist([cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)], [0, 1], None, [16, 8], [0, 180, 0, 256])
+    return cv2.normalize(hist, hist).flatten()
+
+
+def similar(a, b):
+    if a is None or b is None:
+        return 0.0
+    return float(cv2.compareHist(a.astype(np.float32), b.astype(np.float32), cv2.HISTCMP_CORREL))
+
+
+@dataclass
+class Track:
+    id: int
+    box: tuple
+    seen: float
+    hits: int = 1
+    confidence: float = 0.0
+    look: np.ndarray = field(default=None, repr=False)
+
+    @property
+    def confirmed(self):
+        return self.hits >= MIN_HITS
+
+
+class PeopleTracker:
+    def __init__(self):
+        self.tracks = []
+        self.next_id = PERSON_IDS
+
+    def update(self, image, detections, now):
+        """detections: [(x0, y0, x1, y1, conf)] -> confirmed tracks seen now."""
+        self.tracks = [t for t in self.tracks if now - t.seen <= MAX_AGE_S]
+        free = list(self.tracks)
+        current = []
+        # Best overlaps first, so two people side by side keep their ids.
+        pairs = sorted(((iou(d, t.box), i, t) for i, d in enumerate(detections) for t in free), key=lambda p: -p[0])
+        taken = set()
+        for score, i, t in pairs:
+            if score < 0.3 or i in taken or t not in free:
+                continue
+            taken.add(i)
+            free.remove(t)
+            self._hit(t, image, detections[i], now)
+            current.append(t)
+        for i, d in enumerate(detections):
+            if i in taken:
+                continue
+            look = appearance(image, d)
+            # Back after an occlusion? The most alike recently lost person.
+            best = max(free, key=lambda t: similar(look, t.look), default=None)
+            if best is not None and best.confirmed and similar(look, best.look) > 0.7:
+                free.remove(best)
+                self._hit(best, image, d, now)
+                current.append(best)
+                continue
+            t = Track(id=self.next_id, box=tuple(d[:4]), seen=now, confidence=d[4], look=look)
+            self.next_id += 1
+            self.tracks.append(t)
+            current.append(t)
+        return [t for t in current if t.confirmed]
+
+    def _hit(self, t, image, d, now):
+        # A confirmed target stays confirmed when it comes back (within MAX_AGE_S).
+        t.hits = t.hits + 1 if now - t.seen < 0.5 or t.confirmed else 1
+        t.box, t.seen, t.confidence = tuple(d[:4]), now, d[4]
+        look = appearance(image, d)
+        if look is not None:  # follows slow changes of light
+            t.look = look if t.look is None else 0.8 * t.look + 0.2 * look
+
+
+class MarkerConfirm:
+    """Markers already carry an id: only ask for a few frames in a row."""
+
+    def __init__(self):
+        self.hits = {}  # marker id -> (hits, last seen)
+
+    def update(self, markers, now):
+        seen = {}
+        for m in markers:
+            hits, last = self.hits.get(m.marker_id, (0, 0.0))
+            seen[m.marker_id] = (hits + 1 if now - last < 0.5 else 1, now)
+        self.hits = {k: v for k, v in {**self.hits, **seen}.items() if now - v[1] <= MAX_AGE_S}
+        return [m for m in markers if self.hits[m.marker_id][0] >= MIN_HITS]

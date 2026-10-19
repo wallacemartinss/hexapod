@@ -68,7 +68,7 @@ void main() {
         ..trackId = 4,
     );
     await tester.pump();
-    expect(find.text('Alvo travado: marcador 3'), findsOneWidget);
+    expect(find.text('Alvo travado: Marcador 3'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('follow-cancel')));
     expect(requests, [4, 0]);
   });
@@ -82,6 +82,31 @@ void main() {
     // scale 1080/960 = 1.125; marker 0.5..0.6 of 960 px -> 540..648 on screen, +8 margin each side.
     expect(box.left, closeTo(540 - 8, 0.5));
     expect(box.right, closeTo(648 + 8, 0.5));
+  });
+
+  testWidgets('people are labelled as such, with their distance', (tester) async {
+    await pumpOverlay(tester);
+    targets.add(
+      _frame([
+        _marker(0)
+          ..trackId = 1000
+          ..kind = pb.TargetKind.TARGET_KIND_PERSON
+          ..distanceM = 2.4,
+      ]),
+    );
+    await tester.pump();
+    expect(find.text('Pessoa · 2,4 m'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('target-1000')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('follow-start')));
+    follow.add(
+      pb.FollowStatus()
+        ..state = pb.FollowState.FOLLOW_STATE_LOCKED
+        ..trackId = 1000,
+    );
+    await tester.pump();
+    expect(find.text('Alvo travado: Pessoa'), findsOneWidget);
+    expect(requests, [1000]);
   });
 
   testWidgets('lost target says so and still offers Cancel', (tester) async {

@@ -1317,17 +1317,70 @@
   "pilotCameraFailed": "The camera did not answer",
   "pilotNoSpace": "The robot's SD card is almost full",
   "followTarget": "Marker {id}",
-  "@followTarget": {"description": "Label on a follow-me target box", "placeholders": {"id": {"type": "int"}}},
+  "@followTarget": {
+    "description": "Label on a follow-me target box",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
   "followTargetDistance": "Marker {id} · {meters} m",
-  "@followTargetDistance": {"description": "Target box label with its distance", "placeholders": {"id": {"type": "int"}, "meters": {"type": "double", "format": "decimalPatternDigits", "optionalParameters": {"decimalDigits": 1}}}},
+  "@followTargetDistance": {
+    "description": "Target box label with its distance",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      },
+      "meters": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 1
+        }
+      }
+    }
+  },
   "followStart": "Follow",
-  "@followStart": {"description": "Button under a tapped target: lock onto it"},
+  "@followStart": {
+    "description": "Button under a tapped target: lock onto it"
+  },
   "followCancel": "Cancel",
-  "@followCancel": {"description": "Stops following the target"},
-  "followLocked": "Target locked: marker {id}",
-  "@followLocked": {"description": "Banner while a target is locked", "placeholders": {"id": {"type": "int"}}},
+  "@followCancel": {
+    "description": "Stops following the target"
+  },
+  "followLocked": "Target locked: {label}",
+  "@followLocked": {
+    "description": "Banner while a target is locked; label is the target's name (marker or person)",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "followLost": "Target out of view, waiting for it…",
-  "@followLost": {"description": "Banner when the locked target left the camera image"},
+  "@followLost": {
+    "description": "Banner when the locked target left the camera image"
+  },
   "followHint": "Tap a target to follow it",
-  "@followHint": {"description": "Shown when the camera sees targets and none is picked"}
+  "@followHint": {
+    "description": "Shown when the camera sees targets and none is picked"
+  },
+  "followPerson": "Person",
+  "@followPerson": {
+    "description": "Label on a person the camera sees"
+  },
+  "followPersonDistance": "Person · {meters} m",
+  "@followPersonDistance": {
+    "description": "Person box label with the distance",
+    "placeholders": {
+      "meters": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 1
+        }
+      }
+    }
+  }
 }

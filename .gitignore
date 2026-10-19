@@ -62,3 +62,4 @@ auto.key
 # --- Python (hexvision) ---
 pi/hexvision/gen/
 pi/hexvision/.venv/
+pi/hexvision/models/
