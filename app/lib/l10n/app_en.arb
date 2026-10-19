@@ -662,5 +662,544 @@
         "example": "500"
       }
     }
+  },
+  "dataTitle": "Robot data",
+  "@dataTitle": {
+    "description": "Title of the robot data screen"
+  },
+  "dataStop": "STOP",
+  "@dataStop": {
+    "description": "Emergency stop button in the data screen"
+  },
+  "dataTabSummary": "Summary",
+  "@dataTabSummary": {
+    "description": "Data screen tab"
+  },
+  "dataTabOrientation": "Orientation",
+  "@dataTabOrientation": {
+    "description": "Data screen tab"
+  },
+  "dataTabDistance": "Distance",
+  "@dataTabDistance": {
+    "description": "Data screen tab"
+  },
+  "dataTabPosition": "Position",
+  "@dataTabPosition": {
+    "description": "Data screen tab (GPS)"
+  },
+  "dataTabEnvironment": "Environment",
+  "@dataTabEnvironment": {
+    "description": "Data screen tab (temperature, humidity, gas)"
+  },
+  "dataTabLegs": "Legs",
+  "@dataTabLegs": {
+    "description": "Data screen tab"
+  },
+  "dataTabSystem": "System",
+  "@dataTabSystem": {
+    "description": "Data screen tab"
+  },
+  "dataTabPi": "Raspberry Pi",
+  "@dataTabPi": {
+    "description": "Data screen tab"
+  },
+  "dataWaiting": "Waiting for robot data…",
+  "dataNoConnection": "No connection to the robot",
+  "dataState": "State",
+  "@dataState": {
+    "description": "Card title: the robot state"
+  },
+  "dataMode": "Mode",
+  "dataGait": "Gait",
+  "@dataGait": {
+    "description": "How the legs take turns when walking (tripod, wave, ripple)"
+  },
+  "dataUptime": "On for",
+  "@dataUptime": {
+    "description": "Row label; the value is a duration like 3 min 12 s"
+  },
+  "dataBattery": "Battery",
+  "@dataBattery": {
+    "description": "Card title"
+  },
+  "dataVoltage": "Voltage",
+  "dataPerCell": "Per cell",
+  "@dataPerCell": {
+    "description": "Battery voltage of each of the 3 LiPo cells"
+  },
+  "dataCurrent": "Current",
+  "@dataCurrent": {
+    "description": "Electric current, in amperes"
+  },
+  "dataCurrentNote": "The current is only right with the correct shunt on the INA226.",
+  "dataLink": "Link to the robot",
+  "@dataLink": {
+    "description": "Card title: messages coming from the robot"
+  },
+  "dataTelemetryExpected": "Expected data rate: 10 Hz",
+  "dataReceived": "Received",
+  "@dataReceived": {
+    "description": "Telemetry messages received"
+  },
+  "dataLost": "Lost",
+  "@dataLost": {
+    "description": "Telemetry messages lost"
+  },
+  "dataLastCommand": "Last accepted command",
+  "dataWarnings": "Warnings",
+  "@dataWarnings": {
+    "description": "Card title"
+  },
+  "dataNone": "None",
+  "@dataNone": {
+    "description": "No warnings"
+  },
+  "dataGasDetected": "GAS OR SMOKE DETECTED",
+  "dataHorizon": "Horizon",
+  "@dataHorizon": {
+    "description": "Card title: artificial horizon"
+  },
+  "dataAngles": "Angles",
+  "@dataAngles": {
+    "description": "Card title"
+  },
+  "dataRoll": "Roll (right +)",
+  "@dataRoll": {
+    "description": "Tilt to the side; positive when leaning right"
+  },
+  "dataPitch": "Pitch (nose down +)",
+  "@dataPitch": {
+    "description": "Tilt forward/back; positive with the front down"
+  },
+  "dataYaw": "Yaw",
+  "@dataYaw": {
+    "description": "Rotation around the vertical axis"
+  },
+  "dataQuaternion": "Quaternion",
+  "dataTippedNote": "Above 35° the robot relaxes its legs (TIPPED OVER).",
+  "dataLast30s": "Last 30 s",
+  "@dataLast30s": {
+    "description": "Card title of a chart"
+  },
+  "dataRollLegend": "roll",
+  "@dataRollLegend": {
+    "description": "Chart legend (lowercase)"
+  },
+  "dataPitchLegend": "pitch",
+  "@dataPitchLegend": {
+    "description": "Chart legend (lowercase)"
+  },
+  "dataFront": "Front",
+  "@dataFront": {
+    "description": "Distance sensor direction"
+  },
+  "dataRight": "Right",
+  "@dataRight": {
+    "description": "Distance sensor direction"
+  },
+  "dataBack": "Back",
+  "@dataBack": {
+    "description": "Distance sensor direction"
+  },
+  "dataLeft": "Left",
+  "@dataLeft": {
+    "description": "Distance sensor direction"
+  },
+  "dataOutOfRange": "out of range",
+  "@dataOutOfRange": {
+    "description": "Shown next to a dash when the distance sensor sees nothing"
+  },
+  "dataBlocked": "BLOCKED: the robot won't walk this way",
+  "dataGps": "GPS",
+  "@dataGps": {
+    "description": "Card title"
+  },
+  "dataGpsNoAnswer": "GPS (NEO-6M) not answering",
+  "dataGpsNoAnswerHint": "Not installed, or the GPS TX wire doesn't reach pin 10 of the Pi.",
+  "dataSatellites": "Satellites and accuracy",
+  "@dataSatellites": {
+    "description": "Card title"
+  },
+  "dataSatellitesInUse": "in use · {inView} visible",
+  "@dataSatellitesInUse": {
+    "description": "Shown after the big number of satellites in use",
+    "placeholders": {
+      "inView": {
+        "type": "int"
+      }
+    }
+  },
+  "dataHdop": "Accuracy (HDOP)",
+  "dataAltitude": "Altitude",
+  "dataGpsTime": "GPS time",
+  "dataHdopGreat": "great",
+  "@dataHdopGreat": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataHdopGood": "good",
+  "@dataHdopGood": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataHdopFair": "fair",
+  "@dataHdopFair": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataHdopWeak": "weak",
+  "@dataHdopWeak": {
+    "description": "GPS accuracy in words (lowercase)"
+  },
+  "dataPosition": "Position",
+  "@dataPosition": {
+    "description": "Card title (GPS position)"
+  },
+  "dataSearchingSatellites": "Searching for satellites…",
+  "dataSearchingHint": "It needs open sky: near a window or outdoors. The first position can take a few minutes; the GPS LED blinks when it finds one.",
+  "dataCoordsCopied": "Coordinates copied",
+  "dataCopyCoords": "Copy coordinates",
+  "dataMovement": "Movement",
+  "@dataMovement": {
+    "description": "Card title (GPS speed and heading)"
+  },
+  "dataStill": "Still",
+  "@dataStill": {
+    "description": "Big text when the GPS speed is just noise"
+  },
+  "dataSpeedNoiseNote": "Below ~3 km/h the GPS speed is just noise (standing still, it reads 1 to 4 km/h). The robot walks slower than that.",
+  "dataCourse": "Heading",
+  "@dataCourse": {
+    "description": "Direction the GPS is moving"
+  },
+  "dataCompassEast": "E",
+  "@dataCompassEast": {
+    "description": "One-letter compass point East (also used in NE, SE)"
+  },
+  "dataCompassWest": "W",
+  "@dataCompassWest": {
+    "description": "One-letter compass point West (also used in SW, NW)"
+  },
+  "dataEspChip": "ESP32 chip",
+  "@dataEspChip": {
+    "description": "Card title: the ESP32's own temperature"
+  },
+  "dataEspChipNote": "Built-in sensor: reads a few degrees above the room.",
+  "dataTemperature": "Temperature",
+  "dataHumidity": "Humidity",
+  "dataPressure": "Pressure",
+  "dataGasUnit": "% of the sensor",
+  "@dataGasUnit": {
+    "description": "Unit after the gas level number"
+  },
+  "dataGasWarming": "Warming up the sensor: reliable readings in a few minutes",
+  "dataGasNormal": "Normal air",
+  "dataGasNote": "Level relative to clean air, not in ppm.",
+  "dataLegLeftFront": "Left front",
+  "@dataLegLeftFront": {
+    "description": "Leg name"
+  },
+  "dataLegLeftMiddle": "Left middle",
+  "@dataLegLeftMiddle": {
+    "description": "Leg name"
+  },
+  "dataLegLeftRear": "Left rear",
+  "@dataLegLeftRear": {
+    "description": "Leg name"
+  },
+  "dataLegRightFront": "Right front",
+  "@dataLegRightFront": {
+    "description": "Leg name"
+  },
+  "dataLegRightMiddle": "Right middle",
+  "@dataLegRightMiddle": {
+    "description": "Leg name"
+  },
+  "dataLegRightRear": "Right rear",
+  "@dataLegRightRear": {
+    "description": "Leg name"
+  },
+  "dataCommandedAngles": "Commanded angles",
+  "@dataCommandedAngles": {
+    "description": "Card title: joint angles the ESP32 computed"
+  },
+  "dataLeg": "Leg",
+  "@dataLeg": {
+    "description": "Table header"
+  },
+  "dataCoxa": "Coxa",
+  "@dataCoxa": {
+    "description": "Table header: hip joint of a leg"
+  },
+  "dataFemur": "Femur",
+  "@dataFemur": {
+    "description": "Table header: middle joint of a leg"
+  },
+  "dataTibia": "Tibia",
+  "@dataTibia": {
+    "description": "Table header: outer joint of a leg"
+  },
+  "dataLegsNote": "What the ESP32 works out every cycle, even with the servos off (walking \"on paper\").",
+  "dataSoftware": "Software",
+  "@dataSoftware": {
+    "description": "Card title"
+  },
+  "dataFirmware": "Firmware (ESP32)",
+  "dataBridge": "Bridge (Pi)",
+  "@dataBridge": {
+    "description": "The hexd service on the Raspberry Pi"
+  },
+  "dataProtocol": "Protocol",
+  "dataEspUptime": "ESP32 on for",
+  "@dataEspUptime": {
+    "description": "Row label; the value is a duration"
+  },
+  "dataLoop": "Control loop (50 Hz)",
+  "@dataLoop": {
+    "description": "Card title"
+  },
+  "dataLoopLimit": "Limit: 20 ms per cycle",
+  "dataChecks": "Checks",
+  "@dataChecks": {
+    "description": "Card title: health checks"
+  },
+  "dataPiWaiting": "Waiting for the Raspberry Pi data… It arrives every 2 seconds (bridge from the version with this screen on).",
+  "dataPower": "Power",
+  "@dataPower": {
+    "description": "Card title: the Pi's power supply"
+  },
+  "dataPowerLowNow": "Weak power right now",
+  "dataPowerLowNowNote": "The Pi is getting less than ~4.63 V: it slows down, and the Wi-Fi and the screen may drop.",
+  "dataPowerDipped": "The power dropped",
+  "dataPowerDippedNote": "Since the bridge started, the voltage dropped at least once. Check the power supply and the cable.",
+  "dataPowerGood": "Power is good",
+  "dataPowerGoodNote": "No voltage drop since the bridge started.",
+  "dataPowerSupplyNote": "On the bench, use the official Raspberry Pi power supply (5.1 V / 2.5 A). A phone charger won't do.",
+  "dataCpu": "Processor",
+  "@dataCpu": {
+    "description": "Card title"
+  },
+  "dataCpuLegend": "usage",
+  "@dataCpuLegend": {
+    "description": "Chart legend (lowercase)"
+  },
+  "dataLoad": "Load (1 min, 4 cores)",
+  "@dataLoad": {
+    "description": "CPU load average"
+  },
+  "dataSpeed": "Speed",
+  "@dataSpeed": {
+    "description": "CPU clock speed"
+  },
+  "dataAmountOf": "{used} of {total} {unit}",
+  "@dataAmountOf": {
+    "description": "Usage like \"255 of 905 MB\"; unit is MHz, MB or GB",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "dataThrottledNote": "Below the maximum: normal when idle; with the Pi busy, it's heat or power.",
+  "dataChipLegend": "chip",
+  "@dataChipLegend": {
+    "description": "Chart legend (lowercase): the Pi's chip temperature"
+  },
+  "dataPiHotNote": "Above 80 °C the Pi slows down to cool off.",
+  "dataMemory": "Memory",
+  "@dataMemory": {
+    "description": "Card title (RAM)"
+  },
+  "dataSdCard": "SD card",
+  "@dataSdCard": {
+    "description": "Card title"
+  },
+  "dataCardProtection": "Card protection",
+  "@dataCardProtection": {
+    "description": "Read-only root file system that protects the SD card"
+  },
+  "dataOn": "on",
+  "@dataOn": {
+    "description": "Card protection is on (lowercase)"
+  },
+  "dataOff": "off",
+  "@dataOff": {
+    "description": "Card protection is off (lowercase)"
+  },
+  "dataNetwork": "Network and uptime",
+  "@dataNetwork": {
+    "description": "Card title"
+  },
+  "dataWifiSignal": "Wi-Fi signal",
+  "dataPiUptime": "Pi on for",
+  "@dataPiUptime": {
+    "description": "Row label; the value is a duration"
+  },
+  "dataNotInstalled": "{chip} not installed",
+  "@dataNotInstalled": {
+    "description": "chip is a part number like BNO085",
+    "placeholders": {
+      "chip": {
+        "type": "String"
+      }
+    }
+  },
+  "dataNotInstalledHint": "Or it isn't answering. The data shows up here on its own once it's turned on.",
+  "dataChartRange": "{min} to {max}{unit} · {span}",
+  "@dataChartRange": {
+    "description": "Chart scale, like \"-40 to 40° · 30 s\"",
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      },
+      "span": {
+        "type": "String"
+      }
+    }
+  },
+  "dataModeSit": "Sitting",
+  "@dataModeSit": {
+    "description": "Robot mode"
+  },
+  "dataModeStand": "Standing (pose)",
+  "@dataModeStand": {
+    "description": "Robot mode"
+  },
+  "dataModeWalk": "Walking",
+  "@dataModeWalk": {
+    "description": "Robot mode"
+  },
+  "dataModeCalibrate": "Calibration",
+  "@dataModeCalibrate": {
+    "description": "Robot mode"
+  },
+  "dataModeFrontLegs": "Front legs",
+  "@dataModeFrontLegs": {
+    "description": "Robot mode: the front legs are raised and steered"
+  },
+  "dataGaitTripod": "Tripod",
+  "@dataGaitTripod": {
+    "description": "Gait name"
+  },
+  "dataGaitWave": "Wave",
+  "@dataGaitWave": {
+    "description": "Gait name"
+  },
+  "dataGaitRipple": "Ripple",
+  "@dataGaitRipple": {
+    "description": "Gait name"
+  },
+  "dataSignalNone": "no Wi-Fi",
+  "dataSignalGreat": "great",
+  "@dataSignalGreat": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataSignalGood": "good",
+  "@dataSignalGood": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataSignalWeak": "weak",
+  "@dataSignalWeak": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataSignalVeryWeak": "very weak",
+  "@dataSignalVeryWeak": {
+    "description": "Wi-Fi signal in words (lowercase)"
+  },
+  "dataFaultLeftServos": "Left servos (PCA9685 0x40) not answering",
+  "dataFaultRightServos": "Right servos (PCA9685 0x41) not answering",
+  "dataFaultImu": "IMU (BNO085) missing",
+  "dataFaultDistance": "Distance sensors (VL53L0X) missing",
+  "dataFaultEnvironment": "Environment sensor (BME280) missing",
+  "dataFaultPower": "Battery meter (INA226) missing",
+  "dataFaultOvercurrent": "High current for over 3 s",
+  "dataFaultBatteryCritical": "Battery critical: shutdown requested",
+  "dataFaultLoopOverrun": "Control loop running late (50 Hz)",
+  "dataFaultCalibration": "Servo calibration not loaded",
+  "dataFaultGas": "Gas sensor (MQ-2) missing",
+  "partServosLeft": "Left servos",
+  "@partServosLeft": {
+    "description": "Robot part (card title)"
+  },
+  "partServosRight": "Right servos",
+  "@partServosRight": {
+    "description": "Robot part (card title)"
+  },
+  "partImu": "Orientation",
+  "@partImu": {
+    "description": "Robot part: the orientation sensor (card title)"
+  },
+  "partDistance": "Distance",
+  "@partDistance": {
+    "description": "Robot part (card title)"
+  },
+  "partEnvironment": "Environment",
+  "@partEnvironment": {
+    "description": "Robot part (card title)"
+  },
+  "partPower": "Battery",
+  "@partPower": {
+    "description": "Robot part: the battery meter (card title)"
+  },
+  "partGas": "Gas and smoke",
+  "@partGas": {
+    "description": "Robot part (card title)"
+  },
+  "checkLeftServos": "Left servos (PCA9685 0x40)",
+  "@checkLeftServos": {
+    "description": "Health check; a green tick means it passes"
+  },
+  "checkRightServos": "Right servos (PCA9685 0x41)",
+  "@checkRightServos": {
+    "description": "Health check"
+  },
+  "checkImu": "IMU (BNO085)",
+  "@checkImu": {
+    "description": "Health check"
+  },
+  "checkDistance": "Distance (4x VL53L0X)",
+  "@checkDistance": {
+    "description": "Health check"
+  },
+  "checkEnvironment": "Environment (BME280)",
+  "@checkEnvironment": {
+    "description": "Health check"
+  },
+  "checkPower": "Battery (INA226)",
+  "@checkPower": {
+    "description": "Health check"
+  },
+  "checkCurrent": "Current within the limit",
+  "@checkCurrent": {
+    "description": "Health check"
+  },
+  "checkBatteryLow": "Battery above 3.5 V per cell",
+  "@checkBatteryLow": {
+    "description": "Health check"
+  },
+  "checkBatteryCritical": "Battery above 3.3 V per cell",
+  "@checkBatteryCritical": {
+    "description": "Health check"
+  },
+  "checkLoop": "50 Hz loop on time",
+  "@checkLoop": {
+    "description": "Health check"
+  },
+  "checkCalibration": "Servo calibration loaded",
+  "@checkCalibration": {
+    "description": "Health check"
+  },
+  "checkGas": "Gas and smoke (MQ-2)",
+  "@checkGas": {
+    "description": "Health check"
   }
 }

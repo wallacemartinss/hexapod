@@ -77,15 +77,16 @@ class _DataScreenState extends ConsumerState<DataScreen> {
     final t = _log.last;
     final now = _elapsed;
 
-    const tabs = [
-      (Icons.dashboard_rounded, 'Resumo'),
-      (Icons.explore_rounded, 'Orientação'),
-      (Icons.radar_rounded, 'Distância'),
-      (Icons.place_rounded, 'Posição'),
-      (Icons.thermostat_rounded, 'Ambiente'),
-      (Icons.pest_control_rounded, 'Pernas'),
-      (Icons.memory_rounded, 'Sistema'),
-      (Icons.developer_board_rounded, 'Raspberry Pi'),
+    final l = context.l10n;
+    final tabs = [
+      (Icons.dashboard_rounded, l.dataTabSummary),
+      (Icons.explore_rounded, l.dataTabOrientation),
+      (Icons.radar_rounded, l.dataTabDistance),
+      (Icons.place_rounded, l.dataTabPosition),
+      (Icons.thermostat_rounded, l.dataTabEnvironment),
+      (Icons.pest_control_rounded, l.dataTabLegs),
+      (Icons.memory_rounded, l.dataTabSystem),
+      (Icons.developer_board_rounded, l.dataTabPi),
     ];
 
     return DefaultTabController(
@@ -95,7 +96,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
         appBar: AppBar(
           backgroundColor: _bg,
           foregroundColor: Colors.white,
-          title: const Text('Dados do robô'),
+          title: Text(l.dataTitle),
           actions: [
             if (t != null) _StateChip(t.state),
             const SizedBox(width: 12),
@@ -105,7 +106,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
                 foregroundColor: Colors.white,
               ),
               onPressed: ref.read(controlProvider.notifier).stop,
-              child: const Text('PARAR', style: TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(l.dataStop, style: const TextStyle(fontWeight: FontWeight.w800)),
             ),
             const SizedBox(width: 16),
           ],
@@ -126,7 +127,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
           child: t == null
               ? Center(
                   child: Text(
-                    link == LinkStatus.connected ? 'Aguardando dados do robô…' : 'Sem conexão com o robô',
+                    link == LinkStatus.connected ? l.dataWaiting : l.dataNoConnection,
                     style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 )
@@ -159,16 +160,17 @@ class _SummaryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = describeState(context.l10n, t.state);
+    final l = context.l10n;
+    final state = describeState(l, t.state);
     final faults = [
-      if (t.gasAlarm && Part.gas.presentIn(t)) 'GÁS OU FUMAÇA DETECTADO',
-      for (final (bit, text) in faultTexts)
+      if (t.gasAlarm && Part.gas.presentIn(t)) l.dataGasDetected,
+      for (final (bit, text) in faultTexts(l))
         if (t.faultFlags & bit != 0) text,
     ];
     return _Grid([
       _Card(
         icon: Icons.smart_toy_rounded,
-        title: 'Estado',
+        title: l.dataState,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -181,24 +183,24 @@ class _SummaryTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _Row('Modo', _modeName(t.mode)),
-            _Row('Marcha', _gaitName(t.gait)),
-            _Row('Ligado há', formatUptime(t.uptimeMs)),
+            _Row(l.dataMode, _modeName(l, t.mode)),
+            _Row(l.dataGait, _gaitName(l, t.gait)),
+            _Row(l.dataUptime, formatUptime(t.uptimeMs)),
           ],
         ),
       ),
       if (Part.power.presentIn(t))
         _Card(
           icon: Icons.battery_full_rounded,
-          title: 'Bateria',
+          title: l.dataBattery,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _Big('${batteryPercent(t.batteryVoltageV)}', '%'),
-              _Row('Tensão', '${t.batteryVoltageV.toStringAsFixed(2)} V'),
-              _Row('Por célula', '${(t.batteryVoltageV / 3).toStringAsFixed(2)} V'),
-              _Row('Corrente', '${t.batteryCurrentA.toStringAsFixed(2)} A'),
-              const _Note('A corrente só vale com o shunt certo no INA226.'),
+              _Row(l.dataVoltage, '${t.batteryVoltageV.toStringAsFixed(2)} V'),
+              _Row(l.dataPerCell, '${(t.batteryVoltageV / 3).toStringAsFixed(2)} V'),
+              _Row(l.dataCurrent, '${t.batteryCurrentA.toStringAsFixed(2)} A'),
+              _Note(l.dataCurrentNote),
             ],
           ),
         )
@@ -206,23 +208,23 @@ class _SummaryTab extends StatelessWidget {
         const _Absent(Part.power),
       _Card(
         icon: Icons.wifi_rounded,
-        title: 'Link com o robô',
+        title: l.dataLink,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Big(log.rateHz(now).toStringAsFixed(0), 'Hz'),
-            const _Note('Telemetria esperada: 10 Hz'),
-            _Row('Recebidas', '${log.received}'),
-            _Row('Perdidas', '${log.lost}'),
-            _Row('Último comando aceito', '#${t.lastCommandSeq}'),
+            _Note(l.dataTelemetryExpected),
+            _Row(l.dataReceived, '${log.received}'),
+            _Row(l.dataLost, '${log.lost}'),
+            _Row(l.dataLastCommand, '#${t.lastCommandSeq}'),
           ],
         ),
       ),
       _Card(
         icon: Icons.warning_amber_rounded,
-        title: 'Avisos',
+        title: l.dataWarnings,
         child: faults.isEmpty
-            ? const Text('Nenhum', style: TextStyle(color: Colors.white70))
+            ? Text(l.dataNone, style: const TextStyle(color: Colors.white70))
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -248,11 +250,12 @@ class _OrientationTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!Part.imu.presentIn(t)) return const _Grid([_Absent(Part.imu, wide: true)]);
+    final l = context.l10n;
     final q = t.orientation;
     return _Grid([
       _Card(
         icon: Icons.flight_rounded,
-        title: 'Horizonte',
+        title: l.dataHorizon,
         child: SizedBox(
           height: 170,
           child: CustomPaint(painter: _HorizonPainter(t.rollDeg, t.pitchDeg), size: Size.infinite),
@@ -260,30 +263,30 @@ class _OrientationTab extends StatelessWidget {
       ),
       _Card(
         icon: Icons.threed_rotation_rounded,
-        title: 'Ângulos',
+        title: l.dataAngles,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Row('Rolagem (direita +)', '${t.rollDeg.toStringAsFixed(1)}°'),
-            _Row('Arfagem (nariz para baixo +)', '${t.pitchDeg.toStringAsFixed(1)}°'),
-            _Row('Guinada', '${t.yawDeg.toStringAsFixed(1)}°'),
+            _Row(l.dataRoll, '${t.rollDeg.toStringAsFixed(1)}°'),
+            _Row(l.dataPitch, '${t.pitchDeg.toStringAsFixed(1)}°'),
+            _Row(l.dataYaw, '${t.yawDeg.toStringAsFixed(1)}°'),
             const SizedBox(height: 6),
             _Row(
-              'Quaternion',
+              l.dataQuaternion,
               '${q.w.toStringAsFixed(3)}, ${q.x.toStringAsFixed(3)}, '
-                  '${q.y.toStringAsFixed(3)}, ${q.z.toStringAsFixed(3)}',
+              '${q.y.toStringAsFixed(3)}, ${q.z.toStringAsFixed(3)}',
             ),
-            const _Note('Acima de 35° o robô relaxa as pernas (TOMBADO).'),
+            _Note(l.dataTippedNote),
           ],
         ),
       ),
       _Card(
         icon: Icons.show_chart_rounded,
-        title: 'Últimos 30 s',
+        title: l.dataLast30s,
         child: _Chart(
           lines: [
-            (log.series(now, (t) => t.rollDeg), _accent, 'rolagem'),
-            (log.series(now, (t) => t.pitchDeg), const Color(0xFFC77DFF), 'arfagem'),
+            (log.series(now, (t) => t.rollDeg), _accent, l.dataRollLegend),
+            (log.series(now, (t) => t.pitchDeg), const Color(0xFFC77DFF), l.dataPitchLegend),
           ],
           min: -40,
           max: 40,
@@ -302,7 +305,8 @@ class _DistanceTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!Part.distance.presentIn(t)) return const _Grid([_Absent(Part.distance, wide: true)]);
-    const names = ['Frente', 'Direita', 'Trás', 'Esquerda'];
+    final l = context.l10n;
+    final names = [l.dataFront, l.dataRight, l.dataBack, l.dataLeft];
     return _Grid([
       for (var i = 0; i < names.length; i++)
         _DistanceCard(
@@ -323,24 +327,22 @@ class _PositionTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = this.p;
+    final l = context.l10n;
     if (p == null) {
-      return const _Grid([
+      return _Grid([
         _Card(
           icon: Icons.location_off_rounded,
-          title: 'GPS',
+          title: l.dataGps,
           wide: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'GPS (NEO-6M) sem resposta',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                l.dataGpsNoAnswer,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
               ),
-              SizedBox(height: 4),
-              Text(
-                'Não instalado, ou o fio TX do GPS não chega ao pino 10 do Pi.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
+              const SizedBox(height: 4),
+              Text(l.dataGpsNoAnswerHint, style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ],
           ),
         ),
@@ -348,35 +350,31 @@ class _PositionTab extends StatelessWidget {
     }
     final satellites = _Card(
       icon: Icons.satellite_alt_rounded,
-      title: 'Satélites e precisão',
+      title: l.dataSatellites,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Big('${p.satellitesUsed}', 'em uso · ${p.satellitesInView} visíveis'),
-          if (p.fix) _Row('Precisão (HDOP)', '${p.hdop.toStringAsFixed(1)} · ${_hdopText(p.hdop)}'),
-          if (p.fix) _Row('Altitude', '${p.altitudeM.toStringAsFixed(0)} m'),
-          if (p.utcMs > 0) _Row('Hora do GPS', _clockText(p.utcMs.toInt())),
+          _Big('${p.satellitesUsed}', l.dataSatellitesInUse(p.satellitesInView)),
+          if (p.fix) _Row(l.dataHdop, '${p.hdop.toStringAsFixed(1)} · ${_hdopText(l, p.hdop)}'),
+          if (p.fix) _Row(l.dataAltitude, '${p.altitudeM.toStringAsFixed(0)} m'),
+          if (p.utcMs > 0) _Row(l.dataGpsTime, _clockText(p.utcMs.toInt())),
         ],
       ),
     );
     if (!p.fix) {
       return _Grid([
-        const _Card(
+        _Card(
           icon: Icons.gps_not_fixed_rounded,
-          title: 'Posição',
+          title: l.dataPosition,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Procurando satélites…',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                l.dataSearchingSatellites,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
               ),
-              SizedBox(height: 6),
-              Text(
-                'Precisa de céu aberto: perto de uma janela ou ao ar livre. A primeira posição pode levar '
-                'alguns minutos; o LED do GPS pisca quando encontra.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
+              const SizedBox(height: 6),
+              Text(l.dataSearchingHint, style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ],
           ),
         ),
@@ -387,7 +385,7 @@ class _PositionTab extends StatelessWidget {
     return _Grid([
       _Card(
         icon: Icons.gps_fixed_rounded,
-        title: 'Posição',
+        title: l.dataPosition,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -396,7 +394,7 @@ class _PositionTab extends StatelessWidget {
               style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
             ),
             Text(
-              _dms(p.longitudeDeg, 'L', 'O'),
+              _dms(p.longitudeDeg, l.dataCompassEast, l.dataCompassWest),
               style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
@@ -406,11 +404,11 @@ class _PositionTab extends StatelessWidget {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: coords));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coordenadas copiadas'), duration: Duration(seconds: 1)),
+                  SnackBar(content: Text(l.dataCoordsCopied), duration: const Duration(seconds: 1)),
                 );
               },
               icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text('Copiar coordenadas'),
+              label: Text(l.dataCopyCoords),
             ),
           ],
         ),
@@ -418,19 +416,16 @@ class _PositionTab extends StatelessWidget {
       satellites,
       _Card(
         icon: Icons.explore_rounded,
-        title: 'Movimento',
+        title: l.dataMovement,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (p.speedMps * 3.6 < _gpsNoiseKmh) ...[
-              const _Big('Parado', ''),
-              const _Note(
-                'Abaixo de ~3 km/h a velocidade do GPS é só ruído (parado, ele marca 1 a 4 km/h). '
-                'O robô anda mais devagar que isso.',
-              ),
+              _Big(l.dataStill, ''),
+              _Note(l.dataSpeedNoiseNote),
             ] else ...[
               _Big((p.speedMps * 3.6).toStringAsFixed(1), 'km/h'),
-              _Row('Rumo', '${p.courseDeg.toStringAsFixed(0)}° ${_compass(p.courseDeg)}'),
+              _Row(l.dataCourse, '${p.courseDeg.toStringAsFixed(0)}° ${_compass(l, p.courseDeg)}'),
             ],
           ],
         ),
@@ -453,20 +448,23 @@ String _dms(double deg, String positive, String negative) {
       '${deg >= 0 ? positive : negative}';
 }
 
-String _compass(double deg) {
-  const names = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'];
+/// One of the 8 compass points; East and West letters depend on the language.
+String _compass(AppLocalizations l, double deg) {
+  final e = l.dataCompassEast;
+  final w = l.dataCompassWest;
+  final names = ['N', 'N$e', e, 'S$e', 'S', 'S$w', w, 'N$w'];
   return names[((deg % 360) / 45).round() % 8];
 }
 
-String _hdopText(double hdop) => hdop <= 0
+String _hdopText(AppLocalizations l, double hdop) => hdop <= 0
     ? '—'
     : hdop < 1
-    ? 'ótima'
+    ? l.dataHdopGreat
     : hdop < 2
-    ? 'boa'
+    ? l.dataHdopGood
     : hdop < 5
-    ? 'razoável'
-    : 'fraca';
+    ? l.dataHdopFair
+    : l.dataHdopWeak;
 
 String _clockText(int utcMs) {
   final t = DateTime.fromMillisecondsSinceEpoch(utcMs).toLocal();
@@ -481,15 +479,13 @@ class _EnvironmentTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final esp = _Card(
       icon: Icons.memory_rounded,
-      title: 'Chip do ESP32',
+      title: l.dataEspChip,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Big(t.esp32TemperatureC.toStringAsFixed(1), '°C'),
-          const _Note('Sensor interno: lê alguns graus acima do ambiente.'),
-        ],
+        children: [_Big(t.esp32TemperatureC.toStringAsFixed(1), '°C'), _Note(l.dataEspChipNote)],
       ),
     );
     // A firmware older than the MQ-2 never sets its fault bit: all-zero
@@ -502,17 +498,17 @@ class _EnvironmentTab extends StatelessWidget {
     return _Grid([
       _Card(
         icon: Icons.thermostat_rounded,
-        title: 'Temperatura',
+        title: l.dataTemperature,
         child: _Big(t.temperatureC.toStringAsFixed(1), '°C'),
       ),
       _Card(
         icon: Icons.water_drop_rounded,
-        title: 'Umidade',
+        title: l.dataHumidity,
         child: _Big(t.humidityPct.toStringAsFixed(0), '%'),
       ),
       _Card(
         icon: Icons.speed_rounded,
-        title: 'Pressão',
+        title: l.dataPressure,
         child: _Big(t.pressureHpa.toStringAsFixed(0), 'hPa'),
       ),
       gas,
@@ -528,13 +524,14 @@ class _LegsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const legs = [
-      'Esquerda dianteira',
-      'Esquerda do meio',
-      'Esquerda traseira',
-      'Direita dianteira',
-      'Direita do meio',
-      'Direita traseira',
+    final l10n = context.l10n;
+    final legs = [
+      l10n.dataLegLeftFront,
+      l10n.dataLegLeftMiddle,
+      l10n.dataLegLeftRear,
+      l10n.dataLegRightFront,
+      l10n.dataLegRightMiddle,
+      l10n.dataLegRightRear,
     ];
     final a = t.jointAnglesDeg;
     String angle(int leg, int joint) {
@@ -562,7 +559,7 @@ class _LegsTab extends StatelessWidget {
     return _Grid([
       _Card(
         icon: Icons.pest_control_rounded,
-        title: 'Ângulos comandados',
+        title: l10n.dataCommandedAngles,
         wide: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,14 +567,12 @@ class _LegsTab extends StatelessWidget {
             Table(
               columnWidths: const {0: FlexColumnWidth(2)},
               children: [
-                row(['Perna', 'Coxa', 'Fêmur', 'Tíbia'], header: true),
+                row([l10n.dataLeg, l10n.dataCoxa, l10n.dataFemur, l10n.dataTibia], header: true),
                 for (var l = 0; l < legs.length; l++)
                   row(['$l · ${legs[l]}', angle(l, 0), angle(l, 1), angle(l, 2)]),
               ],
             ),
-            const _Note(
-              'O que o ESP32 calcula a cada ciclo, mesmo com os servos desligados (marcha "no papel").',
-            ),
+            _Note(l10n.dataLegsNote),
           ],
         ),
       ),
@@ -596,28 +591,29 @@ class _SystemTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = hello;
+    final l = context.l10n;
     return _Grid([
       _Card(
         icon: Icons.info_outline_rounded,
-        title: 'Software',
+        title: l.dataSoftware,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Row('Firmware (ESP32)', h == null || h.firmwareVersion.isEmpty ? '—' : h.firmwareVersion),
-            _Row('Ponte (Pi)', h == null || h.hexdVersion.isEmpty ? '—' : h.hexdVersion),
-            _Row('Protocolo', h == null ? '—' : '${h.protocolVersion}'),
-            _Row('ESP32 ligado há', formatUptime(t.uptimeMs)),
+            _Row(l.dataFirmware, h == null || h.firmwareVersion.isEmpty ? '—' : h.firmwareVersion),
+            _Row(l.dataBridge, h == null || h.hexdVersion.isEmpty ? '—' : h.hexdVersion),
+            _Row(l.dataProtocol, h == null ? '—' : '${h.protocolVersion}'),
+            _Row(l.dataEspUptime, formatUptime(t.uptimeMs)),
           ],
         ),
       ),
       _Card(
         icon: Icons.timer_rounded,
-        title: 'Laço de controle (50 Hz)',
+        title: l.dataLoop,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Big((t.loopTimeUs / 1000).toStringAsFixed(2), 'ms'),
-            const _Note('Limite: 20 ms por ciclo'),
+            _Note(l.dataLoopLimit),
             const SizedBox(height: 8),
             _Chart(
               lines: [(log.series(now, (t) => t.loopTimeUs / 1000), _accent, 'ms')],
@@ -631,10 +627,10 @@ class _SystemTab extends StatelessWidget {
       ),
       _Card(
         icon: Icons.fact_check_rounded,
-        title: 'Verificações',
+        title: l.dataChecks,
         child: Column(
           children: [
-            for (final (bit, text) in faultChecks)
+            for (final (bit, text) in faultChecks(l))
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Row(
@@ -668,16 +664,14 @@ class _PiTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = log.last;
     final at = log.lastAt;
+    final l = context.l10n;
     if (p == null || at == null || now - at > const Duration(seconds: 6)) {
-      return const _Grid([
+      return _Grid([
         _Card(
           icon: Icons.developer_board_off_rounded,
-          title: 'Raspberry Pi',
+          title: l.dataTabPi,
           wide: true,
-          child: Text(
-            'Aguardando os dados do Raspberry Pi… Eles chegam a cada 2 segundos (ponte a partir da versão com esta tela).',
-            style: TextStyle(color: Colors.white70),
-          ),
+          child: Text(l.dataPiWaiting, style: const TextStyle(color: Colors.white70)),
         ),
       ]);
     }
@@ -685,24 +679,16 @@ class _PiTab extends StatelessWidget {
     const warn = Color(0xFFFFB547);
     const bad = Color(0xFFFF5A5F);
     final (powerColor, powerText, powerNote) = p.underVoltage
-        ? (
-            bad,
-            'Energia fraca agora',
-            'O Pi está recebendo menos de ~4,63 V: ele reduz a velocidade e o Wi-Fi e a tela podem cair.',
-          )
+        ? (bad, l.dataPowerLowNow, l.dataPowerLowNowNote)
         : p.underVoltageSeen
-        ? (
-            warn,
-            'Houve queda de energia',
-            'Desde que a ponte ligou, a tensão caiu pelo menos uma vez. Confira a fonte e o cabo.',
-          )
-        : (ok, 'Energia boa', 'Nenhuma queda de tensão desde que a ponte ligou.');
+        ? (warn, l.dataPowerDipped, l.dataPowerDippedNote)
+        : (ok, l.dataPowerGood, l.dataPowerGoodNote);
     final throttled = p.cpuMaxFreqMhz > 0 && p.cpuFreqMhz < p.cpuMaxFreqMhz;
     String gb(int mb) => (mb / 1024).toStringAsFixed(1);
     return _Grid([
       _Card(
         icon: Icons.bolt_rounded,
-        title: 'Energia',
+        title: l.dataPower,
         wide: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,23 +707,20 @@ class _PiTab extends StatelessWidget {
               ],
             ),
             _Note(powerNote),
-            if (p.underVoltage || p.underVoltageSeen)
-              const _Note(
-                'Na bancada, use a fonte oficial do Raspberry (5,1 V / 2,5 A). Carregador de celular não serve.',
-              ),
+            if (p.underVoltage || p.underVoltageSeen) _Note(l.dataPowerSupplyNote),
           ],
         ),
       ),
       _Card(
         icon: Icons.memory_rounded,
-        title: 'Processador',
+        title: l.dataCpu,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Big(p.cpuPercent.toStringAsFixed(0), '%'),
             const SizedBox(height: 8),
             _Chart(
-              lines: [(log.series(now, (s) => s.cpuPercent), _accent, 'uso')],
+              lines: [(log.series(now, (s) => s.cpuPercent), _accent, l.dataCpuLegend)],
               min: 0,
               max: 100,
               unit: ' %',
@@ -745,58 +728,57 @@ class _PiTab extends StatelessWidget {
               span: 120,
             ),
             const SizedBox(height: 4),
-            _Row('Carga (1 min, 4 núcleos)', p.load1m.toStringAsFixed(2)),
-            _Row('Velocidade', '${p.cpuFreqMhz} de ${p.cpuMaxFreqMhz} MHz'),
-            if (throttled)
-              const _Note('Abaixo do máximo: normal em repouso; com o Pi ocupado, é calor ou energia.'),
+            _Row(l.dataLoad, p.load1m.toStringAsFixed(2)),
+            _Row(l.dataSpeed, l.dataAmountOf('${p.cpuFreqMhz}', '${p.cpuMaxFreqMhz}', 'MHz')),
+            if (throttled) _Note(l.dataThrottledNote),
           ],
         ),
       ),
       _Card(
         icon: Icons.device_thermostat_rounded,
-        title: 'Temperatura',
+        title: l.dataTemperature,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Big(p.temperatureC.toStringAsFixed(1), '°C'),
             const SizedBox(height: 8),
             _Chart(
-              lines: [(log.series(now, (s) => s.temperatureC), warn, 'chip')],
+              lines: [(log.series(now, (s) => s.temperatureC), warn, l.dataChipLegend)],
               min: 20,
               max: 90,
               unit: ' °C',
               height: 90,
               span: 120,
             ),
-            const _Note('Acima de 80 °C o Pi reduz a velocidade para esfriar.'),
+            _Note(l.dataPiHotNote),
           ],
         ),
       ),
       _Card(
         icon: Icons.storage_rounded,
-        title: 'Memória',
-        child: _Usage(p.memUsedMb, p.memTotalMb, '${p.memUsedMb} de ${p.memTotalMb} MB'),
+        title: l.dataMemory,
+        child: _Usage(p.memUsedMb, p.memTotalMb, l.dataAmountOf('${p.memUsedMb}', '${p.memTotalMb}', 'MB')),
       ),
       _Card(
         icon: Icons.sd_card_rounded,
-        title: 'Cartão SD',
+        title: l.dataSdCard,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Usage(p.diskUsedMb, p.diskTotalMb, '${gb(p.diskUsedMb)} de ${gb(p.diskTotalMb)} GB'),
+            _Usage(p.diskUsedMb, p.diskTotalMb, l.dataAmountOf(gb(p.diskUsedMb), gb(p.diskTotalMb), 'GB')),
             const SizedBox(height: 4),
-            _Row('Proteção do cartão', p.readOnly ? 'ligada' : 'desligada'),
+            _Row(l.dataCardProtection, p.readOnly ? l.dataOn : l.dataOff),
           ],
         ),
       ),
       _Card(
         icon: Icons.wifi_rounded,
-        title: 'Rede e tempo ligado',
+        title: l.dataNetwork,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Row('Sinal do Wi-Fi', describeSignal(p.wifiRssiDbm)),
-            _Row('Pi ligado há', formatUptime(p.uptimeS.toInt() * 1000)),
+            _Row(l.dataWifiSignal, describeSignal(l, p.wifiRssiDbm)),
+            _Row(l.dataPiUptime, formatUptime(p.uptimeS.toInt() * 1000)),
           ],
         ),
       ),
@@ -939,22 +921,20 @@ class _Absent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return _Card(
       icon: Icons.sensors_off_rounded,
-      title: part.label,
+      title: part.label(l),
       wide: wide,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${part.chip} não instalado',
+            l.dataNotInstalled(part.chip),
             style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Ou não está respondendo. Os dados aparecem aqui sozinhos quando ele for ligado.',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
+          Text(l.dataNotInstalledHint, style: const TextStyle(color: Colors.white54, fontSize: 12)),
         ],
       ),
     );
@@ -1064,13 +1044,14 @@ class _GasCard extends StatelessWidget {
         : t.gasWarming
         ? Colors.white38
         : const Color(0xFF3DDC97);
+    final l = context.l10n;
     return _Card(
       icon: Icons.local_fire_department_rounded,
-      title: 'Gás e fumaça',
+      title: l.partGas,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Big(t.gasLevelPct.toStringAsFixed(0), '% do sensor'),
+          _Big(t.gasLevelPct.toStringAsFixed(0), l.dataGasUnit),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -1083,18 +1064,15 @@ class _GasCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           if (t.gasAlarm)
-            const Text(
-              'GÁS OU FUMAÇA DETECTADO',
-              style: TextStyle(color: danger, fontSize: 13, fontWeight: FontWeight.w800),
+            Text(
+              l.dataGasDetected,
+              style: const TextStyle(color: danger, fontSize: 13, fontWeight: FontWeight.w800),
             )
           else if (t.gasWarming)
-            const Text(
-              'Aquecendo o sensor: leituras confiáveis em alguns minutos',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
-            )
+            Text(l.dataGasWarming, style: const TextStyle(color: Colors.white54, fontSize: 12))
           else
-            const Text('Ar normal', style: TextStyle(color: Color(0xFF3DDC97), fontSize: 12)),
-          const _Note('Nível relativo ao ar limpo, não em ppm.'),
+            Text(l.dataGasNormal, style: const TextStyle(color: Color(0xFF3DDC97), fontSize: 12)),
+          _Note(l.dataGasNote),
         ],
       ),
     );
@@ -1116,13 +1094,14 @@ class _DistanceCard extends StatelessWidget {
         : mm < 450
         ? const Color(0xFFFFB547)
         : const Color(0xFF3DDC97);
+    final l = context.l10n;
     return _Card(
       icon: Icons.straighten_rounded,
       title: name,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Big(mm >= 8000 || mm == 0 ? '—' : '$mm', mm >= 8000 || mm == 0 ? 'fora de alcance' : 'mm'),
+          _Big(mm >= 8000 || mm == 0 ? '—' : '$mm', mm >= 8000 || mm == 0 ? l.dataOutOfRange : 'mm'),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -1135,9 +1114,9 @@ class _DistanceCard extends StatelessWidget {
           ),
           if (blocked) ...[
             const SizedBox(height: 6),
-            const Text(
-              'BLOQUEADO: o robô não anda para este lado',
-              style: TextStyle(color: Color(0xFFFF5A5F), fontSize: 12, fontWeight: FontWeight.w700),
+            Text(
+              l.dataBlocked,
+              style: const TextStyle(color: Color(0xFFFF5A5F), fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ],
         ],
@@ -1186,7 +1165,12 @@ class _Chart extends StatelessWidget {
             ],
             const Spacer(),
             Text(
-              '${min.toStringAsFixed(0)} a ${max.toStringAsFixed(0)}$unit · ${span >= 60 ? '${span ~/ 60} min' : '${span.toInt()} s'}',
+              context.l10n.dataChartRange(
+                min.toStringAsFixed(0),
+                max.toStringAsFixed(0),
+                unit,
+                span >= 60 ? '${span ~/ 60} min' : '${span.toInt()} s',
+              ),
               style: const TextStyle(color: Colors.white38, fontSize: 11),
             ),
           ],
@@ -1284,18 +1268,18 @@ class _HorizonPainter extends CustomPainter {
   bool shouldRepaint(_HorizonPainter old) => old.rollDeg != rollDeg || old.pitchDeg != pitchDeg;
 }
 
-String _modeName(pb.Mode m) => switch (m) {
-  pb.Mode.MODE_SIT => 'Sentado',
-  pb.Mode.MODE_STAND => 'Em pé (pose)',
-  pb.Mode.MODE_WALK => 'Andando',
-  pb.Mode.MODE_CALIBRATE => 'Calibração',
-  pb.Mode.MODE_FRONT_LEGS => 'Patas',
+String _modeName(AppLocalizations l, pb.Mode m) => switch (m) {
+  pb.Mode.MODE_SIT => l.dataModeSit,
+  pb.Mode.MODE_STAND => l.dataModeStand,
+  pb.Mode.MODE_WALK => l.dataModeWalk,
+  pb.Mode.MODE_CALIBRATE => l.dataModeCalibrate,
+  pb.Mode.MODE_FRONT_LEGS => l.dataModeFrontLegs,
   _ => '—',
 };
 
-String _gaitName(pb.Gait g) => switch (g) {
-  pb.Gait.GAIT_TRIPOD => 'Tripé',
-  pb.Gait.GAIT_WAVE => 'Onda',
-  pb.Gait.GAIT_RIPPLE => 'Ripple',
+String _gaitName(AppLocalizations l, pb.Gait g) => switch (g) {
+  pb.Gait.GAIT_TRIPOD => l.dataGaitTripod,
+  pb.Gait.GAIT_WAVE => l.dataGaitWave,
+  pb.Gait.GAIT_RIPPLE => l.dataGaitRipple,
   _ => '—',
 };

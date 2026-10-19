@@ -1,57 +1,68 @@
 import '../../core/proto.dart' as pb;
+import '../../l10n/l10n.dart';
 
 /// The robot's sensors and boards, each with the Telemetry.fault_flags bit
 /// the ESP32 sets while that part does not answer.
 enum Part {
-  servosLeft('Servos esquerdos', 'PCA9685 0x40', 1),
-  servosRight('Servos direitos', 'PCA9685 0x41', 2),
-  imu('Orientação', 'BNO085', 4),
-  distance('Distância', '4x VL53L0X', 8),
-  environment('Ambiente', 'BME280', 16),
-  power('Bateria', 'INA226', 32),
-  gas('Gás e fumaça', 'MQ-2', 2048);
+  servosLeft('PCA9685 0x40', 1),
+  servosRight('PCA9685 0x41', 2),
+  imu('BNO085', 4),
+  distance('4x VL53L0X', 8),
+  environment('BME280', 16),
+  power('INA226', 32),
+  gas('MQ-2', 2048);
 
-  const Part(this.label, this.chip, this.fault);
+  const Part(this.chip, this.fault);
 
-  final String label;
   final String chip;
   final int fault;
+
+  /// What the part is, in words (card titles).
+  String label(AppLocalizations l) => switch (this) {
+    servosLeft => l.partServosLeft,
+    servosRight => l.partServosRight,
+    imu => l.partImu,
+    distance => l.partDistance,
+    environment => l.partEnvironment,
+    power => l.partPower,
+    gas => l.partGas,
+  };
 
   /// The part answers (its fault bit is clear).
   bool presentIn(pb.Telemetry t) => t.faultFlags & fault == 0;
 }
 
 /// Every fault bit with its text, for the system tab.
-const faultTexts = <(int, String)>[
-  (1, 'Servos esquerdos (PCA9685 0x40) sem resposta'),
-  (2, 'Servos direitos (PCA9685 0x41) sem resposta'),
-  (4, 'IMU (BNO085) ausente'),
-  (8, 'Sensores de distância (VL53L0X) ausentes'),
-  (16, 'Sensor de ambiente (BME280) ausente'),
-  (32, 'Medidor de bateria (INA226) ausente'),
-  (64, 'Corrente alta por mais de 3 s'),
-  (128, 'Bateria baixa: velocidade reduzida'),
-  (256, 'Bateria crítica: desligamento pedido'),
-  (512, 'Laço de controle atrasado (50 Hz)'),
-  (1024, 'Calibração dos servos não carregada'),
-  (2048, 'Sensor de gás (MQ-2) ausente'),
+List<(int, String)> faultTexts(AppLocalizations l) => [
+  (1, l.dataFaultLeftServos),
+  (2, l.dataFaultRightServos),
+  (4, l.dataFaultImu),
+  (8, l.dataFaultDistance),
+  (16, l.dataFaultEnvironment),
+  (32, l.dataFaultPower),
+  (64, l.dataFaultOvercurrent),
+  (128, l.faultBatteryLow),
+  (256, l.dataFaultBatteryCritical),
+  (512, l.dataFaultLoopOverrun),
+  (1024, l.dataFaultCalibration),
+  (2048, l.dataFaultGas),
 ];
 
 /// Health checks for the system tab: (fault bit, what is checked). A clear
 /// bit means the check passes.
-const faultChecks = <(int, String)>[
-  (1, 'Servos esquerdos (PCA9685 0x40)'),
-  (2, 'Servos direitos (PCA9685 0x41)'),
-  (4, 'IMU (BNO085)'),
-  (8, 'Distância (4x VL53L0X)'),
-  (16, 'Ambiente (BME280)'),
-  (32, 'Bateria (INA226)'),
-  (64, 'Corrente dentro do limite'),
-  (128, 'Bateria acima de 3,5 V por célula'),
-  (256, 'Bateria acima de 3,3 V por célula'),
-  (512, 'Laço de 50 Hz no prazo'),
-  (1024, 'Calibração dos servos carregada'),
-  (2048, 'Gás e fumaça (MQ-2)'),
+List<(int, String)> faultChecks(AppLocalizations l) => [
+  (1, l.checkLeftServos),
+  (2, l.checkRightServos),
+  (4, l.checkImu),
+  (8, l.checkDistance),
+  (16, l.checkEnvironment),
+  (32, l.checkPower),
+  (64, l.checkCurrent),
+  (128, l.checkBatteryLow),
+  (256, l.checkBatteryCritical),
+  (512, l.checkLoop),
+  (1024, l.checkCalibration),
+  (2048, l.checkGas),
 ];
 
 /// Recent Telemetry received by the app: rate, losses and series for the
@@ -97,7 +108,8 @@ class TelemetryLog {
   ];
 }
 
-/// "1 h 02 min", "3 min 12 s", "45 s".
+/// "1 h 02 min", "3 min 12 s", "45 s" (unit symbols, the same in every
+/// language the app speaks).
 String formatUptime(int ms) {
   final s = ms ~/ 1000;
   if (s >= 3600) return '${s ~/ 3600} h ${(s % 3600 ~/ 60).toString().padLeft(2, '0')} min';
@@ -128,9 +140,11 @@ class PiLog {
   ];
 }
 
-/// "-55 dBm · bom": Wi-Fi signal in words a beginner understands.
-String describeSignal(int dbm) {
-  if (dbm == 0) return 'sem Wi-Fi';
-  final word = dbm >= -60 ? 'ótimo' : (dbm >= -70 ? 'bom' : (dbm >= -80 ? 'fraco' : 'muito fraco'));
+/// "-55 dBm · good": Wi-Fi signal in words a beginner understands.
+String describeSignal(AppLocalizations l, int dbm) {
+  if (dbm == 0) return l.dataSignalNone;
+  final word = dbm >= -60
+      ? l.dataSignalGreat
+      : (dbm >= -70 ? l.dataSignalGood : (dbm >= -80 ? l.dataSignalWeak : l.dataSignalVeryWeak));
   return '$dbm dBm · $word';
 }
