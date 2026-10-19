@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,11 +30,13 @@ void main() {
     addTearDown(tester.view.reset);
 
     var state = 'needs_login';
+    var reachable = true;
     final posted = <String>[];
     final api = RobotApi(
       '10.0.0.86',
       'KEY',
       client: MockClient((r) async {
+        if (!reachable) throw const SocketException('no route');
         if (r.method == 'POST') posted.add(r.url.path);
         if (r.url.path == '/api/tailscale/login') {
           return http.Response(
@@ -116,6 +119,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(posted.last, '/api/tailscale/logout');
     expect(container.read(robotsProvider).active?.remote, isNull);
+    expect(find.text('Conectar o robô'), findsOneWidget); // ready to log in again
+
+    // Out of reach (e.g. the phone was on 4G through Tailscale): no stale
+    // state, and no buttons that cannot work.
+    reachable = false;
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Não consigo falar com o robô'), findsOneWidget);
+    expect(find.text('Conectar o robô'), findsNothing);
     await tester.pumpWidget(const SizedBox()); // stop the poll timer
   });
 }

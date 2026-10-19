@@ -409,11 +409,12 @@
   "remoteDisconnectBody": "O app só vai alcançá-lo na mesma rede de novo, até você conectar outra vez.",
   "remoteCancel": "Cancelar",
   "remoteFailed": "O robô não conseguiu fazer isso agora. Tente de novo.",
-  "remoteUnreachable": "O robô está fora de alcance. Configure o acesso remoto com o celular na mesma rede do robô.",
+  "remoteUnreachable": "Não consigo falar com o robô. O acesso remoto se configura (ou religa) com o celular na mesma rede do robô: conecte o celular no Wi-Fi do robô e volte aqui.",
   "remoteAbsent": "O Tailscale não está instalado neste robô. Atualize a imagem do cartão.",
   "remotePhoneStep": "Este celular",
   "remotePhoneHow": "Instale o app Tailscale e entre com a mesma conta. Deixe a VPN dele ligada quando estiver fora de casa.",
   "remoteInstallApp": "Instalar o Tailscale",
   "remotePhoneIn": "Este celular está no Tailscale.",
-  "remoteReady": "Pronto: fora de casa, o app encontra o robô pelo Tailscale sozinho."
+  "remoteReady": "Pronto: fora de casa, o app encontra o robô pelo Tailscale sozinho.",
+  "remoteDisconnectViaTailnet": "Você está conectado pelo Tailscale agora: vai perder o acesso, e para conectar de novo o celular precisa estar na mesma rede do robô."
 }

@@ -48,6 +48,9 @@ class _RemoteAccessScreenState extends ConsumerState<RemoteAccessScreen> {
 
   Robot? get _robot => ref.read(robotsProvider).active;
 
+  /// The app reaches the robot through Tailscale right now (away from home).
+  bool get _viaTailnet => isTailnetAddress(ref.read(robotAddressProvider).value ?? '');
+
   RobotApi? _api() {
     if (widget.api != null) return widget.api!();
     final robot = _robot;
@@ -85,7 +88,8 @@ class _RemoteAccessScreenState extends ConsumerState<RemoteAccessScreen> {
     setState(() {
       _phoneIn = phoneIn;
       _unreachable = unreachable;
-      if (status != null) _status = status;
+      // Out of reach: say so, never a stale state with buttons that cannot work.
+      _status = status;
       if (status?.running ?? false) _link = null;
     });
     final robot = _robot;
@@ -123,7 +127,11 @@ class _RemoteAccessScreenState extends ConsumerState<RemoteAccessScreen> {
       context: context,
       builder: (c) => AlertDialog(
         title: Text(l.remoteDisconnectTitle),
-        content: Text(l.remoteDisconnectBody),
+        content: Text(
+          _viaTailnet
+              ? '${l.remoteDisconnectBody}\n\n${l.remoteDisconnectViaTailnet}'
+              : l.remoteDisconnectBody,
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.remoteCancel)),
           FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(l.remoteDisconnect)),
@@ -137,6 +145,7 @@ class _RemoteAccessScreenState extends ConsumerState<RemoteAccessScreen> {
     setState(() => _busy = true);
     try {
       await api.tailscaleLogout();
+      if (mounted) setState(() => _status = const TailscaleStatus(state: 'needs_login'));
       await ref.read(robotsProvider.notifier).setRemote(robot.id, null);
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.remoteFailed)));
@@ -210,7 +219,7 @@ class _RemoteAccessScreenState extends ConsumerState<RemoteAccessScreen> {
 
   Widget _robotStep(AppLocalizations l, TailscaleStatus? s) {
     const text = TextStyle(color: Colors.white70);
-    if (_unreachable && s == null) return Text(l.remoteUnreachable, style: text);
+    if (_unreachable) return Text(l.remoteUnreachable, style: text);
     if (s == null) return const LinearProgressIndicator();
     if (s.state == 'absent') return Text(l.remoteAbsent, style: text);
     if (s.running) {

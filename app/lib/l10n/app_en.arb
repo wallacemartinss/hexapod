@@ -1234,11 +1234,12 @@
   "remoteDisconnectBody": "The app will only reach it on the same network again, until you connect it once more.",
   "remoteCancel": "Cancel",
   "remoteFailed": "The robot could not do that now. Try again.",
-  "remoteUnreachable": "The robot is out of reach. Set up remote access with the phone on the same network as the robot.",
+  "remoteUnreachable": "Can't reach the robot. Remote access is set up (or turned back on) with the phone on the same network as the robot: connect the phone to the robot's Wi-Fi network and come back here.",
   "remoteAbsent": "Tailscale is not installed on this robot. Update its SD card image.",
   "remotePhoneStep": "This phone",
   "remotePhoneHow": "Install the Tailscale app and sign in with the same account. Keep its VPN on when you are away from home.",
   "remoteInstallApp": "Install Tailscale",
   "remotePhoneIn": "This phone is on Tailscale.",
-  "remoteReady": "All set: away from home, the app finds the robot through Tailscale by itself."
+  "remoteReady": "All set: away from home, the app finds the robot through Tailscale by itself.",
+  "remoteDisconnectViaTailnet": "You are connected through Tailscale right now: you will lose access, and connecting it again needs the phone on the same network as the robot."
 }
