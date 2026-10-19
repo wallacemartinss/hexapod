@@ -5,3 +5,5 @@ hexapod.v1.Envelope.pi_status type:FT_IGNORE
 hexapod.v1.Envelope.targets type:FT_IGNORE
 hexapod.v1.Envelope.follow_request type:FT_IGNORE
 hexapod.v1.Envelope.follow_status type:FT_IGNORE
+hexapod.v1.Envelope.nav_request type:FT_IGNORE
+hexapod.v1.Envelope.nav_status type:FT_IGNORE

@@ -6,6 +6,7 @@ import "hexapod/v1/calibration.proto";
 import "hexapod/v1/command.proto";
 import "hexapod/v1/event.proto";
 import "hexapod/v1/hello.proto";
+import "hexapod/v1/nav.proto";
 import "hexapod/v1/pi_status.proto";
 import "hexapod/v1/position.proto";
 import "hexapod/v1/telemetry.proto";
@@ -27,5 +28,8 @@ message Envelope {
     Targets targets = 10; // hexvision -> hexd -> app only
     FollowRequest follow_request = 11; // app -> hexd only
     FollowStatus follow_status = 12; // hexd -> app only
+    Compass compass = 13; // ESP32 -> hexd only
+    NavRequest nav_request = 14; // app -> hexd only
+    NavStatus nav_status = 15; // hexd -> app only
   }
 }

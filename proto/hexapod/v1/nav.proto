@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+// GPS navigation: go to a point, go home, patrol a route, stay inside a
+// virtual fence. As in follow me, the app is the dead man: hexd only
+// replaces the speeds of the app's own walk Commands while a mission runs
+// and the sticks are at rest; a stick or STOP cancels it, and the ESP32
+// failsafe stops the robot when the link goes. Only Compass crosses the
+// ESP32 serial link (the other Envelope fields are ignored by nanopb, see
+// envelope.options).
+
+// ESP32 -> hexd, ~5 Hz: the BNO085 rotation vector (gyro, accelerometer
+// and magnetometer). A separate message keeps the Telemetry frame within
+// one COBS block.
+message Compass {
+  float heading_deg = 1; // magnetic, 0 = magnetic north, clockwise, 0..360
+  float accuracy_deg = 2; // the BNO085's own estimate; 0 = no heading yet
+}
+
+message GeoPoint {
+  double latitude_deg = 1; // WGS84, + north
+  double longitude_deg = 2; // WGS84, + east
+}
+
+enum NavAction {
+  NAV_ACTION_UNSPECIFIED = 0;
+  NAV_ACTION_STOP = 1; // cancel the mission
+  NAV_ACTION_GO_TO = 2; // to points[0]
+  NAV_ACTION_GO_HOME = 3;
+  NAV_ACTION_PATROL = 4; // the saved route, again and again when loop
+  NAV_ACTION_SET_HOME = 5; // points[0], or where the robot is when empty
+  NAV_ACTION_SET_FENCE = 6; // polygon (>= 3 points); empty removes it
+  NAV_ACTION_SET_ROUTE = 7; // patrol route (>= 2 points); empty removes it
+}
+
+// app -> hexd only.
+message NavRequest {
+  NavAction action = 1;
+  repeated GeoPoint points = 2; // at most 64
+  bool loop = 3; // PATROL: start over after the last point
+}
+
+enum NavState {
+  NAV_STATE_UNSPECIFIED = 0;
+  NAV_STATE_IDLE = 1; // no mission
+  NAV_STATE_WAITING_GPS = 2; // mission paused: no fix, or a poor one
+  NAV_STATE_WAITING_HEADING = 3; // mission paused: the compass is not trusted yet
+  NAV_STATE_READY = 4; // mission set; the app must be in walk mode, sticks at rest
+  NAV_STATE_DRIVING = 5; // hexd is steering the app's walk Commands
+  NAV_STATE_BLOCKED = 6; // an obstacle ahead (front sensor): paused
+  NAV_STATE_ARRIVED = 7; // at the point (or home); the mission ended
+  NAV_STATE_OUTSIDE_FENCE = 8; // stopped at the fence; only walking back in is allowed
+}
+
+// hexd -> app only, ~2 Hz and on every change.
+message NavStatus {
+  NavState state = 1;
+  NavAction mission = 2; // GO_TO, GO_HOME or PATROL while one runs
+  GeoPoint target = 3; // the point being walked to
+  uint32 waypoint = 4; // PATROL: index of target in route
+  float distance_m = 5; // to target
+  float target_bearing_deg = 6; // from the robot to target, true north, clockwise
+  float heading_deg = 7; // where the robot faces, true north, clockwise
+  bool heading_ok = 8; // heading trusted (compass calibrated, or corrected by the GPS)
+  bool home_set = 9;
+  GeoPoint home = 10;
+  repeated GeoPoint fence = 11; // empty: no fence
+  repeated GeoPoint route = 12; // empty: no route
+  bool loop = 13;
+  bool battery_low = 14; // the app suggests going home
+  float arrive_m = 15; // a point counts as reached this close (GPS accuracy)
+}

@@ -11,7 +11,7 @@ package hexapod.v1;
 enum TargetKind {
   TARGET_KIND_UNSPECIFIED = 0;
   TARGET_KIND_MARKER = 1; // ArUco marker (DICT_4X4_50), e.g. on the phone's screen
-  TARGET_KIND_PERSON = 2; // future: person detector (Pi 4)
+  TARGET_KIND_PERSON = 2; // person detector (MobileNet-SSD)
 }
 
 message Target {
