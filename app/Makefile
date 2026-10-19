@@ -7,7 +7,7 @@ APK     := build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 VERSION_FLAGS = $(shell ./version.sh)
 
 .DEFAULT_GOAL := help
-.PHONY: help gen brand run analyze test golden apk wait-device install crash
+.PHONY: help gen brand screenshots run analyze test golden apk wait-device install crash
 
 help: ## List the commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ analyze: ## Static analysis
 
 test: ## Unit + integration tests (needs Go for hexd/hexsim)
 	$(FLUTTER) test --exclude-tags golden
+
+screenshots: ## Render every screen in every language into ../docs/screenshots/ (README)
+	$(FLUTTER) test --update-goldens test/screenshots_test.dart
 
 golden: ## Re-render the screen captures in test/goldens/
 	$(FLUTTER) test --update-goldens test/pilot_screen_golden_test.dart

@@ -86,6 +86,7 @@ class PairScreen extends ConsumerStatefulWidget {
     this.keyCheck = _checkKey,
     this.camera,
     this.wifi,
+    this.scanner,
   });
 
   final RobotSearch search;
@@ -97,6 +98,9 @@ class PairScreen extends ConsumerStatefulWidget {
 
   /// Joins the robot's own network (default: robotWifiProvider; null on the PC).
   final RobotWifi? wifi;
+
+  /// Stands in for the camera view (screenshots; default: the real scanner).
+  final Widget? scanner;
 
   @override
   ConsumerState<PairScreen> createState() => _PairScreenState();
@@ -259,17 +263,18 @@ class _PairScreenState extends ConsumerState<PairScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              MobileScanner(
-                onDetect: (capture) {
-                  for (final b in capture.barcodes) {
-                    final input = b.rawValue == null ? null : parsePairingInput(b.rawValue!);
-                    if (input != null) {
-                      _start(input);
-                      return;
-                    }
-                  }
-                },
-              ),
+              widget.scanner ??
+                  MobileScanner(
+                    onDetect: (capture) {
+                      for (final b in capture.barcodes) {
+                        final input = b.rawValue == null ? null : parsePairingInput(b.rawValue!);
+                        if (input != null) {
+                          _start(input);
+                          return;
+                        }
+                      }
+                    },
+                  ),
               Center(
                 child: Container(
                   width: 220,

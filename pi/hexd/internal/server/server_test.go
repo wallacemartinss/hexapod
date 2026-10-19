@@ -435,10 +435,10 @@ func TestSetupAPI(t *testing.T) {
 	if code, _ := call("POST", "/api/wifi/join", `not json`, id.Token); code != http.StatusBadRequest {
 		t.Fatalf("bad body: %d", code)
 	}
-	if code, _ := call("POST", "/api/name", `{"name":"Aranha do Zezinho"}`, id.Token); code != 200 || renamed != "Aranha do Zezinho" {
+	if code, _ := call("POST", "/api/name", `{"name":"Minha aranha"}`, id.Token); code != 200 || renamed != "Minha aranha" {
 		t.Fatalf("rename: %d %q", code, renamed)
 	}
-	if _, body := get(t, r.http.URL+"/identity"); !strings.Contains(body, "Aranha do Zezinho") {
+	if _, body := get(t, r.http.URL+"/identity"); !strings.Contains(body, "Minha aranha") {
 		t.Fatalf("/identity keeps the old name: %s", body)
 	}
 	if code, _ := call("POST", "/api/name", `{"name":"   "}`, id.Token); code != http.StatusBadRequest {

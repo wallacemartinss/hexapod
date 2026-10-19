@@ -1,5 +1,7 @@
 # Instalar o Hexápode
 
+[English](install.md) · **Português**
+
 Este guia é para quem **não usa terminal**: você grava um cartão no PC, liga o robô e configura tudo pelo celular. Quem quiser mexer no sistema (SSH, Ansible) tem o caminho do maker em [`pi/provision/README.md`](../pi/provision/README.md).
 
 ## Do que você precisa

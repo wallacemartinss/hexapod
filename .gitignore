@@ -55,3 +55,6 @@ cad/.venv/
 # MediaMTX makes these where it runs (dev-video.sh): never commit
 auto.crt
 auto.key
+
+# Claude Code agent worktrees
+.claude/worktrees/
