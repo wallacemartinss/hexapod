@@ -15,25 +15,25 @@ O [Ansible](https://docs.ansible.com) roda **no seu PC** e configura outra máqu
 ## Pré-requisitos
 
 - Pi gravado com o **Raspberry Pi OS Lite (64-bit)**, com hostname `hexapod`, seu usuário e **chave SSH** (veja o [guia maker](../../docs/instalacao-maker.md#1-gravar-o-raspberry-pi-os)).
-- `ssh <você>@hexapod.local` funcionando a partir do PC.
+- `ssh hexasys@hexapod.local` funcionando a partir do PC.
 - Ansible no PC: `pipx install ansible-core` ou o pacote da sua distribuição (`ansible --version`).
 
 ## Uso
 
 ```bash
 cd pi/provision
-ansible-playbook site.yml -e ansible_user=<você> --check --diff   # simulação: mostra o que mudaria, não altera nada
-ansible-playbook site.yml -e ansible_user=<você>                  # aplica (reinicia o Pi se algo do boot mudar)
-ansible-playbook site.yml -e ansible_user=<você> --tags mediamtx  # só uma parte (ver as tags abaixo)
+ansible-playbook site.yml --check --diff   # simulação: mostra o que mudaria, não altera nada
+ansible-playbook site.yml                  # aplica (reinicia o Pi se algo do boot mudar)
+ansible-playbook site.yml --tags mediamtx  # só uma parte (ver as tags abaixo)
 ansible-playbook site.yml -e ansible_host=10.0.0.86               # sem mDNS: pelo IP
 ```
 
-O inventário (`inventory.yml`) aponta para `hexapod.local` com o usuário `wallace`; `-e ansible_user=` e `-e ansible_host=` sobrescrevem.
+Dois usuários vivem no Pi: **`hexasys`**, o administrador com que você entra (criado ao gravar o cartão), e **`hexapod`**, o usuário de serviço que roda o hexd, sem login e só com as permissões de que precisa. O inventário (`inventory.yml`) entra como `hexasys@hexapod.local`; outro nome de administrador: `HEXAPOD_SSH_USER=<nome>` no seu ambiente (ou `-e ansible_user=<nome>`), outro endereço: `-e ansible_host=<ip>`.
 
 **Validação** (roda no Pi e confere câmera, microfone, energia, ESP32, tela, GPS e Tailscale):
 
 ```bash
-ssh <você>@hexapod.local 'bash -s' < check.sh
+ssh hexasys@hexapod.local 'bash -s' < check.sh
 ```
 
 **Tailscale:** a chave de acesso nunca entra no repositório. O mais simples é pelo app (Ajustes → Acesso remoto). Pelo playbook:

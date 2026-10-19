@@ -32,11 +32,11 @@ cd hexapod
 No Raspberry Pi Imager: **Raspberry Pi OS Lite (64-bit)** e depois *Editar configurações*:
 
 - hostname `hexapod`;
-- seu usuário e senha;
+- usuário **`hexasys`** (o administrador do projeto: o usuário de serviço do robô é o `hexapod`) e uma senha;
 - **SSH com a sua chave pública** (*Serviços → Permitir apenas autenticação por chave pública*);
 - seu Wi-Fi (o Pi 3 só enxerga 2,4 GHz) e o país.
 
-Ligue o Pi e confira o acesso: `ssh <você>@hexapod.local`. Sua rede não tem mDNS? Use o IP no lugar do nome em tudo abaixo.
+Ligue o Pi e confira o acesso: `ssh hexasys@hexapod.local`. Sua rede não tem mDNS? Use o IP no lugar do nome em tudo abaixo.
 
 ## 2. Preparar o Pi com Ansible
 
@@ -44,9 +44,9 @@ O playbook instala e configura tudo: câmera, MediaMTX (vídeo e áudio), o serv
 
 ```bash
 cd pi/provision
-ansible-playbook site.yml -e ansible_user=<você> --check --diff   # simulação: mostra o que mudaria
-ansible-playbook site.yml -e ansible_user=<você>                  # aplica (reinicia quando muda algo do boot)
-ssh <você>@hexapod.local 'bash -s' < check.sh                     # validação
+ansible-playbook site.yml --check --diff   # simulação: mostra o que mudaria
+ansible-playbook site.yml                  # aplica (reinicia quando muda algo do boot)
+ssh hexasys@hexapod.local 'bash -s' < check.sh                     # validação
 ```
 
 O `check.sh` confere câmera, microfone, energia, ESP32, OLED (0x3C), GPS e Tailscale. Resolva o que ele apontar antes de seguir. Detalhes e opções: [`pi/provision/README.pt-BR.md`](../pi/provision/README.pt-BR.md).
@@ -57,8 +57,8 @@ Um pacote leva o `hexd` e o firmware do ESP32, compilado para a sua placa (`esp3
 
 ```bash
 BOARD=esp32s3 pi/deploy/package.sh            # → dist/hexapod-<versão>.tar.gz
-scp dist/hexapod-<versão>.tar.gz <você>@hexapod.local:/tmp/
-ssh <você>@hexapod.local
+scp dist/hexapod-<versão>.tar.gz hexasys@hexapod.local:/tmp/
+ssh hexasys@hexapod.local
 cd /tmp && tar -xzf hexapod-<versão>.tar.gz --wildcards '*/deploy.sh' --strip-components=1
 sudo bash ./deploy.sh /tmp/hexapod-<versão>.tar.gz --bootstrap
 ```
@@ -83,7 +83,7 @@ Digite `HXP1 <id> <chave>` na tela de pareamento no lugar do código curto. As f
 Pilote de qualquer lugar pelo Tailscale: configure pelo app ([passo a passo](acesso-remoto.md)) ou pelo terminal:
 
 ```bash
-ssh <você>@hexapod.local 'sudo tailscale up --hostname=hexapod'   # mostra um link de login
+ssh hexasys@hexapod.local 'sudo tailscale up --hostname=hexapod'   # mostra um link de login
 ```
 
 ## 6. Proteger o cartão (opcional)

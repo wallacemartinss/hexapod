@@ -8,7 +8,7 @@
 #   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET  Tailscale OAuth client with the tag below
 #   DEPLOY_SSH_KEY                       private key allowed for DEPLOY_USER on the Pi
 #   DEPLOY_KNOWN_HOSTS                   `ssh-keyscan hexapod` line(s) for the Pi
-# Optional repository variables: DEPLOY_HOST (default hexapod), DEPLOY_USER (wallace).
+# Optional repository variables: DEPLOY_HOST (default hexapod), DEPLOY_USER (hexasys).
 name: deploy
 
 on:
@@ -80,7 +80,7 @@ jobs:
       - name: Deploy
         env:
           HOST: ${{ vars.DEPLOY_HOST || 'hexapod' }}
-          USER_: ${{ vars.DEPLOY_USER || 'wallace' }}
+          USER_: ${{ vars.DEPLOY_USER || 'hexasys' }}
           KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           PKG: ${{ steps.package.outputs.path }}

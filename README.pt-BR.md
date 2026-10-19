@@ -165,7 +165,7 @@ Tudo o que o caminho simples faz, na mão e sob o seu controle. **Guia completo:
 cd pi/provision
 ansible-playbook site.yml --check --diff   # simulação
 ansible-playbook site.yml                  # câmera, MediaMTX, serviço hexd, udev, I2C/UART, watchdog...
-ssh wallace@hexapod.local 'bash -s' < check.sh   # validação
+ssh hexasys@hexapod.local 'bash -s' < check.sh   # validação
 ```
 
 Detalhes, o cartão somente leitura e o Tailscale: [`pi/provision/README.pt-BR.md`](pi/provision/README.pt-BR.md).
@@ -174,8 +174,8 @@ Detalhes, o cartão somente leitura e o Tailscale: [`pi/provision/README.pt-BR.m
 
 ```bash
 BOARD=esp32s3 pi/deploy/package.sh                  # dist/hexapod-<versão>.tar.gz
-scp dist/hexapod-<versão>.tar.gz wallace@hexapod.local:/tmp/
-ssh wallace@hexapod.local
+scp dist/hexapod-<versão>.tar.gz hexasys@hexapod.local:/tmp/
+ssh hexasys@hexapod.local
 cd /tmp && tar -xzf hexapod-<versão>.tar.gz --wildcards '*/deploy.sh' --strip-components=1
 sudo bash ./deploy.sh /tmp/hexapod-<versão>.tar.gz  # recusa se o robô não estiver sentado
 ```

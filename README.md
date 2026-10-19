@@ -165,7 +165,7 @@ Everything the simple path does, by hand and under your control. **Full guide: [
 cd pi/provision
 ansible-playbook site.yml --check --diff   # dry run
 ansible-playbook site.yml                  # camera, MediaMTX, hexd service, udev, I2C/UART, watchdog...
-ssh wallace@hexapod.local 'bash -s' < check.sh   # validation
+ssh hexasys@hexapod.local 'bash -s' < check.sh   # validation
 ```
 
 Details, the read-only card and Tailscale: [`pi/provision/README.md`](pi/provision/README.md).
@@ -174,8 +174,8 @@ Details, the read-only card and Tailscale: [`pi/provision/README.md`](pi/provisi
 
 ```bash
 BOARD=esp32s3 pi/deploy/package.sh                  # dist/hexapod-<version>.tar.gz
-scp dist/hexapod-<version>.tar.gz wallace@hexapod.local:/tmp/
-ssh wallace@hexapod.local
+scp dist/hexapod-<version>.tar.gz hexasys@hexapod.local:/tmp/
+ssh hexasys@hexapod.local
 cd /tmp && tar -xzf hexapod-<version>.tar.gz --wildcards '*/deploy.sh' --strip-components=1
 sudo bash ./deploy.sh /tmp/hexapod-<version>.tar.gz  # refuses unless the robot is sitting
 ```

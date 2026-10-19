@@ -15,25 +15,25 @@ This playbook turns a stock Raspberry Pi OS Lite into the robot's "brain". It is
 ## Requirements
 
 - A Pi flashed with **Raspberry Pi OS Lite (64-bit)**, with hostname `hexapod`, your user and **SSH key** (see the [maker guide](../../docs/maker-install.md#1-flash-raspberry-pi-os)).
-- `ssh <you>@hexapod.local` working from the PC.
+- `ssh hexasys@hexapod.local` working from the PC.
 - Ansible on the PC: `pipx install ansible-core` or your distribution's package (`ansible --version`).
 
 ## Use
 
 ```bash
 cd pi/provision
-ansible-playbook site.yml -e ansible_user=<you> --check --diff   # dry run: shows what would change, touches nothing
-ansible-playbook site.yml -e ansible_user=<you>                  # apply (reboots the Pi if a boot setting changed)
-ansible-playbook site.yml -e ansible_user=<you> --tags mediamtx  # only one part (tags below)
+ansible-playbook site.yml --check --diff   # dry run: shows what would change, touches nothing
+ansible-playbook site.yml                  # apply (reboots the Pi if a boot setting changed)
+ansible-playbook site.yml --tags mediamtx  # only one part (tags below)
 ansible-playbook site.yml -e ansible_host=10.0.0.86               # no mDNS: by IP
 ```
 
-The inventory (`inventory.yml`) points at `hexapod.local` with the user `wallace`; `-e ansible_user=` and `-e ansible_host=` override them.
+Two users live on the Pi: **`hexasys`**, the admin you log in with (made when flashing the card), and **`hexapod`**, the service user that runs hexd with no login and only the permissions it needs. The inventory (`inventory.yml`) logs in as `hexasys@hexapod.local`; another admin name: `HEXAPOD_SSH_USER=<name>` in your environment (or `-e ansible_user=<name>`), another address: `-e ansible_host=<ip>`.
 
 **Check** (runs on the Pi: camera, microphone, power, ESP32, screen, GPS and Tailscale):
 
 ```bash
-ssh <you>@hexapod.local 'bash -s' < check.sh
+ssh hexasys@hexapod.local 'bash -s' < check.sh
 ```
 
 **Tailscale:** the auth key never goes into the repository. The simplest way is from the app (Settings → Remote access). From the playbook:

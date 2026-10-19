@@ -99,7 +99,7 @@ They live on the Pi, not on the ESP32: the ESP32's serial frame is full (250 of 
 Pins 2 and 4 (5 V) and 6 (GND) power the Pi from the Mini560 on the robot. **Plug and unplug modules with the Pi off.** The same pins on a Pi 3 and a Pi 4.
 
 - **GPS:** it only gets a position (fix) with open sky. The first fix can take minutes; the module's backup battery keeps the almanac for the next ones.
-- **Check:** `ssh <you>@hexapod.local 'bash -s' < pi/provision/check.sh` (OLED and GPS sections).
+- **Check:** `ssh hexasys@hexapod.local 'bash -s' < pi/provision/check.sh` (OLED and GPS sections).
 
 ## MQ-2 (gas and smoke)
 

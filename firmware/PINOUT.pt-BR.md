@@ -99,7 +99,7 @@ Eles ficam no Pi, não no ESP32: o quadro serial do ESP32 está cheio (250 de 25
 Os pinos 2 e 4 (5 V) e 6 (GND) alimentam o Pi a partir do Mini560 no robô. **Ligar e desligar módulos com o Pi desligado.**
 
 - **GPS:** só pega posição (*fix*) com o céu à vista. O primeiro *fix* pode levar minutos; a bateria do módulo guarda o almanaque para os próximos.
-- **Validar:** `ssh wallace@hexapod.local 'bash -s' < pi/provision/check.sh` (seções OLED e GPS).
+- **Validar:** `ssh hexasys@hexapod.local 'bash -s' < pi/provision/check.sh` (seções OLED e GPS).
 
 ## MQ-2 (gás e fumaça)
 

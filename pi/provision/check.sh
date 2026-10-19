@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Validate a provisioned hexapod Pi (Phase 1.3). Runs ON the Pi:
-#   ssh wallace@hexapod.local 'bash -s' < pi/provision/check.sh
+#   ssh hexasys@hexapod.local 'bash -s' < pi/provision/check.sh
 # Exit code: number of FAILs (WARNs do not fail).
 set -uo pipefail
 
