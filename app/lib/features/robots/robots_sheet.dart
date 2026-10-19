@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/robots.dart';
 import 'pair_screen.dart';
+import 'robot_network_screen.dart';
 
 const _ok = Color(0xFF3DDC97);
 
@@ -69,26 +70,43 @@ class RobotsSheet extends ConsumerWidget {
                   style: const TextStyle(color: Colors.white54),
                 ),
                 onTap: () => notifier.select(r.id),
-                trailing: IconButton(
-                  tooltip: 'Esquecer',
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.white54),
-                  onPressed: () async {
-                    final yes = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: Text('Esquecer ${r.name}?'),
-                        content: const Text('Para pilotar de novo, será preciso escanear o QR do robô.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Esquecer'),
-                          ),
-                        ],
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (r.id == state.activeId)
+                      IconButton(
+                        tooltip: 'Rede e nome',
+                        icon: const Icon(Icons.settings_rounded, color: Colors.white70),
+                        onPressed: () {
+                          final nav = Navigator.of(context)..pop();
+                          showRobotNetworkScreen(nav.context);
+                        },
                       ),
-                    );
-                    if (yes == true) await notifier.forget(r.id);
-                  },
+                    IconButton(
+                      tooltip: 'Esquecer',
+                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.white54),
+                      onPressed: () async {
+                        final yes = await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: Text('Esquecer ${r.name}?'),
+                            content: const Text('Para pilotar de novo, será preciso escanear o QR do robô.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(c, false),
+                                child: const Text('Cancelar'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(c, true),
+                                child: const Text('Esquecer'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (yes == true) await notifier.forget(r.id);
+                      },
+                    ),
+                  ],
                 ),
               ),
           ],

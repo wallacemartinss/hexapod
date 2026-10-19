@@ -9,6 +9,7 @@ import 'control/command_mapper.dart';
 import 'control/control_state.dart';
 import 'link/discovery.dart';
 import 'link/host_resolver.dart';
+import 'link/robot_wifi.dart';
 import 'link/robot_link.dart';
 import 'proto.dart';
 import 'robots.dart';
@@ -49,6 +50,8 @@ final activeRobotKeyProvider = Provider<({String id, String token})?>((ref) {
   return r;
 });
 
+DateTime _ownNetworkTried = DateTime(0);
+
 /// Where to reach the robot: the paired robot found on the network (its
 /// last address first), else the manual address from the settings.
 final robotAddressProvider = FutureProvider<String>((ref) async {
@@ -60,6 +63,20 @@ final robotAddressProvider = FutureProvider<String>((ref) async {
   if (found != null) {
     unawaited(ref.read(robotsProvider.notifier).seenAt(robot.id, found.address));
     return found.address;
+  }
+  // Not on this network: the robot may be on its own Wi-Fi (direct mode,
+  // or no home network worked). Join it, at most once a minute (Android
+  // asks the user each time).
+  final wifi = ref.read(robotWifiProvider);
+  final now = DateTime.now();
+  if (wifi != null && now.difference(_ownNetworkTried) > const Duration(minutes: 1)) {
+    _ownNetworkTried = now;
+    final own = ownNetwork(robot.id, robot.token);
+    if (await wifi.join(own.ssid, own.password)) {
+      final there = await identify(ownNetworkAddress);
+      if (there?.id == robot.id) return ownNetworkAddress;
+      await wifi.release();
+    }
   }
   return last ?? resolveHost(host);
 });

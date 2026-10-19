@@ -29,6 +29,15 @@ Sem câmera (ou no PC), digite o código: `HXP1 <ID> <CHAVE>`. No modo maker, el
 
 Vários robôs: **Meus robôs** escolhe qual pilotar. Se o robô recusar a chave (foi trocada), o app pede para parear de novo.
 
+## Rede do robô (Wi-Fi)
+
+- **Primeiro boot:** sem rede salva, o robô abre a **rede própria** `Hexapode-<ID>`. Ao parear, se o robô não aparece na rede do celular, o app **conecta sozinho nessa rede** (o Android pergunta "Conectar?"). A senha vem da chave do QR, por hash: ninguém digita nada.
+- **Ajustes → Rede do robô:**
+  - **Rede de casa:** "Conectar a uma rede" lista as redes que o **robô** enxerga (só 2,4 GHz no Pi 3); a senha é digitada no celular e gravada no robô. Se ela estiver errada (ou a rede sumir), o robô **volta sozinho para a rede própria** e o app mostra o motivo.
+  - **Direto:** o robô fica sempre na rede própria; o celular conecta nela. Funciona em qualquer lugar, sem roteador.
+  - Redes salvas (esquecer) e o nome do robô.
+- No modo Rede de casa, se nenhuma rede salva funcionar por 45 s, o robô abre a rede própria; depois procura as salvas de tempos em tempos, **nunca** com um app conectado.
+
 ## Testes
 
 ```bash

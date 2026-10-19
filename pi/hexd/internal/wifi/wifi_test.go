@@ -283,3 +283,20 @@ func TestJoinValidatesThePassword(t *testing.T) {
 		t.Fatal("open networks have no password")
 	}
 }
+
+func TestNoInterfaceTouchesNoProfile(t *testing.T) {
+	f := newFake()
+	f.present = false
+	m := New(Options{
+		NM: NM{Run: f.run, Iface: "wlan0"}, APSSID: "Hexapode-7F3A", APPassword: "SECRETPASS12",
+		SettingsPath: filepath.Join(t.TempDir(), "network.json"), FallbackAfter: time.Second,
+		RetryHomeEvery: time.Minute, JoinWait: 5, Tick: time.Hour, Apps: func() int { return 0 },
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Run does its first step, then returns
+	m.Run(ctx)
+	if len(f.profiles) != 0 {
+		t.Fatalf("no Wi-Fi interface (a dev PC): no profile may be created, got %v", f.profiles)
+	}
+}

@@ -5,6 +5,8 @@ import '../../core/link/robot_link.dart';
 import '../../core/proto.dart';
 import '../../core/providers.dart';
 import '../../core/settings.dart';
+import '../../core/robots.dart';
+import '../robots/robot_network_screen.dart';
 import '../robots/robots_sheet.dart';
 import 'controller_sheet.dart';
 
@@ -156,6 +158,21 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                   showRobotsSheet(nav.context);
                 },
               ),
+              if (ref.watch(robotsProvider).active != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.wifi_rounded, color: Colors.white70),
+                  title: const Text('Rede do robô (Wi-Fi)', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text(
+                    'Rede de casa ou direto com o celular; nome do robô',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+                  onTap: () {
+                    final nav = Navigator.of(context)..pop();
+                    showRobotNetworkScreen(nav.context);
+                  },
+                ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.sports_esports_rounded, color: Colors.white70),

@@ -38,6 +38,7 @@ void main() {
       'shutdown:\n  enabled: false\n'
       'auth:\n  identity: $bin/identity.json\n'
       'gps:\n  enabled: false\n'
+      'wifi:\n  enabled: false\n'
       'display:\n  enabled: false\n',
     );
     processes.add(

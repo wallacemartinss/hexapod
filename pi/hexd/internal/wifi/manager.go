@@ -151,9 +151,6 @@ func (m *Manager) Forget(ssid string) error { return m.submit(forget(ssid)) }
 // Run keeps the Wi-Fi in shape until ctx ends.
 func (m *Manager) Run(ctx context.Context) {
 	m.home = time.Now()
-	if err := m.opt.NM.EnsureAP(ctx, m.opt.APSSID, m.opt.APPassword); err != nil {
-		m.opt.Log.Warn("own network profile", "err", err)
-	}
 	m.refreshSaved(ctx)
 	tick := time.NewTicker(m.opt.Tick)
 	defer tick.Stop()
@@ -191,7 +188,14 @@ func (m *Manager) refreshSaved(ctx context.Context) {
 	m.set(func(s *Status) { s.Saved = ssids })
 }
 
+// startOwn (re)writes the own network's profile, then starts it. Profiles
+// are only touched once the Wi-Fi interface exists (step checks), so hexd
+// on a development PC never adds one to that PC.
 func (m *Manager) startOwn(ctx context.Context) {
+	if err := m.opt.NM.EnsureAP(ctx, m.opt.APSSID, m.opt.APPassword); err != nil {
+		m.opt.Log.Warn("own network profile", "err", err)
+		return
+	}
 	if err := m.opt.NM.Up(ctx, apName, 15); err != nil {
 		m.opt.Log.Warn("own network did not start", "err", err)
 		return

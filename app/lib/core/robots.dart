@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,6 +44,33 @@ PairingCode? parsePairingCode(String text) {
   if (!RegExp(r'^[A-Z2-7]{4}$').hasMatch(id) || !RegExp(r'^[A-Z2-7]{16,}$').hasMatch(token)) return null;
   return (id: id, token: token);
 }
+
+/// The robot's own Wi-Fi: `Hexapode-<id>` and a WPA2 password derived one
+/// way from the key, exactly as hexd does (pairing.Identity.OwnNetwork).
+({String ssid, String password}) ownNetwork(String id, String token) {
+  final digest = sha256.convert(utf8.encode('hexapod-ap:$token')).bytes;
+  return (ssid: 'Hexapode-$id', password: _base32(digest).substring(0, 12));
+}
+
+/// RFC 4648 base32, no padding (Go's base32.StdEncoding).
+String _base32(List<int> bytes) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  final out = StringBuffer();
+  var buffer = 0, bits = 0;
+  for (final b in bytes) {
+    buffer = (buffer << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      out.write(alphabet[(buffer >> (bits - 5)) & 31]);
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out.write(alphabet[(buffer << (5 - bits)) & 31]);
+  return out.toString();
+}
+
+/// The robot on its own network (NetworkManager "shared" mode).
+const ownNetworkAddress = '10.42.0.1';
 
 /// The paired robots and which one the app drives.
 class RobotsState {
@@ -106,6 +135,15 @@ class RobotsNotifier extends Notifier<RobotsState> {
   Future<void> forget(String id) async {
     final rest = state.robots.where((r) => r.id != id).toList();
     state = RobotsState(robots: rest, activeId: state.activeId == id ? rest.firstOrNull?.id : state.activeId);
+    await _save();
+  }
+
+  /// The robot was renamed (from the app, on the robot too).
+  Future<void> rename(String id, String name) async {
+    state = RobotsState(
+      robots: [for (final r in state.robots) r.id == id ? r.copyWith(name: name) : r],
+      activeId: state.activeId,
+    );
     await _save();
   }
 

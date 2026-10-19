@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hexapod_app/core/link/robot_wifi.dart';
 import 'package:hexapod_app/core/robots.dart';
 import 'package:hexapod_app/features/robots/pair_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,6 +32,11 @@ void main() {
         expect(parsePairingCode(bad), isNull, reason: bad);
       }
     });
+  });
+
+  test('own network password matches hexd', () {
+    // Pinned in pi/hexd/internal/pairing/pairing_test.go (and checked in Python).
+    expect(ownNetwork('7F3A', 'ABCDEFGHJKLMNPQRSTUV'), (ssid: 'Hexapode-7F3A', password: 'KCGBVTPAD3HK'));
   });
 
   group('my robots', () {
@@ -96,6 +102,35 @@ void main() {
       expect(c.read(robotsProvider).robots, isEmpty);
     });
 
+    testWidgets('a new robot is reached on its own Wi-Fi', (tester) async {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      final wifi = _FakeWifi(joinOk: true);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            home: PairScreen(
+              camera: false,
+              wifi: wifi,
+              // only answers on the robot's own network
+              finder: (id, address) async =>
+                  address == ownNetworkAddress ? (id: id, name: 'Novo', address: address!, port: 8080) : null,
+              keyCheck: (_, _, _) async => true,
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), _code);
+      await tester.tap(find.text('Parear'));
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 7)));
+      await tester.pumpAndSettle();
+      expect(wifi.joined, ('Hexapode-7F3A', 'KCGBVTPAD3HK'));
+      expect(find.text('Pareado!'), findsOneWidget);
+      expect(c.read(robotsProvider).active?.address, ownNetworkAddress);
+    });
+
     testWidgets('a typo is caught before searching', (tester) async {
       final c = ProviderContainer();
       addTearDown(c.dispose);
@@ -111,4 +146,20 @@ void main() {
       expect(find.textContaining('Código inválido'), findsOneWidget);
     });
   });
+}
+
+class _FakeWifi implements RobotWifi {
+  _FakeWifi({required this.joinOk});
+
+  final bool joinOk;
+  (String, String)? joined;
+
+  @override
+  Future<bool> join(String ssid, String password) async {
+    joined = (ssid, password);
+    return joinOk;
+  }
+
+  @override
+  Future<void> release() async {}
 }

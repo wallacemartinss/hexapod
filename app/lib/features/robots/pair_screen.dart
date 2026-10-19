@@ -8,6 +8,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../../core/link/discovery.dart';
+import '../../core/link/robot_wifi.dart';
 import '../../core/robots.dart';
 
 const _bg = Color(0xFF0E1013);
@@ -50,10 +51,13 @@ Future<FoundRobot?> _find(String id, String? address) async {
 /// "Novo robô": scan the QR on the robot's screen (or type the code), find
 /// the robot on the network, check the key, save.
 class PairScreen extends ConsumerStatefulWidget {
-  const PairScreen({super.key, this.finder = _find, this.keyCheck = _checkKey, this.camera});
+  const PairScreen({super.key, this.finder = _find, this.keyCheck = _checkKey, this.camera, this.wifi});
 
   final RobotFinder finder;
   final KeyCheck keyCheck;
+
+  /// Joins the robot's own network (default: robotWifiProvider; null on the PC).
+  final RobotWifi? wifi;
 
   /// Show the camera (default: on Android only).
   final bool? camera;
@@ -62,7 +66,7 @@ class PairScreen extends ConsumerStatefulWidget {
   ConsumerState<PairScreen> createState() => _PairScreenState();
 }
 
-enum _Step { scan, searching, notFound, badKey, done }
+enum _Step { scan, searching, joiningOwn, notFound, badKey, done }
 
 class _PairScreenState extends ConsumerState<PairScreen> {
   _Step _step = _Step.scan;
@@ -88,14 +92,28 @@ class _PairScreenState extends ConsumerState<PairScreen> {
       _code = code;
       _step = _Step.searching;
     });
-    // The robot may still be booting: keep looking for a little while.
+    final wifi = widget.wifi ?? ref.read(robotWifiProvider);
+    // The robot may still be booting: keep looking for a little while. With
+    // its own network at hand, look less: a new robot is usually there.
     FoundRobot? found;
-    final deadline = DateTime.now().add(const Duration(seconds: 15));
+    final look = wifi != null && address == null ? 6 : 15;
+    final deadline = DateTime.now().add(Duration(seconds: look));
     while (found == null && DateTime.now().isBefore(deadline) && mounted) {
       found = await widget.finder(code.id, address);
       if (found == null && address != null) break; // a typed address answers or not
+      if (found == null) await Future<void>.delayed(const Duration(seconds: 1)); // no busy loop
     }
     if (!mounted) return;
+    if (found == null && wifi != null && address == null) {
+      // First boot (or no home network): join "Hexapode-<id>" from here.
+      setState(() => _step = _Step.joiningOwn);
+      final own = ownNetwork(code.id, code.token);
+      if (await wifi.join(own.ssid, own.password)) {
+        found = await widget.finder(code.id, ownNetworkAddress);
+        if (found == null) await wifi.release();
+      }
+      if (!mounted) return;
+    }
     if (found == null) {
       setState(() => _step = _Step.notFound);
       return;
@@ -138,6 +156,11 @@ class _PairScreenState extends ConsumerState<PairScreen> {
             const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
             'Procurando o robô ${_code!.id}…',
             'O celular precisa estar na mesma rede Wi-Fi que o robô.',
+          ),
+          _Step.joiningOwn => _message(
+            const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
+            'Conectando na rede do robô…',
+            'Rede Hexapode-${_code!.id}. Se o Android perguntar, toque em "Conectar".',
           ),
           _Step.notFound => _notFound(),
           _Step.badKey => _message(
