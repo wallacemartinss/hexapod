@@ -448,5 +448,219 @@
   "controllerLegMoves": "Guard / Wave / Strike",
   "@controllerLegMoves": {
     "description": "Moves of the front legs, in the order of controllerLegButtons"
+  },
+  "pilotStickSitting": "Sitting",
+  "@pilotStickSitting": {
+    "description": "Joystick label while the robot is seated (the stick does nothing)"
+  },
+  "pilotStickTilt": "Tilt",
+  "@pilotStickTilt": {
+    "description": "Joystick label in Pose mode: tilts the body"
+  },
+  "pilotStickTiltHint": "side to side and front/back",
+  "@pilotStickTiltHint": {
+    "description": "Hint under the Tilt joystick"
+  },
+  "pilotStickTwist": "Twist",
+  "@pilotStickTwist": {
+    "description": "Joystick label in Pose mode: twists the body"
+  },
+  "pilotStickTwistHint": "turns the body in place",
+  "@pilotStickTwistHint": {
+    "description": "Hint under the Twist joystick"
+  },
+  "pilotStickWalk": "Walk",
+  "@pilotStickWalk": {
+    "description": "Joystick label in Walk mode"
+  },
+  "pilotStickWalkHint": "forward, back and sideways",
+  "@pilotStickWalkHint": {
+    "description": "Hint under the Walk joystick"
+  },
+  "pilotStickTurnLook": "Turn · look",
+  "@pilotStickTurnLook": {
+    "description": "Joystick label in Walk mode: turns the robot and tilts the camera"
+  },
+  "pilotStickTurnLookHint": "turns and tilts the camera",
+  "@pilotStickTurnLookHint": {
+    "description": "Hint under the Turn · look joystick"
+  },
+  "pilotStickLeftLeg": "Left leg",
+  "@pilotStickLeftLeg": {
+    "description": "Joystick label in Legs mode"
+  },
+  "pilotStickRightLeg": "Right leg",
+  "@pilotStickRightLeg": {
+    "description": "Joystick label in Legs mode"
+  },
+  "pilotStickLegHint": "up lifts · out stretches",
+  "@pilotStickLegHint": {
+    "description": "Hint under the leg joysticks: pushing up lifts the leg, pushing outwards stretches it"
+  },
+  "pilotFaultsTitle": "Robot warnings",
+  "@pilotFaultsTitle": {
+    "description": "Title of the sheet listing the robot's faults"
+  },
+  "pilotStandFirst": "Hold STAND UP first",
+  "@pilotStandFirst": {
+    "description": "Snackbar when a mode is tapped while seated; STAND UP is the button label"
+  },
+  "pilotSit": "Sit",
+  "@pilotSit": {
+    "description": "Mode bar button: sit down"
+  },
+  "pilotStandUp": "Stand up",
+  "@pilotStandUp": {
+    "description": "Mode bar hold button (and its progress card): stand up"
+  },
+  "pilotPose": "Pose",
+  "@pilotPose": {
+    "description": "Mode bar button: move the body without walking"
+  },
+  "pilotWalk": "Walk",
+  "@pilotWalk": {
+    "description": "Mode bar button: walk"
+  },
+  "pilotLegs": "Legs",
+  "@pilotLegs": {
+    "description": "Mode bar button: control single legs and gestures"
+  },
+  "pilotNoRobotTitle": "No robot paired",
+  "pilotNoRobotText": "Turn the robot on: when no app is connected, its screen shows a QR code.",
+  "pilotPairRobot": "Pair a robot",
+  "pilotKeyRefusedTitle": "The robot refused the key",
+  "@pilotKeyRefusedTitle": {
+    "description": "The robot rejected the app's pairing key"
+  },
+  "pilotKeyRefusedText": "The pairing key changed. Scan the QR code on the robot's screen again.",
+  "pilotPairAgain": "Pair again",
+  "pilotNoConnectionTitle": "No connection to the robot",
+  "pilotWaitingForBoard": "Connected, waiting for the ESP32…",
+  "@pilotWaitingForBoard": {
+    "description": "The Raspberry Pi answered but the ESP32 board has not sent data yet"
+  },
+  "pilotSearching": "Looking for {target} on the network…",
+  "@pilotSearching": {
+    "description": "Searching for the robot (its name or address)",
+    "placeholders": {
+      "target": {
+        "type": "String",
+        "example": "Hexapode-AB12"
+      }
+    }
+  },
+  "pilotMyRobots": "My robots",
+  "pilotSettings": "Settings",
+  "@pilotSettings": {
+    "description": "Button that opens the settings"
+  },
+  "pilotOnboardingTitle": "Before you drive",
+  "@pilotOnboardingTitle": {
+    "description": "Title of the first-run tips"
+  },
+  "pilotTipStopTitle": "STOP",
+  "@pilotTipStopTitle": {
+    "description": "First-run tip title; same text as the red STOP button"
+  },
+  "pilotTipStopText": "One tap cuts power to the servos right away. On the PS5 controller: circle.",
+  "pilotTipStandTitle": "Hold STAND UP",
+  "@pilotTipStandTitle": {
+    "description": "First-run tip title; STAND UP is the button label"
+  },
+  "pilotTipStandText": "The robot only stands up while you hold the button. That is also how it comes back after an alert.",
+  "pilotTipSticksTitle": "Floating joysticks",
+  "pilotTipSticksText": "Touch anywhere on each half of the screen: the joystick appears under your thumb. The bars hide while you drive; a quick tap brings them back.",
+  "pilotTipPadTitle": "PS5 controller",
+  "pilotTipPadText": "Pair it in the phone's Bluetooth: the sticks drive, cross, square and triangle change the mode, L2/R2 change the height.",
+  "pilotGotIt": "Got it",
+  "@pilotGotIt": {
+    "description": "Closes the first-run tips"
+  },
+  "pilotStopButton": "STOP",
+  "@pilotStopButton": {
+    "description": "Red emergency stop button (short, all caps)"
+  },
+  "pilotEmergencyStop": "Emergency stop",
+  "@pilotEmergencyStop": {
+    "description": "Screen reader label of the STOP button"
+  },
+  "pilotHolding": "Hold…",
+  "@pilotHolding": {
+    "description": "Hold button label while it is being held"
+  },
+  "pilotKeepHolding": "Keep holding",
+  "@pilotKeepHolding": {
+    "description": "Card shown while the STAND UP button is held"
+  },
+  "pilotStandingUp": "Standing up…",
+  "pilotStandingUpWait": "Wait for the robot to stand",
+  "pilotStood": "Standing",
+  "@pilotStood": {
+    "description": "Card shown when the robot is up"
+  },
+  "pilotPadDisconnected": "Controller disconnected",
+  "@pilotPadDisconnected": {
+    "description": "A Bluetooth gamepad was disconnected"
+  },
+  "pilotPadDisconnectedText": "The on-screen joysticks are back",
+  "pilotPadConnected": "Controller connected",
+  "@pilotPadConnected": {
+    "description": "A Bluetooth gamepad was connected"
+  },
+  "pilotGestureWave": "Wave",
+  "@pilotGestureWave": {
+    "description": "Gesture button: the robot waves a front leg"
+  },
+  "pilotGestureGuard": "Guard",
+  "@pilotGestureGuard": {
+    "description": "Gesture button: the robot raises its front legs in a guard pose"
+  },
+  "pilotGestureStrike": "Strike",
+  "@pilotGestureStrike": {
+    "description": "Gesture button: the robot strikes with a front leg"
+  },
+  "hudConnected": "Connected",
+  "@hudConnected": {
+    "description": "Link status in the top bar"
+  },
+  "hudWeakSignal": "Weak signal",
+  "@hudWeakSignal": {
+    "description": "Link status: connected but data arrives late"
+  },
+  "hudConnecting": "Connecting…",
+  "@hudConnecting": {
+    "description": "Link status in the top bar"
+  },
+  "hudDisconnected": "No connection",
+  "@hudDisconnected": {
+    "description": "Link status in the top bar"
+  },
+  "hudPairAgain": "Pair again",
+  "@hudPairAgain": {
+    "description": "Link status: the robot refused the pairing key"
+  },
+  "hudGamepad": "External controller",
+  "@hudGamepad": {
+    "description": "Tooltip of the gamepad button when none is connected"
+  },
+  "hudFront": "front",
+  "@hudFront": {
+    "description": "Label over the distance to the obstacle in front of the robot"
+  },
+  "videoConnecting": "Connecting camera…",
+  "videoUnavailable": "Camera unavailable",
+  "coreApiKeyRefused": "The robot refused the key: pair again",
+  "@coreApiKeyRefused": {
+    "description": "Error from the robot's setup API: wrong pairing key"
+  },
+  "coreApiError": "Error {status} on the robot",
+  "@coreApiError": {
+    "description": "Error from the robot's setup API with no explanation",
+    "placeholders": {
+      "status": {
+        "type": "int",
+        "example": "500"
+      }
+    }
   }
 }

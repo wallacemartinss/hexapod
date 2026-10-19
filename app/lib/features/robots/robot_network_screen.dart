@@ -71,7 +71,7 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e is RobotApiError ? e.message : '');
+      if (mounted) setState(() => _error = e is RobotApiError ? e.describe(context.l10n) : '');
     }
   }
 

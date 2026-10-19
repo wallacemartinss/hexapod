@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../l10n/l10n.dart';
 import 'whep_client.dart';
 
 enum VideoStatus { connecting, playing, unavailable }
@@ -140,7 +141,9 @@ class _VideoViewState extends State<VideoView> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _status == VideoStatus.connecting ? 'Conectando câmera…' : 'Câmera indisponível',
+                  _status == VideoStatus.connecting
+                      ? context.l10n.videoConnecting
+                      : context.l10n.videoUnavailable,
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 13),
                 ),
               ],

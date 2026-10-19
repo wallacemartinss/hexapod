@@ -45,17 +45,18 @@ class StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final t = telemetry;
     final stale = telemetryAge == null || telemetryAge! > const Duration(seconds: 1);
     final (linkText, linkColor) = switch (link) {
-      LinkStatus.connected when !stale => ('Conectado', severityColor(Severity.ok)),
-      LinkStatus.connected => ('Sinal fraco', severityColor(Severity.warning)),
-      LinkStatus.connecting => ('Conectando…', severityColor(Severity.info)),
-      LinkStatus.disconnected => ('Sem conexão', severityColor(Severity.danger)),
-      LinkStatus.unauthorized => ('Pareie de novo', severityColor(Severity.danger)),
+      LinkStatus.connected when !stale => (l.hudConnected, severityColor(Severity.ok)),
+      LinkStatus.connected => (l.hudWeakSignal, severityColor(Severity.warning)),
+      LinkStatus.connecting => (l.hudConnecting, severityColor(Severity.info)),
+      LinkStatus.disconnected => (l.hudDisconnected, severityColor(Severity.danger)),
+      LinkStatus.unauthorized => (l.hudPairAgain, severityColor(Severity.danger)),
     };
-    final state = t != null && !stale ? describeState(context.l10n, t.state) : null;
-    final faults = t == null ? const <String>[] : describeFaults(context.l10n, t.faultFlags);
+    final state = t != null && !stale ? describeState(l, t.state) : null;
+    final faults = t == null ? const <String>[] : describeFaults(l, t.faultFlags);
     final volts = t?.batteryVoltageV ?? 0;
 
     return Row(
@@ -130,7 +131,7 @@ class StatusBar extends StatelessWidget {
           GestureDetector(
             onTap: onGamepad,
             child: Tooltip(
-              message: gamepad ?? 'Controle externo',
+              message: gamepad ?? l.hudGamepad,
               child: Glass(
                 padding: const EdgeInsets.all(8),
                 child: Icon(
@@ -294,7 +295,7 @@ class ProximityRadar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('frente', style: TextStyle(color: Colors.white54, fontSize: 10)),
+              Text(context.l10n.hudFront, style: const TextStyle(color: Colors.white54, fontSize: 10)),
               Text(
                 front > 0 ? _fmt(front) : '—',
                 style: TextStyle(

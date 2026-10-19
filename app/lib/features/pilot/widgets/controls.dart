@@ -4,6 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// Translucent panel over the video.
 class Glass extends StatelessWidget {
   const Glass({super.key, required this.child, this.padding = const EdgeInsets.all(8), this.radius = 16});
@@ -46,7 +48,7 @@ class StopButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Parada de emergência',
+      label: context.l10n.pilotEmergencyStop,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) {
@@ -68,9 +70,9 @@ class StopButton extends StatelessWidget {
             ],
           ),
           alignment: Alignment.center,
-          child: const Text(
-            'PARAR',
-            style: TextStyle(
+          child: Text(
+            context.l10n.pilotStopButton,
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w800,
               fontSize: 16,
@@ -171,7 +173,7 @@ class _HoldButtonState extends State<HoldButton> with TickerProviderStateMixin {
       child: AnimatedBuilder(
         animation: Listenable.merge([_progress, _pulse]),
         builder: (context, _) => _RailItem(
-          label: _progress.value > 0 ? 'Segure…' : widget.label,
+          label: _progress.value > 0 ? context.l10n.pilotHolding : widget.label,
           icon: widget.icon,
           selected: false,
           color: widget.color,

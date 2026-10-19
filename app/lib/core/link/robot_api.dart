@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:http/http.dart' as http;
+
+import '../../l10n/app_localizations.dart';
 
 /// The robot's Wi-Fi, as GET /api/wifi reports it.
 class WifiStatus {
@@ -41,10 +44,25 @@ class WifiStatus {
 /// A network the robot sees.
 typedef WifiNetwork = ({String ssid, int signal, bool secure});
 
-/// Error from the robot, already in words for the user.
+/// Error from the robot's setup API.
 class RobotApiError implements Exception {
-  RobotApiError(this.message);
-  final String message;
+  RobotApiError(this.status, [this.detail]);
+
+  /// HTTP status of the answer.
+  final int status;
+
+  /// The robot's own explanation, if it sent one.
+  final String? detail;
+
+  /// The pairing key was refused: the app must pair again.
+  bool get keyRefused => status == 401;
+
+  /// In words for the user, in the app's language.
+  String describe(AppLocalizations l) => keyRefused ? l.coreApiKeyRefused : detail ?? l.coreApiError(status);
+
+  /// In Portuguese, for callers without a BuildContext (prefer [describe]).
+  String get message => describe(lookupAppLocalizations(const Locale('pt')));
+
   @override
   String toString() => message;
 }
@@ -79,8 +97,8 @@ class RobotApi {
     try {
       j = (jsonDecode(utf8.decode(r.bodyBytes)) as Map).cast();
     } catch (_) {}
-    if (r.statusCode == 401) throw RobotApiError('O robô recusou a chave: pareie de novo');
-    if (r.statusCode >= 400) throw RobotApiError(j['error'] as String? ?? 'Erro ${r.statusCode} no robô');
+    if (r.statusCode == 401) throw RobotApiError(401);
+    if (r.statusCode >= 400) throw RobotApiError(r.statusCode, j['error'] as String?);
     return j;
   }
 
