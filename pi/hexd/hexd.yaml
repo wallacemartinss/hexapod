@@ -32,6 +32,15 @@ wifi:                          # own network "Hexapode-<id>" + home networks set
   fallback_after: 45s          # no home network this long: open the own network
   own_band: auto               # own network: auto = 5 GHz when the chip has it (Pi 4), else 2.4; or 5 / 2.4
 
+media:                         # camera: photos and recordings on the SD card, gallery in the app
+  enabled: true
+  dir: /opt/hexapod/shared/media
+  source: rtsp://127.0.0.1:8554/cam   # MediaMTX (pi/mediamtx/mediamtx.yml), copied without re-encoding
+  max_record: 30m              # a recording stops by itself after this long
+  min_free_mb: 500             # keep this much of the card free (MB): no photo/recording below it
+  api: http://127.0.0.1:9997   # MediaMTX API: camera quality 720p / 1080p
+  settings: /opt/hexapod/shared/config/camera.json
+
 tailscale:                     # remote access: the app logs the robot in (marco 3)
   enabled: true                # needs auth.required; hexd is the tailscale operator
 

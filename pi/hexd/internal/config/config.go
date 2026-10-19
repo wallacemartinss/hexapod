@@ -59,6 +59,15 @@ type Config struct {
 		Wired    string        `yaml:"wired_interface"`
 		Tailnet  string        `yaml:"tailnet_interface"`
 	} `yaml:"display"`
+	Media struct {
+		Enabled   bool          `yaml:"enabled"`     // photos and recordings for the app's gallery
+		Dir       string        `yaml:"dir"`         // on the data partition
+		Source    string        `yaml:"source"`      // MediaMTX's local RTSP stream
+		MaxRecord time.Duration `yaml:"max_record"`  // a recording stops by itself after this long
+		MinFreeMB uint64        `yaml:"min_free_mb"` // keep this much of the SD card free (MB)
+		API       string        `yaml:"api"`         // MediaMTX API, for the camera quality
+		Settings  string        `yaml:"settings"`    // chosen quality (720p/1080p)
+	} `yaml:"media"`
 	Tailscale struct {
 		Enabled bool `yaml:"enabled"` // remote access set up from the app (needs auth.required)
 	} `yaml:"tailscale"`
@@ -100,6 +109,13 @@ func Default() Config {
 	c.Display.PageTime = 5 * time.Second
 	c.Display.Wired = "eth0"
 	c.Display.Tailnet = "tailscale0"
+	c.Media.Enabled = true // without a camera, photo and record answer "camera did not answer"
+	c.Media.Dir = "/opt/hexapod/shared/media"
+	c.Media.Source = "rtsp://127.0.0.1:8554/cam"
+	c.Media.MaxRecord = 30 * time.Minute
+	c.Media.MinFreeMB = 500
+	c.Media.API = "http://127.0.0.1:9997"
+	c.Media.Settings = "/opt/hexapod/shared/config/camera.json"
 	c.Tailscale.Enabled = true // without tailscale installed the app is told so
 	c.Shutdown.Enabled = true
 	c.Shutdown.Delay = 10 * time.Second

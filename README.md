@@ -236,6 +236,17 @@ Real time is not Go's job here (its garbage collector can pause briefly), and th
 - **Flutter for the app:** one code base, smooth enough for video with overlays, Android today and iOS possible later.
 - **MediaMTX + WebRTC:** low-latency video straight from the Pi's hardware H.264 encoder, playable in the app and in any browser.
 
+## Roadmap
+
+Real time and safety stay on the ESP32; these add "brain" features, most of them made possible by a Raspberry Pi 4 (8 GB):
+
+1. **Camera:** photos and recordings stored on the robot, a gallery in the app and download to the phone's gallery; 720p or 1080p. *(in progress)*
+2. **Follow me:** follow an ArUco marker, then a person (optionally with a Coral USB accelerator).
+3. **Offline voice commands** in English and Portuguese ("sit", "stand up", "wave"), with a wake word.
+4. **GPS navigation:** go to a point on the map, return home on low battery or lost signal, virtual fence.
+5. **Black box:** telemetry recorded on the robot and replayed in the app; Grafana on the robot.
+6. **ROS 2 bridge** for RViz, bags and Nav2.
+
 ## Development
 
 Requirements: Go 1.25+, Flutter 3.41+, PlatformIO, `buf` with `protoc-gen-go` and nanopb, Ansible (for the Pi).

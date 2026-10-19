@@ -26,12 +26,14 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/display"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/gps"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/media"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/sysinfo"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/tailscale"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
+	"google.golang.org/protobuf/proto"
 )
 
 // Set at build time: -ldflags "-X main.version=... -X main.gitHash=...".
@@ -188,6 +190,35 @@ func main() {
 		}
 	}
 
+	// Camera: photos and recordings for the app's gallery, quality presets.
+	var gallery *media.Gallery
+	var camera *media.Camera
+	if cfg.Media.Enabled {
+		g, err := media.New(media.Options{
+			Dir: cfg.Media.Dir, Source: cfg.Media.Source, MaxRecord: cfg.Media.MaxRecord,
+			MinFreeMB: cfg.Media.MinFreeMB, Log: log.With("component", "media"),
+		})
+		if err != nil {
+			log.Warn("gallery off", "err", err)
+		} else {
+			gallery = g
+			defer func() { _, _ = gallery.StopRecording() }() // a clean MP4 on shutdown
+		}
+		camera = &media.Camera{API: cfg.Media.API, Path: "cam", Settings: cfg.Media.Settings}
+		go camera.Keep(ctx, 30*time.Second)
+	}
+	// The Pi's health, plus whether the camera is recording (for the app's REC badge).
+	piStatus := func() *pb.PiStatus {
+		st := pi.Latest()
+		if st == nil || gallery == nil {
+			return st
+		}
+		st = proto.CloneOf(st)
+		on, d := gallery.Recording()
+		st.Recording, st.RecordingS = on, uint32(d.Seconds())
+		return st
+	}
+
 	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
@@ -199,7 +230,9 @@ func main() {
 		WirelessPath:       cfg.Metrics.WirelessPath,
 		WifiInterface:      cfg.Metrics.WifiInterface,
 		Position:           position,
-		PiStatus:           pi.Latest,
+		PiStatus:           piStatus,
+		Media:              mediaAPI(gallery),
+		Camera:             cameraAPI(camera),
 		Identity:           identity,
 		WiFi:               wifiAPI(wifiMgr),
 		Tailscale:          remote,
@@ -346,6 +379,22 @@ func gpsLine(position func() (*pb.Position, bool)) string {
 }
 
 // wifiAPI keeps a nil manager a nil interface (no Wi-Fi API).
+// mediaAPI and cameraAPI keep a nil pointer from becoming a non-nil
+// interface (the API then answers "camera off").
+func mediaAPI(g *media.Gallery) server.Media {
+	if g == nil {
+		return nil
+	}
+	return g
+}
+
+func cameraAPI(c *media.Camera) server.CameraQuality {
+	if c == nil {
+		return nil
+	}
+	return c
+}
+
 func wifiAPI(m *wifi.Manager) server.WiFi {
 	if m == nil {
 		return nil
