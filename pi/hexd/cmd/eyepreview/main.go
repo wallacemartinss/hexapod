@@ -130,8 +130,8 @@ func main() {
 		secs float64
 		in   func(t float64) eye.Inputs
 	}{
-		{"idle", 8, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Ready, Boot: -1} }},
-		{"steer", 6, func(t float64) eye.Inputs {
+		{"ready", 8, func(float64) eye.Inputs { return eye.Inputs{Mood: eye.Ready, Boot: -1} }},
+		{"steer-left", 6, func(t float64) eye.Inputs {
 			a := t * 2 * math.Pi / 3
 			return eye.Inputs{Mood: eye.Ready, Steering: true, LookX: math.Cos(a), LookY: 0.6 * math.Sin(a), Boot: -1}
 		}},
@@ -175,6 +175,32 @@ func main() {
 			}
 			return in
 		}},
+	}
+	// Every still without a clip of its own gets one: 5 s of that look
+	// living (blinks, glances, pulses; events replayed every 2.5 s).
+	have := map[string]bool{}
+	for _, c := range clips {
+		have[c.name] = true
+	}
+	for _, st := range stills {
+		if have[st.name] {
+			continue
+		}
+		in := st.in
+		clips = append(clips, struct {
+			name string
+			secs float64
+			in   func(t float64) eye.Inputs
+		}{st.name, 5, func(t float64) eye.Inputs {
+			cur := in
+			if in.Wink > 0 {
+				cur.Wink = 1 + int(t/2.5)
+			}
+			if in.Photo > 0 {
+				cur.Photo = 1 + int(t/2.5)
+			}
+			return cur
+		}})
 	}
 	ffmpeg, _ := exec.LookPath("ffmpeg")
 	for _, c := range clips {
