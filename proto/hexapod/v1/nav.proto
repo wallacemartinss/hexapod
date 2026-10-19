@@ -32,6 +32,7 @@ enum NavAction {
   NAV_ACTION_SET_HOME = 5; // points[0], or where the robot is when empty
   NAV_ACTION_SET_FENCE = 6; // polygon (>= 3 points); empty removes it
   NAV_ACTION_SET_ROUTE = 7; // patrol route (>= 2 points); empty removes it
+  NAV_ACTION_RESUME = 8; // the mission the lost link interrupted (NavStatus.resumable)
 }
 
 // app -> hexd only.
@@ -53,6 +54,18 @@ enum NavState {
   NAV_STATE_OUTSIDE_FENCE = 8; // stopped at the fence; only walking back in is allowed
 }
 
+// Why hexd turned the last NavRequest down.
+enum NavRefusal {
+  NAV_REFUSAL_UNSPECIFIED = 0; // accepted
+  NAV_REFUSAL_NO_POSITION = 1; // no good GPS fix yet (SET_HOME here)
+  NAV_REFUSAL_NO_HOME = 2;
+  NAV_REFUSAL_NO_ROUTE = 3;
+  NAV_REFUSAL_OUTSIDE_FENCE = 4; // a point (or home) beyond the fence
+  NAV_REFUSAL_BAD_POINTS = 5; // too few, too many, or not on Earth
+  NAV_REFUSAL_FOLLOWING = 6; // follow me is on: cancel it first
+  NAV_REFUSAL_NOTHING_TO_RESUME = 7;
+}
+
 // hexd -> app only, ~2 Hz and on every change.
 message NavStatus {
   NavState state = 1;
@@ -70,4 +83,6 @@ message NavStatus {
   bool loop = 13;
   bool battery_low = 14; // the app suggests going home
   float arrive_m = 15; // a point counts as reached this close (GPS accuracy)
+  NavRefusal refused = 16; // the answer to the last NavRequest
+  bool resumable = 17; // the link went during a mission: RESUME continues it
 }
