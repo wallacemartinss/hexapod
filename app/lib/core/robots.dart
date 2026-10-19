@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// A paired robot, as the app remembers it.
 class Robot {
-  const Robot({required this.id, required this.name, required this.token, this.address});
+  const Robot({required this.id, required this.name, required this.token, this.address, this.remote});
 
   /// Short id from the QR, e.g. "7F3A" (also names the robot's own Wi-Fi).
   final String id;
@@ -19,16 +19,32 @@ class Robot {
   /// Where the robot was last found (IP or host name), tried first.
   final String? address;
 
-  Robot copyWith({String? name, String? address}) =>
-      Robot(id: id, name: name ?? this.name, token: token, address: address ?? this.address);
+  /// Its Tailscale address (remote access), tried when it is not on the
+  /// phone's network; null: remote access not set up.
+  final String? remote;
 
-  Map<String, Object?> toJson() => {'id': id, 'name': name, 'token': token, 'address': address};
+  Robot copyWith({String? name, String? address, String? remote, bool clearRemote = false}) => Robot(
+    id: id,
+    name: name ?? this.name,
+    token: token,
+    address: address ?? this.address,
+    remote: clearRemote ? null : remote ?? this.remote,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    'token': token,
+    'address': address,
+    'remote': remote,
+  };
 
   static Robot fromJson(Map<String, Object?> j) => Robot(
     id: j['id']! as String,
     name: j['name']! as String,
     token: j['token']! as String,
     address: j['address'] as String?,
+    remote: j['remote'] as String?,
   );
 }
 
@@ -156,6 +172,20 @@ class RobotsNotifier extends Notifier<RobotsState> {
   }
 
   /// Remembers where the robot answered, to try there first next time.
+  /// Remote access set up (its Tailscale address) or turned off (null).
+  Future<void> setRemote(String id, String? remote) async {
+    final r = state.robots.where((r) => r.id == id).firstOrNull;
+    if (r == null || r.remote == remote) return;
+    state = RobotsState(
+      robots: [
+        for (final x in state.robots)
+          x.id == id ? x.copyWith(remote: remote, clearRemote: remote == null) : x,
+      ],
+      activeId: state.activeId,
+    );
+    await _save();
+  }
+
   Future<void> seenAt(String id, String address) async {
     final r = state.robots.where((r) => r.id == id).firstOrNull;
     if (r == null || r.address == address) return;

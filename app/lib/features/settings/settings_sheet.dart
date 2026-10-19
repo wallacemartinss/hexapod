@@ -7,6 +7,7 @@ import '../../core/providers.dart';
 import '../../core/settings.dart';
 import '../../core/robots.dart';
 import '../../core/version.dart';
+import '../robots/remote_access_screen.dart';
 import '../robots/robot_network_screen.dart';
 import '../robots/robots_sheet.dart';
 import '../../l10n/l10n.dart';
@@ -193,6 +194,18 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                   onTap: () {
                     final nav = Navigator.of(context)..pop();
                     showRobotNetworkScreen(nav.context);
+                  },
+                ),
+              if (ref.watch(robotsProvider).active != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.public_rounded, color: Colors.white70),
+                  title: Text(l.settingsRemote, style: const TextStyle(color: Colors.white)),
+                  subtitle: Text(l.settingsRemoteHelp, style: const TextStyle(color: Colors.white54)),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+                  onTap: () {
+                    final nav = Navigator.of(context)..pop();
+                    showRemoteAccessScreen(nav.context);
                   },
                 ),
               ListTile(

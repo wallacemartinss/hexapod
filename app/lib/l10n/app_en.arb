@@ -1200,5 +1200,45 @@
   "checkGas": "Gas and smoke (MQ-2)",
   "@checkGas": {
     "description": "Health check"
-  }
+  },
+  "settingsRemote": "Remote access",
+  "@settingsRemote": {
+    "description": "Settings entry: Tailscale setup"
+  },
+  "settingsRemoteHelp": "Drive the robot from anywhere (Tailscale)",
+  "remoteTitle": "Remote access",
+  "remoteIntro": "Drive the robot from anywhere with internet (4G, another network) through Tailscale, free for personal use. Set it up once, at home, with the robot nearby.",
+  "remoteRobotStep": "The robot",
+  "remoteRobotHow": "Tap the button: the browser opens; sign in to Tailscale (Google, Microsoft, GitHub...) and confirm with Connect.",
+  "remoteConnect": "Connect the robot",
+  "remoteWaiting": "Sign in in the browser and tap Connect. Waiting for the robot…",
+  "remoteOpenAgain": "Open the link again",
+  "remoteRobotIn": "On Tailscale as {name}",
+  "@remoteRobotIn": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "remoteAccount": "Account: {account}",
+  "@remoteAccount": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "remoteDisconnect": "Disconnect",
+  "remoteDisconnectTitle": "Disconnect the robot from Tailscale?",
+  "remoteDisconnectBody": "The app will only reach it on the same network again, until you connect it once more.",
+  "remoteCancel": "Cancel",
+  "remoteFailed": "The robot could not do that now. Try again.",
+  "remoteUnreachable": "The robot is out of reach. Set up remote access with the phone on the same network as the robot.",
+  "remoteAbsent": "Tailscale is not installed on this robot. Update its SD card image.",
+  "remotePhoneStep": "This phone",
+  "remotePhoneHow": "Install the Tailscale app and sign in with the same account. Keep its VPN on when you are away from home.",
+  "remoteInstallApp": "Install Tailscale",
+  "remotePhoneIn": "This phone is on Tailscale.",
+  "remoteReady": "All set: away from home, the app finds the robot through Tailscale by itself."
 }

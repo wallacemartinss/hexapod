@@ -64,11 +64,15 @@ final robotAddressProvider = FutureProvider<String>((ref) async {
     unawaited(ref.read(robotsProvider.notifier).seenAt(robot.id, found.address));
     return found.address;
   }
-  // Away from it (4G, another network): the address in Settings, e.g. its
-  // Tailscale name, when the robot answering there is this one. Before the
-  // own network, which makes Android ask the user.
-  final remote = await identify(await resolveHost(host));
-  if (remote != null && remote.id == robot.id) return remote.address;
+  // Away from it (4G, another network): its Tailscale address (remote
+  // access set up in the app), then the address in Settings, when the robot
+  // answering there is this one. Before the own network, which makes
+  // Android ask the user.
+  final tailnet = ref.read(robotsProvider).active?.remote;
+  for (final address in [?tailnet, await resolveHost(host)]) {
+    final there = await identify(address);
+    if (there != null && there.id == robot.id) return there.address;
+  }
   // Not on this network: the robot may be on its own Wi-Fi (direct mode,
   // or no home network worked). Join it, at most once a minute (Android
   // asks the user each time).

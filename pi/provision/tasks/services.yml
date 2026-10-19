@@ -15,6 +15,7 @@
     - hexapod-boot-screen.service
     - hexapod-firmware-sync.service
     - hexapod-wifi-unblock.service
+    - hexapod-tailscale-operator.service
     - mediamtx.service
     - mic-stream.service
   register: units
@@ -38,5 +39,5 @@
     name: "{{ item }}"
     enabled: true
     daemon_reload: "{{ units is changed and not image_build | bool }}"
-  loop: [hexd, hexapod-boot-screen, hexapod-firmware-sync, hexapod-wifi-unblock]
+  loop: [hexd, hexapod-boot-screen, hexapod-firmware-sync, hexapod-wifi-unblock, hexapod-tailscale-operator]
   ignore_errors: "{{ ansible_check_mode }}"

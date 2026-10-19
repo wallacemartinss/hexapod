@@ -51,6 +51,8 @@ type Config struct {
 	Identity *pairing.Identity
 	// WiFi runs the robot's Wi-Fi for the setup API (nil: not managed).
 	WiFi WiFi
+	// Tailscale logs the robot in for remote access (nil: not offered).
+	Tailscale Tailscale
 	// Rename saves a new robot name (nil: no pairing).
 	Rename func(name string) error
 	// Codes is the short code on the robot's screen that /pair trades for
@@ -114,6 +116,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/wifi/join", s.handleWiFiJoin)
 	mux.HandleFunc("POST /api/wifi/mode", s.handleWiFiMode)
 	mux.HandleFunc("POST /api/wifi/forget", s.handleWiFiForget)
+	mux.HandleFunc("GET /api/tailscale", s.handleTailscaleStatus)
+	mux.HandleFunc("POST /api/tailscale/login", s.handleTailscaleLogin)
+	mux.HandleFunc("POST /api/tailscale/logout", s.handleTailscaleLogout)
 	mux.HandleFunc("POST /api/name", s.handleName)
 	mux.HandleFunc("POST /pair", s.handlePair)
 	mux.HandleFunc("GET /health", s.handleHealth)

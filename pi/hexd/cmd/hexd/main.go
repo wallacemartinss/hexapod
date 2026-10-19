@@ -30,6 +30,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/sysinfo"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/tailscale"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 )
 
@@ -176,6 +177,12 @@ func main() {
 		}
 	}
 
+	// Remote access: the app logs the robot in to the owner's tailnet.
+	var remote server.Tailscale
+	if cfg.Tailscale.Enabled && identity != nil {
+		remote = &tailscale.Client{Run: tailscale.CLI, Hostname: "hexapod-" + strings.ToLower(identity.ID)}
+	}
+
 	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
@@ -190,6 +197,7 @@ func main() {
 		PiStatus:           pi.Latest,
 		Identity:           identity,
 		WiFi:               wifiAPI(wifiMgr),
+		Tailscale:          remote,
 		Rename:             rename,
 		Codes:              codes,
 		OnPaired:           onPaired,

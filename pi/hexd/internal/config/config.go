@@ -58,6 +58,9 @@ type Config struct {
 		Wired    string        `yaml:"wired_interface"`
 		Tailnet  string        `yaml:"tailnet_interface"`
 	} `yaml:"display"`
+	Tailscale struct {
+		Enabled bool `yaml:"enabled"` // remote access set up from the app (needs auth.required)
+	} `yaml:"tailscale"`
 	Shutdown struct {
 		Enabled bool          `yaml:"enabled"`
 		Delay   time.Duration `yaml:"delay"`
@@ -95,6 +98,7 @@ func Default() Config {
 	c.Display.PageTime = 5 * time.Second
 	c.Display.Wired = "eth0"
 	c.Display.Tailnet = "tailscale0"
+	c.Tailscale.Enabled = true // without tailscale installed the app is told so
 	c.Shutdown.Enabled = true
 	c.Shutdown.Delay = 10 * time.Second
 	c.Shutdown.Command = []string{"systemctl", "poweroff"}

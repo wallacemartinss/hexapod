@@ -85,10 +85,12 @@ class RobotApi {
     return _decode(r);
   }
 
-  Future<Map<String, Object?>> _post(String path, Map<String, Object?> body) async {
-    final r = await _client
-        .post(_uri(path), headers: _headers, body: jsonEncode(body))
-        .timeout(const Duration(seconds: 5));
+  Future<Map<String, Object?>> _post(
+    String path,
+    Map<String, Object?> body, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final r = await _client.post(_uri(path), headers: _headers, body: jsonEncode(body)).timeout(timeout);
     return _decode(r);
   }
 
@@ -117,4 +119,38 @@ class RobotApi {
   Future<void> setMode(String mode) => _post('/api/wifi/mode', {'mode': mode});
   Future<void> forget(String ssid) => _post('/api/wifi/forget', {'ssid': ssid});
   Future<void> rename(String name) => _post('/api/name', {'name': name});
+
+  Future<TailscaleStatus> tailscale() async => TailscaleStatus.fromJson(await _get('/api/tailscale'));
+
+  /// Starts the robot's login: the answer carries the link to open (or the
+  /// running status when it was logged in already). The robot waits up to
+  /// 15 s for Tailscale to hand the link.
+  Future<TailscaleStatus> tailscaleLogin() async =>
+      TailscaleStatus.fromJson(await _post('/api/tailscale/login', {}, timeout: const Duration(seconds: 25)));
+
+  Future<void> tailscaleLogout() => _post('/api/tailscale/logout', {}, timeout: const Duration(seconds: 15));
+}
+
+/// The robot on the owner's tailnet (GET /api/tailscale).
+class TailscaleStatus {
+  const TailscaleStatus({required this.state, this.authUrl, this.name, this.dnsName, this.ip, this.account});
+
+  /// "running", "needs_login", "starting", "off" or "absent" (not installed).
+  final String state;
+  final String? authUrl;
+  final String? name;
+  final String? dnsName;
+  final String? ip;
+  final String? account;
+
+  bool get running => state == 'running';
+
+  static TailscaleStatus fromJson(Map<String, Object?> j) => TailscaleStatus(
+    state: (j['state'] as String?) ?? 'absent',
+    authUrl: j['auth_url'] as String?,
+    name: j['name'] as String?,
+    dnsName: j['dns_name'] as String?,
+    ip: j['ip'] as String?,
+    account: j['account'] as String?,
+  );
 }
