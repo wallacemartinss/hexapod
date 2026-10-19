@@ -223,12 +223,20 @@ func main() {
 		return st
 	}
 
-	// Follow me: targets from hexvision; nothing moves from here (F1).
+	// Follow me: targets from hexvision; the robot walks after the locked
+	// one only with vision.follow on.
 	var hub *vision.Hub
 	var visionAPI server.Vision // stays a nil interface without vision
 	if cfg.Vision.Enabled {
 		hub = vision.New(log.With("component", "vision"))
 		visionAPI = hub
+		if cfg.Vision.Follow {
+			d := vision.DefaultDrive()
+			d.Distance, d.MaxSpeed, d.MaxTurn = cfg.Vision.Distance, cfg.Vision.MaxSpeed, cfg.Vision.MaxTurn
+			d.TurnGain = d.MaxTurn / 30 // full turn at 30 deg off
+			hub.EnableFollow(d)
+			log.Warn("follow me drives the robot", "distance_m", d.Distance, "max_speed", d.MaxSpeed)
+		}
 		go func() {
 			if err := hub.Run(ctx, cfg.Vision.Listen); err != nil {
 				log.Warn("vision off", "err", err)

@@ -37,6 +37,7 @@ type Sim struct {
 	booted   time.Time
 	mode     pb.Mode
 	vx, vy   float32
+	yaw      float32
 	paws     *pb.FrontLegs
 	gesture  pb.Gesture
 	gestureT float64 // s left in the current gesture
@@ -72,6 +73,13 @@ func (s *Sim) InjectDistance(i int, mm uint32) { s.mu.Lock(); s.dist[i] = mm; s.
 
 // SetBattery sets the open-circuit battery voltage.
 func (s *Sim) SetBattery(v float64) { s.mu.Lock(); s.battery = v; s.mu.Unlock() }
+
+// Motion is the speeds of the last accepted Command (-1..1).
+func (s *Sim) Motion() (vx, vy, yawRate float32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.vx, s.vy, s.yaw
+}
 
 // State returns the current failsafe state.
 func (s *Sim) State() pb.State { s.mu.Lock(); defer s.mu.Unlock(); return s.fs.State }
@@ -174,7 +182,7 @@ func (s *Sim) handle(env *pb.Envelope) *pb.Envelope {
 			if m.Command.Mode != pb.Mode_MODE_UNSPECIFIED {
 				s.mode = m.Command.Mode
 			}
-			s.vx, s.vy = m.Command.Vx, m.Command.Vy
+			s.vx, s.vy, s.yaw = m.Command.Vx, m.Command.Vy, m.Command.YawRate
 			s.paws = m.Command.FrontLegs
 			if g := m.Command.Gesture; g != s.gesture && g != pb.Gesture_GESTURE_UNSPECIFIED && s.mode == pb.Mode_MODE_FRONT_LEGS {
 				s.gestureT = 2.0 // roughly the firmware gesture lengths

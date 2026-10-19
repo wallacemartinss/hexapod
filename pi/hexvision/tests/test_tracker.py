@@ -52,6 +52,14 @@ class TrackerTest(unittest.TestCase):
         got = tr.update(moved, [(400, 100, 500, 400, 0.9)], 1.2)
         self.assertEqual([t.id for t in got], [first])
 
+    def test_slow_detections_still_confirm(self):
+        # A Pi 3 detects people ~0.6 s apart.
+        tr = PeopleTracker()
+        got = []
+        for i in range(MIN_HITS):
+            got = tr.update(BLANK, [(100, 100, 200, 400, 0.9)], i * 0.7)
+        self.assertEqual(len(got), 1)
+
     def test_forgets_after_max_age(self):
         tr = PeopleTracker()
         for i in range(4):

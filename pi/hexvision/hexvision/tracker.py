@@ -14,6 +14,10 @@ import numpy as np
 
 MIN_HITS = 3  # frames in a row before a target is reported
 MAX_AGE_S = 2.0  # a target not seen for this long is forgotten
+# Detections this close count as "in a row": people are detected slowly on a
+# Pi 3 (~0.6 s apart), markers on every frame.
+PERSON_GAP_S = 1.5
+MARKER_GAP_S = 0.5
 PERSON_IDS = 1000  # people get ids from here (markers: marker id + 1)
 
 
@@ -95,7 +99,7 @@ class PeopleTracker:
 
     def _hit(self, t, image, d, now):
         # A confirmed target stays confirmed when it comes back (within MAX_AGE_S).
-        t.hits = t.hits + 1 if now - t.seen < 0.5 or t.confirmed else 1
+        t.hits = t.hits + 1 if now - t.seen < PERSON_GAP_S or t.confirmed else 1
         t.box, t.seen, t.confidence = tuple(d[:4]), now, d[4]
         look = appearance(image, d)
         if look is not None:  # follows slow changes of light
@@ -112,6 +116,6 @@ class MarkerConfirm:
         seen = {}
         for m in markers:
             hits, last = self.hits.get(m.marker_id, (0, 0.0))
-            seen[m.marker_id] = (hits + 1 if now - last < 0.5 else 1, now)
+            seen[m.marker_id] = (hits + 1 if now - last < MARKER_GAP_S else 1, now)
         self.hits = {k: v for k, v in {**self.hits, **seen}.items() if now - v[1] <= MAX_AGE_S}
         return [m for m in markers if self.hits[m.marker_id][0] >= MIN_HITS]

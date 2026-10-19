@@ -1382,5 +1382,14 @@
         }
       }
     }
+  },
+  "followFollowing": "Following: {label}",
+  "@followFollowing": {
+    "description": "Banner while the robot walks after the locked target",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   }
 }

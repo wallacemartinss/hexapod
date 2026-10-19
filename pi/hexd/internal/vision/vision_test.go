@@ -128,3 +128,57 @@ func TestRunReceivesUDP(t *testing.T) {
 		}
 	}
 }
+
+func walk(vx, yaw float32) *pb.Command {
+	return &pb.Command{Mode: pb.Mode_MODE_WALK, Vx: vx, YawRate: yaw}
+}
+
+func TestSteerFollowsOnlyWhenEnabledInWalkWithSticksAtRest(t *testing.T) {
+	h, c := newHub()
+	h.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 1000, BearingDeg: 40, DistanceM: 3}}})
+	h.Follow(1000)
+
+	if got := h.Steer(walk(0, 0)); got.YawRate != 0 || got.Vx != 0 {
+		t.Fatalf("following not enabled, yet steered: %v", got)
+	}
+	h.EnableFollow(DefaultDrive())
+	sit := &pb.Command{Mode: pb.Mode_MODE_SIT}
+	if got := h.Steer(sit); got != sit {
+		t.Fatal("steered while sitting")
+	}
+	got := h.Steer(walk(0.05, 0)) // a resting stick, under TakeOver
+	if got.YawRate <= 0 || got.Vx != 0 {
+		t.Fatalf("target 40 deg left, 3 m: want a left turn before walking, got vx %.2f yaw %.2f", got.Vx, got.YawRate)
+	}
+	if h.Status().State != pb.FollowState_FOLLOW_STATE_FOLLOWING {
+		t.Fatalf("state %v, want following", h.Status().State)
+	}
+	c.add(time.Second) // no Commands from the app: no longer following
+	if h.Status().State != pb.FollowState_FOLLOW_STATE_LOCKED {
+		t.Fatalf("state %v without Commands, want locked", h.Status().State)
+	}
+
+	// Out of view: the robot stops, the lock waits.
+	h.Update(&pb.Targets{})
+	if got := h.Steer(walk(0, 0)); got.Vx != 0 || got.YawRate != 0 {
+		t.Fatalf("target lost, still moving: %v", got)
+	}
+}
+
+func TestStickOrStopTakesOver(t *testing.T) {
+	for name, cmd := range map[string]*pb.Command{
+		"stick": walk(0, -0.5),
+		"stop":  {Mode: pb.Mode_MODE_WALK, Estop: true},
+	} {
+		h, _ := newHub()
+		h.EnableFollow(DefaultDrive())
+		h.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 3, BearingDeg: 20, DistanceM: 3}}})
+		h.Follow(3)
+		if got := h.Steer(cmd); got != cmd {
+			t.Errorf("%s: the pilot's command was changed", name)
+		}
+		if st := h.Status(); st.State != pb.FollowState_FOLLOW_STATE_IDLE {
+			t.Errorf("%s: follow not cancelled (%v)", name, st.State)
+		}
+	}
+}

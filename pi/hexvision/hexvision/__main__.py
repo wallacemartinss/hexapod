@@ -17,6 +17,7 @@ import cv2
 from hexvision.camera import Camera
 from hexvision.detect import Found, MarkerFinder
 from hexvision.people import PersonFinder
+from hexvision.pipeline import PeoplePipeline
 from hexvision.tracker import MarkerConfirm, PeopleTracker
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gen"))
@@ -123,6 +124,9 @@ def main():
         help="person detector (MobileNet-SSD) folder; missing: markers only",
     )
     ap.add_argument("--people-min", type=float, default=0.5, help="person detector confidence, 0..1")
+    ap.add_argument(
+        "--detect-interval", type=float, default=0, help="s at least between person detections (0: as fast as it goes)"
+    )
     ap.add_argument("--show", action="store_true", help="window with what is seen (PC only)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -133,7 +137,7 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     camera = finder = people = None
-    tracker, confirm = PeopleTracker(), MarkerConfirm()
+    confirm = MarkerConfirm()
     people_warned = False
     seq, count, fps = 0, 0, 0.0
     window_start, window_frames = time.monotonic(), 0
@@ -155,7 +159,9 @@ def main():
                     log.warning("calibration not used: %s", e)
             finder = MarkerFinder(camera, args.marker_size)
             try:
-                people = PersonFinder(camera, args.models, args.people_min)
+                people = PeoplePipeline(
+                    PersonFinder(camera, args.models, args.people_min), PeopleTracker(), args.detect_interval
+                )
                 log.info("person detector loaded from %s", args.models)
             except cv2.error as e:
                 people = None
@@ -166,8 +172,8 @@ def main():
         now = time.monotonic()
         found = confirm.update(finder.find(small), now)
         if people is not None:
-            for t in tracker.update(small, people.detect(small), now):
-                bearing, elevation, distance = people.measure(t.box)
+            for t in people.step(small, now):
+                bearing, elevation, distance = people.finder.measure(t.box)
                 x0, y0, x1, y1 = t.box
                 found.append(
                     Found(

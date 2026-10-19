@@ -75,6 +75,13 @@ type Config struct {
 	Vision struct {
 		Enabled bool   `yaml:"enabled"` // follow-me targets from hexvision (docs: ADR-0017)
 		Listen  string `yaml:"listen"`  // UDP address hexvision sends to (local only)
+		// Follow: hexd steers the robot towards the locked target (walk mode,
+		// sticks at rest; any stick or STOP takes over). Off until tested on
+		// the robot with the pilot's go-ahead.
+		Follow   bool    `yaml:"follow"`
+		Distance float64 `yaml:"distance"`  // m kept from the target
+		MaxSpeed float64 `yaml:"max_speed"` // 0..1 of the walking speed
+		MaxTurn  float64 `yaml:"max_turn"`  // 0..1 of the turning speed
 	} `yaml:"vision"`
 	Media struct {
 		Enabled   bool          `yaml:"enabled"`     // photos and recordings for the app's gallery
@@ -135,6 +142,7 @@ func Default() Config {
 	c.Eye.FPS = 15
 	c.Vision.Enabled = true // without hexvision running, the app just sees no targets
 	c.Vision.Listen = "127.0.0.1:47300"
+	c.Vision.Distance, c.Vision.MaxSpeed, c.Vision.MaxTurn = 1.2, 0.5, 0.6
 	c.Media.Enabled = true // without a camera, photo and record answer "camera did not answer"
 	c.Media.Dir = "/opt/hexapod/shared/media"
 	c.Media.Source = "rtsp://127.0.0.1:8554/cam"

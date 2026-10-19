@@ -75,6 +75,8 @@ type Vision interface {
 	Subscribe() (<-chan *pb.Envelope, func())
 	Follow(track uint32) *pb.FollowStatus
 	Status() *pb.FollowStatus
+	// Steer may replace a walk Command's speeds to follow the locked target.
+	Steer(cmd *pb.Command) *pb.Command
 }
 
 // Server is created once and serves until its context ends.
@@ -354,6 +356,9 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 			s.cfg.Vision.Follow(f.TrackId) // the new status reaches every app
 		}
 		if cmd := env.GetCommand(); cmd != nil {
+			if s.cfg.Vision != nil {
+				cmd = s.cfg.Vision.Steer(cmd)
+			}
 			if err := s.forward(cmd, profile); err != nil && !errors.Is(err, device.ErrNotReady) {
 				s.log.Warn("command not forwarded", "err", err)
 			}

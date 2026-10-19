@@ -107,6 +107,13 @@ void main() {
     await tester.pump();
     expect(find.text('Alvo travado: Pessoa'), findsOneWidget);
     expect(requests, [1000]);
+    follow.add(
+      pb.FollowStatus()
+        ..state = pb.FollowState.FOLLOW_STATE_FOLLOWING
+        ..trackId = 1000,
+    );
+    await tester.pump();
+    expect(find.text('Seguindo: Pessoa'), findsOneWidget);
   });
 
   testWidgets('lost target says so and still offers Cancel', (tester) async {

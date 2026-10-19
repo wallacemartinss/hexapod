@@ -17,6 +17,7 @@ import (
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/vision"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 	"github.com/wallacemartinss/hexapod/pi/internal/sim"
 	"google.golang.org/protobuf/proto"
@@ -488,6 +489,7 @@ func (f *fakeVision) Follow(id uint32) *pb.FollowStatus {
 	f.follows <- id
 	return &pb.FollowStatus{TrackId: id}
 }
+func (f *fakeVision) Steer(c *pb.Command) *pb.Command { return c }
 func (f *fakeVision) Status() *pb.FollowStatus {
 	return &pb.FollowStatus{State: pb.FollowState_FOLLOW_STATE_IDLE}
 }
@@ -526,5 +528,40 @@ func TestFollowMeOverTheWebSocket(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("follow not cancelled when the app left")
+	}
+}
+
+// The app walks with its sticks at rest and a person locked 40 deg to the
+// left: the simulated ESP32 must get a left turn; a stick takes over.
+func TestFollowSteersTheAppsWalkCommands(t *testing.T) {
+	hub := vision.New(quiet)
+	hub.EnableFollow(vision.DefaultDrive())
+	r := newRig(t, Config{Vision: hub})
+	a := connectApp(t, r)
+	hub.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 1000, BearingDeg: 40, DistanceM: 3}}})
+	hub.Follow(1000)
+
+	seq := uint32(0)
+	send := func(vx, yaw float32) {
+		seq++
+		a.send(&pb.Command{Seq: seq, Mode: pb.Mode_MODE_WALK, Vx: vx, YawRate: yaw})
+	}
+	a.send(&pb.Command{Seq: 1, Mode: pb.Mode_MODE_STAND})
+	seq = 1
+	waitFor(t, "a left turn at the simulated ESP32", func() bool {
+		send(0, 0)
+		_, _, yaw := r.sim.Motion()
+		return yaw > 0.3
+	})
+	if st := hub.Status(); st.State != pb.FollowState_FOLLOW_STATE_FOLLOWING {
+		t.Fatalf("state %v, want following", st.State)
+	}
+	send(0, -0.8) // the pilot turns right
+	waitFor(t, "the pilot's own turn", func() bool {
+		_, _, yaw := r.sim.Motion()
+		return yaw < -0.7
+	})
+	if st := hub.Status(); st.State != pb.FollowState_FOLLOW_STATE_IDLE {
+		t.Fatalf("stick did not cancel following: %v", st.State)
 	}
 }

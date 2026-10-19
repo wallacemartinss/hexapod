@@ -42,5 +42,6 @@ Instalado pelo deploy (`/opt/hexapod/current/hexvision`) e rodado pelo `hexvisio
 | `--marker-size` | 0.05 | quadrado preto do marcador, m |
 | `--models` | `/opt/hexapod/shared/models/mobilenet-ssd` | detector de pessoas |
 | `--people-min` | 0.5 | confiança mínima do detector de pessoas, 0..1 |
+| `--detect-interval` | 0 | s no mínimo entre detecções de pessoas (economiza CPU; o rastreador rápido cobre os intervalos) |
 
-Custo: o detector de pessoas leva ~30 ms por quadro num núcleo de um PC de mesa; um núcleo do Pi 3 é 10 a 15 vezes mais lento (a medir no robô), e o Pi 4 umas 3 vezes mais rápido que o Pi 3.
+Custo, medido: o detector de pessoas leva 30 ms por quadro num núcleo de PC de mesa e ~630 ms no Pi 3 (4 núcleos, com a CPU freada por subtensão); por isso ele roda numa linha de execução própria e, entre uma detecção e outra, um rastreador MOSSE move o quadro de cada pessoa a cada quadro (~1 ms no Pi 3). Marcadores: 87 ms por quadro em 960x720 no Pi 3.

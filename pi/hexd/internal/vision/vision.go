@@ -2,13 +2,16 @@
 // Envelope per frame) and keeps the pilot's choice: which target is
 // followed, and whether it is in view.
 //
-// Nothing here moves the robot. Following (F2) will turn the locked
-// target into Commands, still under the ESP32 failsafe.
+// With following on (EnableFollow), Steer replaces the speeds of the app's
+// own walk Commands with the ones that follow the locked target: the app
+// stays the dead man (no Commands, nothing moves), any stick or STOP takes
+// over, and the ESP32 failsafe applies as always.
 package vision
 
 import (
 	"context"
 	"log/slog"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -23,6 +26,10 @@ const (
 	StaleAfter = 500 * time.Millisecond
 	// ReleaseAfter: a lost target is waited for this long, then let go.
 	ReleaseAfter = 5 * time.Second
+	// TakeOver: a stick past this (any axis, -1..1) cancels following.
+	TakeOver = 0.2
+	// steerFresh: the robot counts as following while Steer drove it this recently.
+	steerFresh = 300 * time.Millisecond
 )
 
 // Hub is safe for concurrent use.
@@ -39,6 +46,56 @@ type Hub struct {
 	state     pb.FollowState
 	subs      map[chan *pb.Envelope]struct{}
 	lockCount uint64
+	follow    bool // EnableFollow: Steer drives the robot
+	drive     Drive
+	steeredAt time.Time
+}
+
+// EnableFollow lets Steer drive the robot towards the locked target.
+func (h *Hub) EnableFollow(d Drive) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.follow, h.drive = true, d
+}
+
+// Steer takes an app Command on its way to the ESP32. While a target is
+// locked and the app is in walk mode with its sticks at rest, the speeds
+// become the ones that follow the target (zero when it is out of view).
+// A stick or STOP cancels following, and the Command goes out as the pilot
+// sent it.
+func (h *Hub) Steer(c *pb.Command) *pb.Command {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.track == 0 {
+		return c
+	}
+	if c.Estop || math.Abs(float64(c.Vx)) > TakeOver || math.Abs(float64(c.Vy)) > TakeOver ||
+		math.Abs(float64(c.YawRate)) > TakeOver {
+		h.log.Info("pilot took over: follow cancelled", "track", h.track)
+		h.track, h.lastSeen = 0, nil
+		h.refresh()
+		h.publishLocked(&pb.Envelope{Payload: &pb.Envelope_FollowStatus{FollowStatus: h.statusLocked()}})
+		return c
+	}
+	if !h.follow || c.Mode != pb.Mode_MODE_WALK {
+		return c // locked only: sitting, posing, or following not enabled
+	}
+	out := proto.CloneOf(c)
+	out.Vx, out.Vy, out.YawRate = 0, 0, 0
+	if h.state == pb.FollowState_FOLLOW_STATE_LOCKED && h.lastSeen != nil {
+		vx, yaw := h.drive.Steer(float64(h.lastSeen.BearingDeg), float64(h.lastSeen.DistanceM))
+		out.Vx, out.YawRate = float32(vx), float32(yaw)
+	}
+	was := h.following()
+	h.steeredAt = h.now()
+	if !was {
+		h.publishLocked(&pb.Envelope{Payload: &pb.Envelope_FollowStatus{FollowStatus: h.statusLocked()}})
+	}
+	return out
+}
+
+func (h *Hub) following() bool {
+	return h.track != 0 && h.state == pb.FollowState_FOLLOW_STATE_LOCKED && h.now().Sub(h.steeredAt) < steerFresh
 }
 
 // New makes an idle hub.
@@ -195,6 +252,9 @@ func (h *Hub) refresh() {
 
 func (h *Hub) statusLocked() *pb.FollowStatus {
 	st := &pb.FollowStatus{State: h.state, TrackId: h.track}
+	if h.following() {
+		st.State = pb.FollowState_FOLLOW_STATE_FOLLOWING
+	}
 	if h.lastSeen != nil {
 		st.BearingDeg, st.DistanceM = h.lastSeen.BearingDeg, h.lastSeen.DistanceM
 	}

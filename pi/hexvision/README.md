@@ -42,5 +42,6 @@ Installed by the deploy (`/opt/hexapod/current/hexvision`) and run by `hexvision
 | `--marker-size` | 0.05 | marker's black square, m |
 | `--models` | `/opt/hexapod/shared/models/mobilenet-ssd` | person detector |
 | `--people-min` | 0.5 | person detector confidence, 0..1 |
+| `--detect-interval` | 0 | s at least between person detections (saves CPU; the fast tracker fills the gaps) |
 
-Cost: the person detector takes ~30 ms a frame on one core of a desktop PC; a Pi 3 core is 10-15 times slower (to be measured on the robot), a Pi 4 about 3 times faster than a Pi 3.
+Cost, measured: the person detector takes 30 ms a frame on one desktop core and ~630 ms on a Pi 3 (4 cores, under-voltage throttling); so it runs on its own thread and, between detections, a MOSSE tracker moves each person's box on every frame (~1 ms on a Pi 3). Markers: 87 ms a frame at 960x720 on a Pi 3.

@@ -129,6 +129,7 @@ class _TargetOverlayState extends ConsumerState<TargetOverlay> {
         }
         if (following) {
           final lost = follow.state == FollowState.FOLLOW_STATE_LOST;
+          final name = _lockedName(l, targets, follow.trackId);
           children.add(
             Positioned(
               left: 0,
@@ -136,7 +137,11 @@ class _TargetOverlayState extends ConsumerState<TargetOverlay> {
               top: 76,
               child: Center(
                 child: _FollowBar(
-                  text: lost ? l.followLost : l.followLocked(_lockedName(l, targets, follow.trackId)),
+                  text: lost
+                      ? l.followLost
+                      : follow.state == FollowState.FOLLOW_STATE_FOLLOWING
+                      ? l.followFollowing(name)
+                      : l.followLocked(name),
                   color: lost ? Colors.amber : _locked,
                   cancel: l.followCancel,
                   onCancel: () => _follow(0),

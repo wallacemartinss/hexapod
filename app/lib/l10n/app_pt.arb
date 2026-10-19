@@ -454,5 +454,6 @@
   "followLost": "Alvo fora de vista, aguardando…",
   "followHint": "Toque num alvo para segui-lo",
   "followPerson": "Pessoa",
-  "followPersonDistance": "Pessoa · {meters} m"
+  "followPersonDistance": "Pessoa · {meters} m",
+  "followFollowing": "Seguindo: {label}"
 }
