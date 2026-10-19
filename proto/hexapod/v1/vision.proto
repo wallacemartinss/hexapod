@@ -12,6 +12,7 @@ enum TargetKind {
   TARGET_KIND_UNSPECIFIED = 0;
   TARGET_KIND_MARKER = 1; // ArUco marker (DICT_4X4_50), e.g. on the phone's screen
   TARGET_KIND_PERSON = 2; // person detector (MobileNet-SSD)
+  TARGET_KIND_ANIMAL = 3; // a dog or a cat (same detector)
 }
 
 message Target {

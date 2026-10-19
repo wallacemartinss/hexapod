@@ -26,6 +26,7 @@ class Found:
     distance_m: float  # 0 = unknown
     confidence: float
     person: bool = False
+    animal: bool = False  # a dog or a cat
 
 
 class MarkerFinder:

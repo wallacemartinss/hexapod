@@ -157,19 +157,28 @@ class _TargetOverlayState extends ConsumerState<TargetOverlay> {
 }
 
 String _label(AppLocalizations l, Target t) {
-  final person = t.kind == TargetKind.TARGET_KIND_PERSON;
-  if (t.distanceM <= 0) return person ? l.followPerson : l.followTarget(t.markerId);
-  return person ? l.followPersonDistance(t.distanceM) : l.followTargetDistance(t.markerId, t.distanceM);
+  final known = t.distanceM > 0;
+  return switch (t.kind) {
+    TargetKind.TARGET_KIND_PERSON => known ? l.followPersonDistance(t.distanceM) : l.followPerson,
+    TargetKind.TARGET_KIND_ANIMAL => known ? l.followAnimalDistance(t.distanceM) : l.followAnimal,
+    _ => known ? l.followTargetDistance(t.markerId, t.distanceM) : l.followTarget(t.markerId),
+  };
 }
 
 /// The locked target's name, from the frame when it is in view.
 String _lockedName(AppLocalizations l, List<Target> targets, int trackId) {
   for (final t in targets) {
     if (t.trackId == trackId) {
-      return t.kind == TargetKind.TARGET_KIND_PERSON ? l.followPerson : l.followTarget(t.markerId);
+      return switch (t.kind) {
+        TargetKind.TARGET_KIND_PERSON => l.followPerson,
+        TargetKind.TARGET_KIND_ANIMAL => l.followAnimal,
+        _ => l.followTarget(t.markerId),
+      };
     }
   }
-  // Markers carry their id in the track (id + 1); people start at 1000.
+  // Markers carry their id in the track (id + 1); people start at 1000,
+  // animals at 1000000 (pi/hexvision tracker.py).
+  if (trackId >= 1000000) return l.followAnimal;
   return trackId >= 1000 ? l.followPerson : l.followTarget(trackId - 1);
 }
 

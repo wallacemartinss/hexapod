@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from hexvision.detect import Found
-from hexvision.tracker import MIN_HITS, PERSON_IDS, MarkerConfirm, PeopleTracker
+from hexvision.tracker import ANIMAL_IDS, MIN_HITS, PERSON_IDS, MarkerConfirm, PeopleTracker
 
 BLANK = np.zeros((480, 640, 3), np.uint8)
 
@@ -66,6 +66,16 @@ class TrackerTest(unittest.TestCase):
         # They pass; the red one is there again and keeps the id.
         got = tr.update(red, [(100, 100, 200, 400, 0.9)], 0.9)
         self.assertEqual([t.id for t in got], [first])
+
+    def test_a_dog_next_to_a_person_keeps_its_own_id(self):
+        tr = PeopleTracker()
+        for i in range(4):
+            got = tr.update(BLANK, [(100, 100, 200, 400, 0.9), (150, 300, 260, 400, 0.9, "animal")], i * 0.1)
+        ids = {t.kind: t.id for t in got}
+        self.assertEqual(ids, {"person": PERSON_IDS, "animal": ANIMAL_IDS})
+        # The dog walks where the person was: it does not take their id.
+        got = tr.update(BLANK, [(100, 100, 200, 400, 0.9, "animal")], 0.5)
+        self.assertNotIn(PERSON_IDS, {t.id for t in tr.tracks if t.kind == "animal"})
 
     def test_slow_detections_still_confirm(self):
         # A Pi 3 detects people ~0.6 s apart.

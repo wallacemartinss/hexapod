@@ -31,10 +31,17 @@ enum _Draw { none, fence, route }
 /// this app keeps sending walk Commands with the sticks released (the
 /// pilot screen stays alive underneath), so STOP is at hand here too.
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key, this.tiles = true});
+  const MapScreen({super.key, this.tiles = true, this.tileProvider, this.zoom = 19});
 
   /// Map tiles from openstreetmap.org (off in tests: no network).
   final bool tiles;
+
+  /// Where the tiles come from (null: the network; the README screenshots
+  /// use saved ones).
+  final TileProvider? tileProvider;
+
+  /// Zoom when the map first centres on the robot.
+  final double zoom;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -95,7 +102,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (robot != null && !_centered) {
       _centered = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _map.move(robot, 19);
+        if (mounted) _map.move(robot, widget.zoom);
       });
     }
     final home = st != null && st.homeSet ? _latLng(st.home) : null;
@@ -127,7 +134,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             mapController: _map,
             options: MapOptions(
               initialCenter: robot ?? home ?? const LatLng(0, 0),
-              initialZoom: robot != null || home != null ? 19 : 2,
+              initialZoom: robot != null || home != null ? widget.zoom : 2,
               maxZoom: 21,
               onTap: (_, p) => setState(() {
                 if (_draw != _Draw.none) {
@@ -142,6 +149,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.wallacemartinss.hexapod_app',
+                  tileProvider: widget.tileProvider,
                   maxNativeZoom: 19,
                 ),
               if (fence.length >= 3)

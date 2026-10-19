@@ -21,6 +21,7 @@ MAX_AGE_S = 2.0  # a target not seen for this long is forgotten
 PERSON_GAP_S = 1.5
 MARKER_GAP_S = 0.5
 PERSON_IDS = 1000  # people get ids from here (markers: marker id + 1)
+ANIMAL_IDS = 1_000_000  # dogs and cats from here
 MIN_IOU = 0.3  # overlap that can carry an id over
 # Torso histogram correlation (-1..1): below SAME_MIN an overlapping box is
 # someone else; above BACK_MIN a box with no overlap is a lost person back.
@@ -53,6 +54,10 @@ def similar(a, b):
     return float(cv2.compareHist(a.astype(np.float32), b.astype(np.float32), cv2.HISTCMP_CORREL))
 
 
+def _kind(d):
+    return d[5] if len(d) > 5 else "person"
+
+
 @dataclass
 class Track:
     id: int
@@ -60,6 +65,7 @@ class Track:
     seen: float
     hits: int = 1
     confidence: float = 0.0
+    kind: str = "person"  # or "animal"
     look: np.ndarray = field(default=None, repr=False)
 
     @property
@@ -70,10 +76,11 @@ class Track:
 class PeopleTracker:
     def __init__(self):
         self.tracks = []
-        self.next_id = PERSON_IDS
+        self.next_id = {"person": PERSON_IDS, "animal": ANIMAL_IDS}
 
     def update(self, image, detections, now):
-        """detections: [(x0, y0, x1, y1, conf)] -> confirmed tracks seen now."""
+        """detections: [(x0, y0, x1, y1, conf[, kind])] -> confirmed tracks
+        seen now. A person never takes an animal's id, nor the reverse."""
         self.tracks = [t for t in self.tracks if now - t.seen <= MAX_AGE_S]
         free = list(self.tracks)
         current = []
@@ -83,6 +90,8 @@ class PeopleTracker:
         pairs = []
         for i, d in enumerate(detections):
             for t in free:
+                if t.kind != _kind(d):
+                    continue
                 overlap = iou(d, t.box)
                 if overlap < MIN_IOU:
                     continue
@@ -104,14 +113,15 @@ class PeopleTracker:
                 continue
             look = looks[i]
             # Back after an occlusion? The most alike recently lost person.
-            best = max(free, key=lambda t: similar(look, t.look), default=None)
+            best = max((t for t in free if t.kind == _kind(d)), key=lambda t: similar(look, t.look), default=None)
             if best is not None and best.confirmed and similar(look, best.look) > BACK_MIN:
                 free.remove(best)
                 self._hit(best, look, d, now)
                 current.append(best)
                 continue
-            t = Track(id=self.next_id, box=tuple(d[:4]), seen=now, confidence=d[4], look=look)
-            self.next_id += 1
+            kind = _kind(d)
+            t = Track(id=self.next_id[kind], box=tuple(d[:4]), seen=now, confidence=d[4], look=look, kind=kind)
+            self.next_id[kind] += 1
             self.tracks.append(t)
             current.append(t)
         return [t for t in current if t.confirmed]

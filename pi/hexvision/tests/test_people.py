@@ -47,6 +47,12 @@ class MeasureTest(unittest.TestCase):
         self.assertGreater(b[1], 0)
         self.assertAlmostEqual(measure(self.camera, b, CAM_H)[2], 4.0, delta=0.3)
 
+    def test_an_animal_is_measured_only_by_its_feet(self):
+        b = box(self.camera, 1.2, 0.5)  # a dog, feet on the floor
+        self.assertAlmostEqual(measure(self.camera, b, CAM_H, kind="animal")[2], 1.2, delta=0.05)
+        far = box(self.camera, 4.0, 0.5)  # feet too near the horizon: no height to fall back on
+        self.assertEqual(measure(self.camera, far, CAM_H, kind="animal")[2], 0.0)
+
     def test_feet_cut_is_unknown(self):
         b = box(self.camera, 0.12, 1.0)  # legs only, feet below the bottom edge
         self.assertEqual(b[3], H)

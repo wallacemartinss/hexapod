@@ -8,7 +8,7 @@ Follow me, the robot's side (ADR-0017 and the roadmap): hexvision reads the came
 camera -> MediaMTX (rtsp://127.0.0.1:8554/cam) -> hexvision -> UDP 127.0.0.1:47300 -> hexd -> app
 ```
 
-- **People:** MobileNet-SSD (MIT licence) through OpenCV's dnn module. A tracker keeps the same id on the same person from frame to frame, and brings it back by the colours of their clothes after a short occlusion.
+- **People and animals (dogs and cats):** MobileNet-SSD (MIT licence) through OpenCV's dnn module; an animal is measured by its feet only (there is no typical height). A tracker keeps the same id on the same person from frame to frame, and brings it back by the colours of their clothes after a short occlusion.
 - **ArUco markers** (`DICT_4X4_50`), e.g. on the phone's screen: only for close range (~1 m measured with a phone screen; a printed A4 marker reaches ~4 m).
 - **Per target:** box in the image, bearing (+ = robot's left), elevation and distance (a marker's from its size; a person's from where their feet meet the floor, which up close works with the head out of view, or else from the height of the whole body).
 - **No flukes:** a target reaches the app only after 3 frames in a row.

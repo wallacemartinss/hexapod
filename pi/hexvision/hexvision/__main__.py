@@ -83,7 +83,13 @@ def build_targets(seq, width, height, found, fps, calibrated):
     for f in sorted(found, key=lambda f: -f.confidence)[:MAX_TARGETS]:
         msg.targets.add(
             track_id=f.track_id,
-            kind=vision_pb2.TARGET_KIND_PERSON if f.person else vision_pb2.TARGET_KIND_MARKER,
+            kind=(
+                vision_pb2.TARGET_KIND_ANIMAL
+                if f.animal
+                else vision_pb2.TARGET_KIND_PERSON
+                if f.person
+                else vision_pb2.TARGET_KIND_MARKER
+            ),
             marker_id=f.marker_id,
             x=f.x,
             y=f.y,
@@ -103,7 +109,7 @@ def draw(image, found, fps):
         p0 = (int(f.x * w), int(f.y * h))
         p1 = (int((f.x + f.w) * w), int((f.y + f.h) * h))
         cv2.rectangle(image, p0, p1, (255, 220, 0), 2)
-        name = f"person {f.track_id}" if f.person else f"#{f.marker_id}"
+        name = f"person {f.track_id}" if f.person else f"animal {f.track_id}" if f.animal else f"#{f.marker_id}"
         label = f"{name} {f.bearing_deg:+.0f}deg {f.distance_m:.2f}m"
         cv2.putText(image, label, (p0[0], p0[1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 220, 0), 1)
     cv2.putText(image, f"{fps:.1f} fps", (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
@@ -177,7 +183,7 @@ def main():
         found = confirm.update(finder.find(small), now)
         if people is not None:
             for t in people.step(small, now):
-                bearing, elevation, distance = people.finder.measure(t.box)
+                bearing, elevation, distance = people.finder.measure(t.box, t.kind)
                 x0, y0, x1, y1 = t.box
                 found.append(
                     Found(
@@ -191,7 +197,8 @@ def main():
                         elevation_deg=elevation,
                         distance_m=distance,
                         confidence=t.confidence,
-                        person=True,
+                        person=t.kind == "person",
+                        animal=t.kind == "animal",
                     )
                 )
 

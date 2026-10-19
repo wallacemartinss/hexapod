@@ -1564,5 +1564,22 @@
   "navInterrupted": "Mission interrupted (link lost)",
   "@navInterrupted": {
     "description": "Chip after the lost link stopped a mission"
+  },
+  "followAnimal": "Animal",
+  "followAnimalDistance": "Animal · {meters} m",
+  "@followAnimal": {
+    "description": "Box label of a dog or a cat the camera sees"
+  },
+  "@followAnimalDistance": {
+    "description": "Box label of a dog or a cat, with its distance",
+    "placeholders": {
+      "meters": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 1
+        }
+      }
+    }
   }
 }

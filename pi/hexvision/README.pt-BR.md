@@ -8,7 +8,7 @@ O lado do robô no "Siga-me" (ADR-0017 e o roadmap): o hexvision lê a câmera, 
 câmera -> MediaMTX (rtsp://127.0.0.1:8554/cam) -> hexvision -> UDP 127.0.0.1:47300 -> hexd -> app
 ```
 
-- **Pessoas:** MobileNet-SSD (licença MIT) pelo módulo dnn do OpenCV. Um rastreador mantém o mesmo número na mesma pessoa de um quadro para o outro e a reconhece pelas cores da roupa depois de sumir por um instante.
+- **Pessoas e animais (cães e gatos):** MobileNet-SSD (licença MIT) pelo módulo dnn do OpenCV; um animal só é medido pelos pés (não há altura típica). Um rastreador mantém o mesmo número na mesma pessoa de um quadro para o outro e a reconhece pelas cores da roupa depois de sumir por um instante.
 - **Marcadores ArUco** (`DICT_4X4_50`), por exemplo na tela do celular: só para perto (~1 m medido com a tela de um celular; um marcador impresso em A4 chega a ~4 m).
 - **Por alvo:** quadro na imagem, ângulo (+ = esquerda do robô), elevação e distância (de um marcador, pelo tamanho; de uma pessoa, pelo ponto em que os pés tocam o chão, o que funciona de perto mesmo com a cabeça fora da imagem, ou então pela altura do corpo inteiro).
 - **Sem alarme falso:** um alvo só chega ao app depois de 3 quadros seguidos.

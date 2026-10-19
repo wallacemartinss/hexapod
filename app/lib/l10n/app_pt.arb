@@ -494,5 +494,7 @@
   "navRefusedBadPoints": "Pontos inválidos (a cerca precisa de 3 ou mais)",
   "navRefusedFollowing": "Cancele o Siga-me antes",
   "navRefusedNothingToResume": "Não há missão para continuar",
-  "navInterrupted": "Missão interrompida (conexão perdida)"
+  "navInterrupted": "Missão interrompida (conexão perdida)",
+  "followAnimal": "Animal",
+  "followAnimalDistance": "Animal · {meters} m"
 }
