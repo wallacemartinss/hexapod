@@ -158,7 +158,14 @@ void main() {
     await _tab(tester, 'Ambiente', 'data_environment');
     await _tab(tester, 'Pernas', 'data_legs');
     await _tab(tester, 'Sistema', 'data_system');
+    // Over 2 min of Pi samples: the charts must keep the old ones inside.
+    for (var i = 0; i < 80; i++) {
+      await tester.pump(const Duration(seconds: 2));
+    }
     await _tab(tester, 'Raspberry Pi', 'data_pi');
+    await tester.drag(find.text('Processador'), const Offset(0, -150));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await expectLater(find.byType(DataScreen), matchesGoldenFile('goldens/data_pi_charts.png'));
   });
 
   testWidgets('bench board: sensors not fitted', (tester) async {

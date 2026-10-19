@@ -741,6 +741,7 @@ class _PiTab extends StatelessWidget {
               max: 100,
               unit: ' %',
               height: 90,
+              span: 120,
             ),
             const SizedBox(height: 4),
             _Row('Carga (1 min, 4 núcleos)', p.load1m.toStringAsFixed(2)),
@@ -764,6 +765,7 @@ class _PiTab extends StatelessWidget {
               max: 90,
               unit: ' °C',
               height: 90,
+              span: 120,
             ),
             const _Note('Acima de 80 °C o Pi reduz a velocidade para esfriar.'),
           ],
@@ -1151,6 +1153,7 @@ class _Chart extends StatelessWidget {
     required this.max,
     required this.unit,
     this.height = 140,
+    this.span = 30,
   });
 
   final List<(List<(double, double)>, Color, String)> lines;
@@ -1159,6 +1162,9 @@ class _Chart extends StatelessWidget {
   final String unit;
   final double height;
 
+  /// Seconds of history across the width (oldest at the left edge).
+  final double span;
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1166,7 +1172,7 @@ class _Chart extends StatelessWidget {
       children: [
         SizedBox(
           height: height,
-          child: CustomPaint(painter: _ChartPainter(lines, min, max), size: Size.infinite),
+          child: CustomPaint(painter: _ChartPainter(lines, min, max, span), size: Size.infinite),
         ),
         const SizedBox(height: 6),
         Row(
@@ -1179,7 +1185,7 @@ class _Chart extends StatelessWidget {
             ],
             const Spacer(),
             Text(
-              '${min.toStringAsFixed(0)} a ${max.toStringAsFixed(0)}$unit · 30 s',
+              '${min.toStringAsFixed(0)} a ${max.toStringAsFixed(0)}$unit · ${span >= 60 ? '${span ~/ 60} min' : '${span.toInt()} s'}',
               style: const TextStyle(color: Colors.white38, fontSize: 11),
             ),
           ],
@@ -1190,11 +1196,12 @@ class _Chart extends StatelessWidget {
 }
 
 class _ChartPainter extends CustomPainter {
-  _ChartPainter(this.lines, this.min, this.max);
+  _ChartPainter(this.lines, this.min, this.max, this.span);
 
   final List<(List<(double, double)>, Color, String)> lines;
   final double min;
   final double max;
+  final double span;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1205,12 +1212,13 @@ class _ChartPainter extends CustomPainter {
       final y = size.height * i / 4;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
+    canvas.clipRect(Offset.zero & size); // history older than [span] stays inside
     for (final (points, color, _) in lines) {
       if (points.length < 2) continue;
       final path = Path();
       for (var i = 0; i < points.length; i++) {
         final (sec, v) = points[i];
-        final x = size.width * (1 + sec / 30);
+        final x = size.width * (1 + sec / span);
         final y = size.height * (1 - ((v - min) / (max - min)).clamp(0.0, 1.0));
         i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
       }
