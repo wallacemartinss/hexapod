@@ -63,7 +63,7 @@ func (p *Panel) Wake() error {
 		0x20, 0x00, // horizontal addressing
 		0xA1, 0xC8, // column 127 -> SEG0, scan COM63 -> COM0: upright
 		0xDA, 0x12, // COM pins for 128x64
-		0x81, 0x8F, // contrast (lower than max: less burn-in)
+		0x81, 0xCF, // contrast: 0x8F looked dim on the robot's panel
 		0xD9, 0xF1, // pre-charge
 		0xDB, 0x40, // VCOMH
 		0xA4, // show RAM

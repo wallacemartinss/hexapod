@@ -198,18 +198,21 @@ func TestRunLeavesStoppedOnScreen(t *testing.T) {
 
 	bus.mu.Lock()
 	defer bus.mu.Unlock()
-	last := bus.writes[len(bus.writes)-pages:]
+	// The last frame: its pixel writes, joined back into pages.
+	writes := bus.writes[len(bus.writes)-pages*Width/chunk:]
+	var got []byte
+	for _, w := range writes {
+		got = append(got, w[1:]...)
+	}
 	stopped := seated()
 	stopped.Stopped = true
 	for shift := 0; shift < 3; shift++ {
 		want := Render(stopped, PageStatus, shift)
-		match := true
+		var flat []byte
 		for p := range want {
-			if !bytes.Equal(last[p][1:], want[p][:]) {
-				match = false
-			}
+			flat = append(flat, want[p][:]...)
 		}
-		if match {
+		if bytes.Equal(got, flat) {
 			return
 		}
 	}
