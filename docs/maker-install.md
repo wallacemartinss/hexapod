@@ -33,7 +33,7 @@ In Raspberry Pi Imager: **Raspberry Pi OS Lite (64-bit)**, then *Edit settings*:
 
 - hostname `hexapod`;
 - user **`hexasys`** (the project's admin user: the robot's own service user is `hexapod`) and a password;
-- **SSH with your public key** (*Services → Allow public-key authentication only*);
+- **SSH with your public key** (*Services → Allow public-key authentication only*). No key yet, or never used one? [SSH key, step by step](ssh-key.md);
 - your Wi-Fi (a Pi 3 only sees 2.4 GHz) and country.
 
 Boot the Pi and check you can get in: `ssh hexasys@hexapod.local`. No mDNS on your network? Use its IP everywhere below.

@@ -14,7 +14,7 @@ This playbook turns a stock Raspberry Pi OS Lite into the robot's "brain". It is
 
 ## Requirements
 
-- A Pi flashed with **Raspberry Pi OS Lite (64-bit)**, with hostname `hexapod`, your user and **SSH key** (see the [maker guide](../../docs/maker-install.md#1-flash-raspberry-pi-os)).
+- A Pi flashed with **Raspberry Pi OS Lite (64-bit)**, with hostname `hexapod`, the user `hexasys` and your **SSH key** (see the [maker guide](../../docs/maker-install.md#1-flash-raspberry-pi-os) and [SSH key, step by step](../../docs/ssh-key.md)).
 - `ssh hexasys@hexapod.local` working from the PC.
 - Ansible on the PC: `pipx install ansible-core` or your distribution's package (`ansible --version`).
 

@@ -14,7 +14,7 @@ O [Ansible](https://docs.ansible.com) roda **no seu PC** e configura outra máqu
 
 ## Pré-requisitos
 
-- Pi gravado com o **Raspberry Pi OS Lite (64-bit)**, com hostname `hexapod`, seu usuário e **chave SSH** (veja o [guia maker](../../docs/instalacao-maker.md#1-gravar-o-raspberry-pi-os)).
+- Pi gravado com o **Raspberry Pi OS Lite (64-bit)**, com hostname `hexapod`, o usuário `hexasys` e a sua **chave SSH** (veja o [guia maker](../../docs/instalacao-maker.md#1-gravar-o-raspberry-pi-os) e a [chave SSH, passo a passo](../../docs/chave-ssh.md)).
 - `ssh hexasys@hexapod.local` funcionando a partir do PC.
 - Ansible no PC: `pipx install ansible-core` ou o pacote da sua distribuição (`ansible --version`).
 

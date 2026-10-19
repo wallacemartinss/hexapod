@@ -33,7 +33,7 @@ No Raspberry Pi Imager: **Raspberry Pi OS Lite (64-bit)** e depois *Editar confi
 
 - hostname `hexapod`;
 - usuário **`hexasys`** (o administrador do projeto: o usuário de serviço do robô é o `hexapod`) e uma senha;
-- **SSH com a sua chave pública** (*Serviços → Permitir apenas autenticação por chave pública*);
+- **SSH com a sua chave pública** (*Serviços → Permitir apenas autenticação por chave pública*). Ainda não tem chave, ou nunca usou? [Chave SSH, passo a passo](chave-ssh.md);
 - seu Wi-Fi (o Pi 3 só enxerga 2,4 GHz) e o país.
 
 Ligue o Pi e confira o acesso: `ssh hexasys@hexapod.local`. Sua rede não tem mDNS? Use o IP no lugar do nome em tudo abaixo.

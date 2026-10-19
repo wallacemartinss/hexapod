@@ -159,7 +159,7 @@ Guia completo: [`docs/instalar.md`](docs/instalar.md). Acesso remoto (pilotar fo
 
 Tudo o que o caminho simples faz, na mão e sob o seu controle. **Guia completo: [`docs/instalacao-maker.md`](docs/instalacao-maker.md)**; a versão curta:
 
-**1. Prepare o Pi** a partir do Raspberry Pi OS Lite 64-bit (hostname `hexapod`, seu usuário e chave SSH) e provisione com Ansible a partir do PC:
+**1. Prepare o Pi** a partir do Raspberry Pi OS Lite 64-bit (hostname `hexapod`, usuário `hexasys` e a sua chave SSH: [como criar](docs/chave-ssh.md)) e provisione com Ansible a partir do PC:
 
 ```bash
 cd pi/provision

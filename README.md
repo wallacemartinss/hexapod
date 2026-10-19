@@ -159,7 +159,7 @@ Full guide: [`docs/install.md`](docs/install.md). Remote access (drive away from
 
 Everything the simple path does, by hand and under your control. **Full guide: [`docs/maker-install.md`](docs/maker-install.md)**; the short version:
 
-**1. Prepare the Pi** from stock Raspberry Pi OS Lite 64-bit (hostname `hexapod`, your user and SSH key), then provision it with Ansible from your PC:
+**1. Prepare the Pi** from stock Raspberry Pi OS Lite 64-bit (hostname `hexapod`, user `hexasys` and your SSH key: [how to make one](docs/ssh-key.md)), then provision it with Ansible from your PC:
 
 ```bash
 cd pi/provision
