@@ -4,7 +4,7 @@
 //	go run ./hexd/cmd/eyepreview -out ../docs/eye   (from pi/)
 //
 // It writes moods.png (every expression side by side), one PNG per mood,
-// and, when ffmpeg is installed, animated GIF and MP4 clips.
+// and, when ffmpeg is installed, an MP4 clip of each (GIFs of a few).
 package main
 
 import (
@@ -24,6 +24,10 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/display"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/eye"
 )
+
+// showcase: the clips also made as GIF (the README shows those; every clip
+// is an MP4, much lighter).
+var showcase = map[string]bool{"ready": true, "love": true, "sneeze": true, "wink-photo": true, "boot": true, "hunter": true}
 
 // The face around the window: the panel is 240 px for 27.7 mm, so the
 // 27 mm window is a circle of ~117 px radius.
@@ -221,11 +225,13 @@ func main() {
 		frames := filepath.Join(dir, "%04d.png")
 		run(ffmpeg, "-y", "-loglevel", "error", "-framerate", "30", "-i", frames,
 			"-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", filepath.Join(*out, c.name+".mp4"))
-		run(ffmpeg, "-y", "-loglevel", "error", "-framerate", "30", "-i", frames,
-			"-vf", "fps=20,scale=240:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=sierra2_4a",
-			filepath.Join(*out, c.name+".gif"))
+		if showcase[c.name] { // GIFs are heavy: only the ones the README shows
+			run(ffmpeg, "-y", "-loglevel", "error", "-framerate", "30", "-i", frames,
+				"-vf", "fps=20,scale=240:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=sierra2_4a",
+				filepath.Join(*out, c.name+".gif"))
+		}
 		_ = os.RemoveAll(dir)
-		log.Printf("%s: %s.gif and .mp4", c.name, c.name)
+		log.Printf("%s: done", c.name)
 	}
 }
 
