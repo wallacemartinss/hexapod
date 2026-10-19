@@ -5,7 +5,8 @@
 //   config::kServoOutputsAllowed is false it is never released, whatever the
 //   failsafe allows.
 // - link task (core 0): decodes frames, answers Hello, queues Command and
-//   LinkConfig, sends Telemetry at 10 Hz. estop also cuts OE right here.
+//   LinkConfig, sends Telemetry at 10 Hz and the Compass at 5 Hz. estop also
+//   cuts OE right here.
 // - motion task (core 1, 50 Hz): failsafe -> gait -> IK -> joint speed limit.
 //   The 18 joint angles go out in Telemetry; no servo is driven yet.
 // - sensors task (core 0, 20 Hz): the I2C sensors (hw/sensor_hub). A chip
@@ -295,10 +296,25 @@ void HandleFrame(const uint8_t* payload, size_t len) {
   }
 }
 
+// The magnetic heading, for GPS navigation in hexd; nothing when the
+// BNO085 has none.
+void SendCompass() {
+  const hw::SensorSnapshot s = LatestSensors(millis());
+  if (!s.heading_valid) return;
+  g_tx = link::kEmptyEnvelope;
+  g_tx.which_payload = hexapod_v1_Envelope_compass_tag;
+  g_tx.payload.compass.heading_deg = s.heading_deg;
+  // 0 means "no heading" on the wire: a perfect estimate still reads as one.
+  g_tx.payload.compass.accuracy_deg =
+      s.heading_accuracy_deg > 0.1f ? s.heading_accuracy_deg : 0.1f;
+  Send(g_tx);
+}
+
 void LinkTask(void*) {
   esp_task_wdt_add(nullptr);
   SendHello();
   uint32_t next_telemetry = millis();
+  uint32_t next_compass = millis();
   for (;;) {
     while (Serial.available() > 0) {
       const int byte = Serial.read();
@@ -311,6 +327,10 @@ void LinkTask(void*) {
     if (static_cast<int32_t>(millis() - next_telemetry) >= 0) {
       next_telemetry += config::kTelemetryPeriodMs;
       SendTelemetry();
+    }
+    if (static_cast<int32_t>(millis() - next_compass) >= 0) {
+      next_compass += config::kCompassPeriodMs;
+      SendCompass();
     }
     esp_task_wdt_reset();
     vTaskDelay(pdMS_TO_TICKS(config::kLinkPollPeriodMs));

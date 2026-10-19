@@ -35,5 +35,13 @@ Orientation ToOrientation(Quat q) {
   return o;
 }
 
+float ToHeading(Quat q) {
+  // Yaw is counter-clockwise, a heading clockwise.
+  float h = config::kImuNorthYawDeg - ToOrientation(q).yaw_deg;
+  h = fmodf(h, 360.0f);
+  if (h < 0) h += 360.0f;
+  return h >= 360.0f ? 0.0f : h;  // -1e-6 + 360 rounds to 360
+}
+
 }  // namespace sensors
 }  // namespace hexapod

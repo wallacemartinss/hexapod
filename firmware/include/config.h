@@ -169,6 +169,15 @@ constexpr bool kShuntConfirmed = false;
 constexpr float kImuRollOffsetDeg = 0.0f;   // deg
 constexpr float kImuPitchOffsetDeg = 0.0f;  // deg
 constexpr uint32_t kImuReportUs = 20000;  // us between rotation vectors (50 Hz)
+// Compass: the BNO085 rotation vector (with the magnetometer), for GPS
+// navigation only; the body angles stay on the game rotation vector.
+constexpr uint32_t kCompassReportUs = 100000;  // us between reports (10 Hz)
+constexpr uint32_t kCompassPeriodMs = 200;  // ms between Compass frames (5 Hz)
+// Yaw (deg, + = left) the rotation vector reads with the body's front
+// pointing at magnetic north. The BNO085's world frame is east-north-up,
+// so 90. TODO(hardware): check against a phone compass, away from the
+// servos' cables.
+constexpr float kImuNorthYawDeg = 90.0f;  // deg
 
 // --- FreeRTOS tasks ---
 constexpr uint32_t kMotionPeriodMs = 20;     // ms (50 Hz)

@@ -165,6 +165,17 @@ void test_orientation_normalizes_and_survives_zero() {
   TEST_ASSERT_FALSE(isnan(z.pitch_deg));
 }
 
+void test_heading_is_clockwise_from_north() {
+  // East-north-up world: facing north is yaw 90 (config::kImuNorthYawDeg).
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 0, ToHeading(AxisAngle(0, 0, 1, 90)));
+  // Turning left (yaw up) from north faces west: 270.
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 270, ToHeading(AxisAngle(0, 0, 1, 180)));
+  // Facing east (yaw 0): 90.
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 90, ToHeading(Quat{}));
+  const float h = ToHeading(AxisAngle(0, 0, 1, 100));  // 10 deg left of north
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 350, h);
+}
+
 void test_distance_never_valid_before_a_reading() {
   DistanceFilter d;
   TEST_ASSERT_FALSE(d.valid(0));
@@ -203,6 +214,7 @@ int main() {
   RUN_TEST(test_ina226_stock_shunt_saturates);
   RUN_TEST(test_orientation_level_and_axes);
   RUN_TEST(test_orientation_normalizes_and_survives_zero);
+  RUN_TEST(test_heading_is_clockwise_from_north);
   RUN_TEST(test_distance_never_valid_before_a_reading);
   RUN_TEST(test_distance_out_of_range_is_far_not_a_fault);
   RUN_TEST(test_distance_goes_stale_without_answers);

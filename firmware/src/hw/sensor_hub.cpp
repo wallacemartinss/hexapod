@@ -116,9 +116,14 @@ bool TofInit(int i, uint32_t now_ms) {
 Adafruit_BNO08x g_imu(pins::kImuReset);
 bool g_imu_up = false;
 
+bool ImuReports() {
+  return g_imu.enableReport(SH2_GAME_ROTATION_VECTOR, config::kImuReportUs) &&
+         g_imu.enableReport(SH2_ROTATION_VECTOR, config::kCompassReportUs);
+}
+
 bool ImuInit() {
   if (!g_imu.begin_I2C(i2c::kBno085, &Bus())) return false;
-  return g_imu.enableReport(SH2_GAME_ROTATION_VECTOR, config::kImuReportUs);
+  return ImuReports();
 }
 
 }  // namespace
@@ -195,10 +200,17 @@ void SensorHub::PollDistances(uint32_t now_ms) {
 void SensorHub::PollImu(uint32_t now_ms) {
   if (g_imu_up) {
     if (g_imu.wasReset()) {  // the chip rebooted: reports are off again
-      g_imu.enableReport(SH2_GAME_ROTATION_VECTOR, config::kImuReportUs);
+      ImuReports();
     }
     sh2_SensorValue_t v;
     for (int n = 0; n < 8 && g_imu.getSensorEvent(&v); ++n) {
+      if (v.sensorId == SH2_ROTATION_VECTOR) {
+        const auto& r = v.un.rotationVector;
+        snap_.heading_deg = sensors::ToHeading({r.real, r.i, r.j, r.k});
+        snap_.heading_accuracy_deg = r.accuracy * 57.2957795f;  // rad -> deg
+        heading_ok_ms_ = now_ms;
+        continue;
+      }
       if (v.sensorId != SH2_GAME_ROTATION_VECTOR) continue;
       const auto& r = v.un.gameRotationVector;
       snap_.orientation = sensors::ToOrientation({r.real, r.i, r.j, r.k});
@@ -211,6 +223,8 @@ void SensorHub::PollImu(uint32_t now_ms) {
   }
   snap_.inputs.imu_valid =
       g_imu_up && imu_seen_ && now_ms - imu_ok_ms_ <= config::kSensorStaleMs;
+  snap_.heading_valid = snap_.inputs.imu_valid && heading_ok_ms_ != 0 &&
+                        now_ms - heading_ok_ms_ <= config::kSensorStaleMs;
   snap_.inputs.roll_deg =
       snap_.inputs.imu_valid ? snap_.orientation.roll_deg : 0;
   snap_.inputs.pitch_deg =

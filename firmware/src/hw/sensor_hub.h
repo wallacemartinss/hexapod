@@ -20,6 +20,9 @@ namespace hw {
 struct SensorSnapshot {
   safety::SensorInputs inputs;  // what the failsafe uses
   sensors::Orientation orientation;
+  bool heading_valid = false;  // compass (rotation vector), GPS navigation only
+  float heading_deg = 0;       // magnetic, clockwise
+  float heading_accuracy_deg = 0;
   float current_a = 0;  // always reported; trusted only per inputs
   bool env_valid = false;
   sensors::EnvReading env;
@@ -45,6 +48,7 @@ class SensorHub {
   uint32_t next_retry_ms_ = 0;
   uint32_t next_env_ms_ = 0;
   uint32_t imu_ok_ms_ = 0;
+  uint32_t heading_ok_ms_ = 0;
   bool imu_seen_ = false;
   int retry_turn_ = 0;
 };

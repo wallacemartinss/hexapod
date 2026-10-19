@@ -21,5 +21,9 @@ struct Orientation {
 // offsets in config.h are subtracted from roll and pitch.
 Orientation ToOrientation(Quat q);
 
+// Magnetic heading (deg, 0 = north, clockwise, 0..360) from the rotation
+// vector's quaternion, per config::kImuNorthYawDeg.
+float ToHeading(Quat q);
+
 }  // namespace sensors
 }  // namespace hexapod
