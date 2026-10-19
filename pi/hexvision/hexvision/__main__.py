@@ -16,7 +16,7 @@ import cv2
 
 from hexvision.camera import Camera
 from hexvision.detect import Found, MarkerFinder
-from hexvision.people import PersonFinder
+from hexvision.people import CAMERA_HEIGHT_M, CAMERA_PITCH_DEG, PersonFinder
 from hexvision.pipeline import PeoplePipeline
 from hexvision.tracker import MarkerConfirm, PeopleTracker
 
@@ -123,6 +123,8 @@ def main():
         default="/opt/hexapod/shared/models/mobilenet-ssd",
         help="person detector (MobileNet-SSD) folder; missing: markers only",
     )
+    ap.add_argument("--camera-height", type=float, default=CAMERA_HEIGHT_M, help="camera above the floor, m")
+    ap.add_argument("--camera-pitch", type=float, default=CAMERA_PITCH_DEG, help="camera tilt, deg (+ = up)")
     ap.add_argument("--people-min", type=float, default=0.5, help="person detector confidence, 0..1")
     ap.add_argument(
         "--detect-interval", type=float, default=0, help="s at least between person detections (0: as fast as it goes)"
@@ -160,7 +162,9 @@ def main():
             finder = MarkerFinder(camera, args.marker_size)
             try:
                 people = PeoplePipeline(
-                    PersonFinder(camera, args.models, args.people_min), PeopleTracker(), args.detect_interval
+                    PersonFinder(camera, args.models, args.people_min, args.camera_height, args.camera_pitch),
+                    PeopleTracker(),
+                    args.detect_interval,
                 )
                 log.info("person detector loaded from %s", args.models)
             except cv2.error as e:

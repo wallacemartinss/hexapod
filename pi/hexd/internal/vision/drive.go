@@ -39,3 +39,22 @@ func (d Drive) Steer(bearingDeg, distanceM float64) (vx, yawRate float64) {
 }
 
 func clamp(x, lo, hi float64) float64 { return math.Max(lo, math.Min(hi, x)) }
+
+// Fuse joins the camera's distance to the target (m, 0 = unknown) with the
+// front VL53L0X's (m, 0 = no reading). The sensor only counts with the
+// target straight ahead, inside its narrow cone; then the nearer of the two
+// wins: an obstacle between the robot and the target slows it down, and a
+// beam passing between someone's legs does not push it on.
+func Fuse(bearingDeg, cameraM, frontM float64) float64 {
+	if frontM <= 0 || math.Abs(bearingDeg) > FrontCone {
+		return cameraM
+	}
+	if cameraM <= 0 {
+		return frontM
+	}
+	return math.Min(cameraM, frontM)
+}
+
+// FrontCone: degrees of bearing either side inside the front sensor's view
+// (the VL53L0X sees ~25 degrees wide).
+const FrontCone = 10.0

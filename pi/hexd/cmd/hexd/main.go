@@ -242,6 +242,21 @@ func main() {
 				log.Warn("vision off", "err", err)
 			}
 		}()
+		// The front VL53L0X (distances_mm[0]) measures the target straight ahead.
+		tel, unsubscribe := dev.Subscribe()
+		defer unsubscribe()
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case t := <-tel:
+					if d := t.GetDistancesMm(); len(d) > 0 {
+						hub.FrontRange(d[0])
+					}
+				}
+			}
+		}()
 	}
 
 	srv = server.New(server.Config{

@@ -15,11 +15,16 @@ MODEL_FILES = ("deploy.prototxt", "mobilenet_iter_73000.caffemodel")
 PERSON = 15  # VOC class index
 INPUT = 300  # px, the network's square input
 PERSON_HEIGHT_M = 1.7  # for a rough distance when the whole body is in view
+# Camera above the floor (m) and its tilt (deg, + = up), standing at the
+# default body height. TODO: measure on the assembled robot.
+CAMERA_HEIGHT_M = 0.15
+CAMERA_PITCH_DEG = 0.0
 
 
 class PersonFinder:
-    def __init__(self, camera, model_dir, min_confidence=0.5):
+    def __init__(self, camera, model_dir, min_confidence=0.5, height_m=CAMERA_HEIGHT_M, pitch_deg=CAMERA_PITCH_DEG):
         self.camera = camera
+        self.height_m, self.pitch_deg = height_m, pitch_deg
         self.min_confidence = min_confidence
         proto, weights = (os.path.join(model_dir, f) for f in MODEL_FILES)
         self.net = cv2.dnn.readNetFromCaffe(proto, weights)
@@ -40,19 +45,35 @@ class PersonFinder:
         return found
 
     def measure(self, box):
-        """(bearing, elevation, distance_m) of a box: the angles of its centre;
-        the distance from its height, only when the whole body fits (the box
-        does not touch the top or bottom of the image), else 0 = unknown."""
-        x0, y0, x1, y1 = box[:4]
-        cam = self.camera
-        bearing, elevation = cam.angles((x0 + x1) / 2, (y0 + y1) / 2)
-        distance = 0.0
-        margin = cam.height * 0.02
-        if y0 > margin and y1 < cam.height - margin:
-            # Angle the body spans, from the top and bottom edges' elevations.
-            top = math.radians(cam.angles((x0 + x1) / 2, y0)[1])
-            bottom = math.radians(cam.angles((x0 + x1) / 2, y1)[1])
-            span = math.tan(top) - math.tan(bottom)
-            if span > 0:
-                distance = PERSON_HEIGHT_M / span
-        return bearing, elevation, distance
+        return measure(self.camera, box, self.height_m, self.pitch_deg)
+
+
+def measure(camera, box, height_m=CAMERA_HEIGHT_M, pitch_deg=CAMERA_PITCH_DEG):
+    """(bearing, elevation, distance_m) of a box: the angles of its centre,
+    and the distance (0 = unknown):
+
+    - from the feet, where the bottom of the box meets the floor: the
+      camera sits low, so up close the feet are in view and the head
+      is not;
+    - else from its height, when the whole body fits (a rough guess:
+      people are not all 1.7 m tall).
+
+    An edge of the box on the edge of the image is cut, not measured.
+    """
+    x0, y0, x1, y1 = box[:4]
+    cam = camera
+    u = (x0 + x1) / 2
+    bearing, elevation = cam.angles(u, (y0 + y1) / 2)
+    margin = cam.height * 0.02
+    feet, head = y1 < cam.height - margin, y0 > margin
+    distance = 0.0
+    if feet:
+        distance = cam.ground(u, y1, height_m, pitch_deg)
+    if distance == 0 and feet and head:
+        # Angle the body spans, from the top and bottom edges' elevations.
+        top = math.radians(cam.angles(u, y0)[1])
+        bottom = math.radians(cam.angles(u, y1)[1])
+        span = math.tan(top) - math.tan(bottom)
+        if span > 0:
+            distance = PERSON_HEIGHT_M / span
+    return bearing, elevation, distance

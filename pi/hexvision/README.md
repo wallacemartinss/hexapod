@@ -10,7 +10,7 @@ camera -> MediaMTX (rtsp://127.0.0.1:8554/cam) -> hexvision -> UDP 127.0.0.1:473
 
 - **People:** MobileNet-SSD (MIT licence) through OpenCV's dnn module. A tracker keeps the same id on the same person from frame to frame, and brings it back by the colours of their clothes after a short occlusion.
 - **ArUco markers** (`DICT_4X4_50`), e.g. on the phone's screen: only for close range (~1 m measured with a phone screen; a printed A4 marker reaches ~4 m).
-- **Per target:** box in the image, bearing (+ = robot's left), elevation and distance (a person's from the height of the whole body, a marker's from its size).
+- **Per target:** box in the image, bearing (+ = robot's left), elevation and distance (a marker's from its size; a person's from where their feet meet the floor, which up close works with the head out of view, or else from the height of the whole body).
 - **No flukes:** a target reaches the app only after 3 frames in a row.
 - **Separate process** from hexd: if the vision stops or crashes, the link to the ESP32 does not notice.
 - **Nothing moves from here.** Following (F2) turns the locked target into Commands in hexd, still under the ESP32 failsafe.
@@ -38,10 +38,19 @@ Installed by the deploy (`/opt/hexapod/current/hexvision`) and run by `hexvision
 | `--width` | 960 | processing width (a phone-screen marker needs ~7 px a side) |
 | `--fps` | 15 | at most |
 | `--hfov` | 100 | horizontal field of view without a lens calibration, degrees |
-| `--calibration` | `/opt/hexapod/shared/config/camera_calibration.json` | lens calibration (F0): angles and distances measured, not estimated |
+| `--calibration` | `/opt/hexapod/shared/config/camera_calibration.json` | lens calibration: angles and distances measured, not estimated |
 | `--marker-size` | 0.05 | marker's black square, m |
 | `--models` | `/opt/hexapod/shared/models/mobilenet-ssd` | person detector |
+| `--camera-height` | 0.15 | camera above the floor, m (person distance from the feet) |
+| `--camera-pitch` | 0 | camera tilt, degrees (+ = up) |
 | `--people-min` | 0.5 | person detector confidence, 0..1 |
 | `--detect-interval` | 0 | s at least between person detections (saves CPU; the fast tracker fills the gaps) |
 
 Cost, measured: the person detector takes 30 ms a frame on one desktop core and ~630 ms on a Pi 3 (4 cores, under-voltage throttling); so it runs on its own thread and, between detections, a MOSSE tracker moves each person's box on every frame (~1 ms on a Pi 3). Markers: 87 ms a frame at 960x720 on a Pi 3.
+
+In hexd, with the target straight ahead (within 10 degrees), the front VL53L0X also measures it: the nearer of the two distances wins, so something between the robot and the target slows it down.
+
+## Known gaps (technical debt)
+
+- **Lens calibration:** there is no tool yet to make `camera_calibration.json` (chessboard photos and `cv2.calibrateCamera`). Without it the 120-degree lens is taken as a pinhole, and bearings and distances drift a few degrees and centimetres towards the edges of the image.
+- **Camera height and tilt:** `--camera-height` and `--camera-pitch` are placeholders until they are measured on the assembled robot; the body's own height and sway while walking are not taken into account.

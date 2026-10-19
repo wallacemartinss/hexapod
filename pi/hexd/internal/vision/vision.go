@@ -30,6 +30,10 @@ const (
 	TakeOver = 0.2
 	// steerFresh: the robot counts as following while Steer drove it this recently.
 	steerFresh = 300 * time.Millisecond
+	// frontFresh: a front distance older than this is not used.
+	frontFresh = 300 * time.Millisecond
+	// frontMaxMm: the firmware caps readings here, meaning nothing in range.
+	frontMaxMm = 2000
 )
 
 // Hub is safe for concurrent use.
@@ -49,6 +53,19 @@ type Hub struct {
 	follow    bool // EnableFollow: Steer drives the robot
 	drive     Drive
 	steeredAt time.Time
+	frontM    float64 // front VL53L0X, m (0 = no reading)
+	frontAt   time.Time
+}
+
+// FrontRange takes the front distance sensor's reading from the telemetry
+// (mm, 0 = no reading, frontMaxMm = nothing in range).
+func (h *Hub) FrontRange(mm uint32) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.frontM, h.frontAt = 0, h.now()
+	if mm > 0 && mm < frontMaxMm {
+		h.frontM = float64(mm) / 1000
+	}
 }
 
 // EnableFollow lets Steer drive the robot towards the locked target.
@@ -83,7 +100,12 @@ func (h *Hub) Steer(c *pb.Command) *pb.Command {
 	out := proto.CloneOf(c)
 	out.Vx, out.Vy, out.YawRate = 0, 0, 0
 	if h.state == pb.FollowState_FOLLOW_STATE_LOCKED && h.lastSeen != nil {
-		vx, yaw := h.drive.Steer(float64(h.lastSeen.BearingDeg), float64(h.lastSeen.DistanceM))
+		bearing := float64(h.lastSeen.BearingDeg)
+		front := 0.0
+		if h.now().Sub(h.frontAt) < frontFresh {
+			front = h.frontM
+		}
+		vx, yaw := h.drive.Steer(bearing, Fuse(bearing, float64(h.lastSeen.DistanceM), front))
 		out.Vx, out.YawRate = float32(vx), float32(yaw)
 	}
 	was := h.following()

@@ -52,6 +52,21 @@ class TrackerTest(unittest.TestCase):
         got = tr.update(moved, [(400, 100, 500, 400, 0.9)], 1.2)
         self.assertEqual([t.id for t in got], [first])
 
+    def test_someone_crossing_in_front_does_not_take_the_id(self):
+        tr = PeopleTracker()
+        red = shirt((0, 0, 255))
+        for i in range(4):
+            tr.update(red, [(100, 100, 200, 400, 0.9)], i * 0.1)
+        first = tr.tracks[0].id
+        # A green shirt walks in front: the detector now sees only them, right
+        # where the red one was.
+        got = tr.update(shirt((0, 255, 0)), [(110, 100, 210, 400, 0.9)], 0.5)
+        self.assertEqual(got, [])  # a new, unconfirmed person
+        self.assertNotIn(first, {t.id for t in tr.tracks if t.box[0] == 110})
+        # They pass; the red one is there again and keeps the id.
+        got = tr.update(red, [(100, 100, 200, 400, 0.9)], 0.9)
+        self.assertEqual([t.id for t in got], [first])
+
     def test_slow_detections_still_confirm(self):
         # A Pi 3 detects people ~0.6 s apart.
         tr = PeopleTracker()

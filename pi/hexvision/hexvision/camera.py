@@ -2,7 +2,7 @@
 
 Without a calibration file the lens is taken as a pinhole with the given
 horizontal field of view: fine near the centre, a few degrees off at the
-edges of the 120-degree lens. With one (made by the calibration tool, F0)
+edges of the 120-degree lens. With one (no tool makes it yet: README, "Known gaps")
 the distortion is removed first and the angles and distances are measured.
 """
 
@@ -11,6 +11,10 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
+
+# A floor point this close to the horizon is too far, and too sensitive to
+# the robot's sway, to give a distance.
+MIN_DEPRESSION_DEG = 3.0
 
 
 @dataclass
@@ -49,3 +53,18 @@ class Camera:
         p = np.array([[[u, v]]], dtype=np.float64)
         xn, yn = cv2.undistortPoints(p, self.matrix, self.dist)[0, 0]
         return -math.degrees(math.atan(xn)), -math.degrees(math.atan(yn))
+
+    def ground(self, u, v, height_m, pitch_deg):
+        """Distance (m, along the floor) to where pixel (u, v) meets a flat
+        floor, for a camera height_m above it, tilted pitch_deg (+ = up);
+        0 when the pixel looks at or above the horizon, or too close to it
+        for a usable distance."""
+        bearing, elevation = self.angles(u, v)
+        # Ray in robot axes (x forward, y left, z up), then the camera's tilt.
+        x, y, z = 1.0, math.tan(math.radians(bearing)), math.tan(math.radians(elevation))
+        p = math.radians(pitch_deg)
+        x, z = x * math.cos(p) - z * math.sin(p), x * math.sin(p) + z * math.cos(p)
+        if z >= -math.tan(math.radians(MIN_DEPRESSION_DEG)) * math.hypot(x, y):
+            return 0.0
+        t = height_m / -z
+        return t * math.hypot(x, y)

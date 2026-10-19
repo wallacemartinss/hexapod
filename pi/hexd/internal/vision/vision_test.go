@@ -182,3 +182,27 @@ func TestStickOrStopTakesOver(t *testing.T) {
 		}
 	}
 }
+
+func TestFrontSensorGivesTheDistanceStraightAhead(t *testing.T) {
+	h, c := newHub()
+	h.EnableFollow(DefaultDrive())
+	// Straight ahead, distance unknown to the camera: only turning, so nothing.
+	h.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 1000, BearingDeg: 0}}})
+	h.Follow(1000)
+	if got := h.Steer(walk(0, 0)); got.Vx != 0 {
+		t.Fatalf("no distance, yet walking: %v", got)
+	}
+	h.FrontRange(2000) // the firmware's 2 m cap: nothing in range
+	if got := h.Steer(walk(0, 0)); got.Vx != 0 {
+		t.Fatalf("a capped reading was used: %v", got)
+	}
+	h.FrontRange(1900)
+	if got := h.Steer(walk(0, 0)); got.Vx <= 0 {
+		t.Fatalf("target 1.9 m ahead by the sensor: want walking, got %v", got)
+	}
+	c.add(time.Second) // telemetry stopped: the reading is too old
+	h.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 1000, BearingDeg: 0}}})
+	if got := h.Steer(walk(0, 0)); got.Vx != 0 {
+		t.Fatalf("an old reading was used: %v", got)
+	}
+}

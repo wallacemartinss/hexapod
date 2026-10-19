@@ -84,3 +84,21 @@ func TestSteerClosedLoop(t *testing.T) {
 		t.Fatalf("turned back and forth %d times: oscillating", turns)
 	}
 }
+
+func TestFuseCameraAndFrontSensor(t *testing.T) {
+	for _, tc := range []struct {
+		name                 string
+		bearing, camera, tof float64
+		want                 float64
+	}{
+		{"camera only", 0, 1.5, 0, 1.5},
+		{"sensor only, ahead", 5, 0, 1.4, 1.4},
+		{"sensor ignored off to the side", 25, 0, 1.4, 0},
+		{"something in between: the nearer", 0, 1.5, 0.6, 0.6},
+		{"beam between the legs: the nearer", 0, 1.2, 1.9, 1.2},
+	} {
+		if got := Fuse(tc.bearing, tc.camera, tc.tof); got != tc.want {
+			t.Errorf("%s: got %.2f, want %.2f", tc.name, got, tc.want)
+		}
+	}
+}

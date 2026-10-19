@@ -10,7 +10,7 @@ câmera -> MediaMTX (rtsp://127.0.0.1:8554/cam) -> hexvision -> UDP 127.0.0.1:47
 
 - **Pessoas:** MobileNet-SSD (licença MIT) pelo módulo dnn do OpenCV. Um rastreador mantém o mesmo número na mesma pessoa de um quadro para o outro e a reconhece pelas cores da roupa depois de sumir por um instante.
 - **Marcadores ArUco** (`DICT_4X4_50`), por exemplo na tela do celular: só para perto (~1 m medido com a tela de um celular; um marcador impresso em A4 chega a ~4 m).
-- **Por alvo:** quadro na imagem, ângulo (+ = esquerda do robô), elevação e distância (de uma pessoa, pela altura do corpo inteiro; de um marcador, pelo tamanho).
+- **Por alvo:** quadro na imagem, ângulo (+ = esquerda do robô), elevação e distância (de um marcador, pelo tamanho; de uma pessoa, pelo ponto em que os pés tocam o chão, o que funciona de perto mesmo com a cabeça fora da imagem, ou então pela altura do corpo inteiro).
 - **Sem alarme falso:** um alvo só chega ao app depois de 3 quadros seguidos.
 - **Processo separado** do hexd: se a visão parar ou travar, a ligação com o ESP32 nem percebe.
 - **Nada se move por aqui.** Seguir (F2) transforma o alvo travado em Commands no hexd, sempre sob o failsafe do ESP32.
@@ -38,10 +38,19 @@ Instalado pelo deploy (`/opt/hexapod/current/hexvision`) e rodado pelo `hexvisio
 | `--width` | 960 | largura processada (um marcador na tela do celular precisa de ~7 px de lado) |
 | `--fps` | 15 | no máximo |
 | `--hfov` | 100 | campo de visão horizontal sem calibração da lente, graus |
-| `--calibration` | `/opt/hexapod/shared/config/camera_calibration.json` | calibração da lente (F0): ângulos e distâncias medidos, não estimados |
+| `--calibration` | `/opt/hexapod/shared/config/camera_calibration.json` | calibração da lente: ângulos e distâncias medidos, não estimados |
 | `--marker-size` | 0.05 | quadrado preto do marcador, m |
 | `--models` | `/opt/hexapod/shared/models/mobilenet-ssd` | detector de pessoas |
+| `--camera-height` | 0.15 | altura da câmera em relação ao chão, m (distância da pessoa pelos pés) |
+| `--camera-pitch` | 0 | inclinação da câmera, graus (+ = para cima) |
 | `--people-min` | 0.5 | confiança mínima do detector de pessoas, 0..1 |
 | `--detect-interval` | 0 | s no mínimo entre detecções de pessoas (economiza CPU; o rastreador rápido cobre os intervalos) |
 
 Custo, medido: o detector de pessoas leva 30 ms por quadro num núcleo de PC de mesa e ~630 ms no Pi 3 (4 núcleos, com a CPU freada por subtensão); por isso ele roda numa linha de execução própria e, entre uma detecção e outra, um rastreador MOSSE move o quadro de cada pessoa a cada quadro (~1 ms no Pi 3). Marcadores: 87 ms por quadro em 960x720 no Pi 3.
+
+No hexd, com o alvo bem à frente (até 10 graus), o VL53L0X da frente também o mede: vale a menor das duas distâncias, então algo entre o robô e o alvo faz ele frear.
+
+## Lacunas conhecidas (débito técnico)
+
+- **Calibração da lente:** ainda não há ferramenta para gerar o `camera_calibration.json` (fotos de um tabuleiro de xadrez e `cv2.calibrateCamera`). Sem ela, a lente de 120 graus é tratada como pinhole, e ângulos e distâncias erram alguns graus e centímetros perto das bordas da imagem.
+- **Altura e inclinação da câmera:** `--camera-height` e `--camera-pitch` são provisórios até serem medidos no robô montado; a altura do próprio corpo e o balanço ao andar não entram na conta.

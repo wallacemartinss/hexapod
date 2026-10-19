@@ -3,8 +3,10 @@ reports a target once it was seen in a few frames in a row: a texture that
 looks like a marker for one frame never reaches the app.
 
 People are matched by overlap (IoU) and, after a short occlusion, by the
-colours of their clothes. Markers carry their own id; they are only
-confirmed.
+colours of their clothes. The clothes also guard the overlap: when two
+people cross, a box that overlaps a confirmed person but wears other
+clothes is not given their id. Losing the target is safer than following
+a stranger. Markers carry their own id; they are only confirmed.
 """
 
 from dataclasses import dataclass, field
@@ -19,6 +21,11 @@ MAX_AGE_S = 2.0  # a target not seen for this long is forgotten
 PERSON_GAP_S = 1.5
 MARKER_GAP_S = 0.5
 PERSON_IDS = 1000  # people get ids from here (markers: marker id + 1)
+MIN_IOU = 0.3  # overlap that can carry an id over
+# Torso histogram correlation (-1..1): below SAME_MIN an overlapping box is
+# someone else; above BACK_MIN a box with no overlap is a lost person back.
+SAME_MIN = 0.2
+BACK_MIN = 0.7
 
 
 def iou(a, b):
@@ -70,25 +77,37 @@ class PeopleTracker:
         self.tracks = [t for t in self.tracks if now - t.seen <= MAX_AGE_S]
         free = list(self.tracks)
         current = []
-        # Best overlaps first, so two people side by side keep their ids.
-        pairs = sorted(((iou(d, t.box), i, t) for i, d in enumerate(detections) for t in free), key=lambda p: -p[0])
+        looks = [appearance(image, d) for d in detections]
+        # Best overlaps first, so two people side by side keep their ids; at
+        # equal overlap, the more alike.
+        pairs = []
+        for i, d in enumerate(detections):
+            for t in free:
+                overlap = iou(d, t.box)
+                if overlap < MIN_IOU:
+                    continue
+                alike = similar(looks[i], t.look)
+                if t.confirmed and looks[i] is not None and t.look is not None and alike < SAME_MIN:
+                    continue  # someone else crossing in front
+                pairs.append((overlap + 0.3 * alike, i, t))
+        pairs.sort(key=lambda p: -p[0])
         taken = set()
-        for score, i, t in pairs:
-            if score < 0.3 or i in taken or t not in free:
+        for _, i, t in pairs:
+            if i in taken or t not in free:
                 continue
             taken.add(i)
             free.remove(t)
-            self._hit(t, image, detections[i], now)
+            self._hit(t, looks[i], detections[i], now)
             current.append(t)
         for i, d in enumerate(detections):
             if i in taken:
                 continue
-            look = appearance(image, d)
+            look = looks[i]
             # Back after an occlusion? The most alike recently lost person.
             best = max(free, key=lambda t: similar(look, t.look), default=None)
-            if best is not None and best.confirmed and similar(look, best.look) > 0.7:
+            if best is not None and best.confirmed and similar(look, best.look) > BACK_MIN:
                 free.remove(best)
-                self._hit(best, image, d, now)
+                self._hit(best, look, d, now)
                 current.append(best)
                 continue
             t = Track(id=self.next_id, box=tuple(d[:4]), seen=now, confidence=d[4], look=look)
@@ -97,11 +116,10 @@ class PeopleTracker:
             current.append(t)
         return [t for t in current if t.confirmed]
 
-    def _hit(self, t, image, d, now):
+    def _hit(self, t, look, d, now):
         # A confirmed target stays confirmed when it comes back (within MAX_AGE_S).
         t.hits = t.hits + 1 if now - t.seen < PERSON_GAP_S or t.confirmed else 1
         t.box, t.seen, t.confidence = tuple(d[:4]), now, d[4]
-        look = appearance(image, d)
         if look is not None:  # follows slow changes of light
             t.look = look if t.look is None else 0.8 * t.look + 0.2 * look
 
