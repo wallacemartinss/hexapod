@@ -150,6 +150,17 @@ Canais livres: 3, 7, 11–15 em cada placa. Inversão de sentido, offset e limit
 | I2C 1 | BME280 | 0x76 |
 | I2C 1 | INA226 | 0x40 (não conflita com a PCA: outro barramento) |
 
+## Quando um sensor chegar
+
+O firmware acha cada sensor I2C pelo ID no boot e tenta de novo, a cada 5 s, os que faltam. Por isso dá para ligar um de cada vez, sem nada para ativar no código. Enquanto o chip não responde, a falha dele fica em `fault_flags` e o app mostra como não instalado. Confira com o robô sentado e **sem energia nos servos**:
+
+| Sensor | Funciona quando | Ajustar antes de confiar |
+|---|---|---|
+| BME280 | Temperatura, umidade e pressão aparecem no app (~1 s) | Nada |
+| INA226 | A tensão da bateria bate com o multímetro | **A corrente:** com o shunt de fábrica (0,1 Ω) ela satura em ~0,8 A. Coloque o de 2 mΩ (`kShuntOhm`), compare com um alicate amperímetro e então mude `kShuntConfirmed = true`; até lá o alarme de sobrecorrente ignora a corrente |
+| VL53L0X (cada um) | A barra dele no radar acompanha a mão (0,03–2 m) | XSHUT no pino certo: frente, direita, trás, esquerda. Fio trocado bloqueia a direção errada |
+| BNO085 | Roll e pitch acompanham o corpo; inclinando mais de 35° aparece `TIPPED` | Com o robô nivelado, roll e pitch devem ler ~0°: ajuste `kImuRollOffsetDeg`/`kImuPitchOffsetDeg`. Abaixe o lado direito: o roll tem de ficar **positivo**; abaixe o nariz: o pitch **positivo**. Se não, a placa está montada girada e os eixos precisam ser remapeados |
+
 ## Cuidados de ligação
 
 ### OE das PCA9685: *pull-up* obrigatório
