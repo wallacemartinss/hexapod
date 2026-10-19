@@ -30,7 +30,8 @@ There are two ways in, on purpose:
 **Piloting**
 - Drone-style landscape screen: two virtual sticks, body height slider, modes **Sit / Stand up / Pose / Walk / Legs** (wave, guard and strike gestures with the front legs).
 - **PS5 DualSense** support: sticks, triggers, buttons, light bar color by robot state; the on-screen sticks hide while a controller is connected.
-- Live camera (WebRTC) with optional robot microphone audio.
+- Live camera (WebRTC) with optional robot microphone audio, in 720p or 1080p.
+- **Photos and recordings** with one tap, stored on the robot's SD card (no re-encoding, so the Pi barely notices), and a **gallery** in the app that saves them to the phone's gallery over Wi-Fi or Tailscale.
 - Big **STOP** button, distance radar around the robot, battery, link quality and warnings in plain words with what to do next.
 - Visual feedback in the middle of the screen (hold-to-stand ring, gesture cards), and bars that hide by themselves while you drive.
 
@@ -69,6 +70,7 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 | ![Environment](docs/screenshots/en/data_environment.png) **Data: environment and gas** | ![Legs](docs/screenshots/en/data_legs.png) **Data: leg angles** |
 | ![System](docs/screenshots/en/data_system.png) **Data: ESP32** | ![Raspberry Pi](docs/screenshots/en/data_pi.png) **Data: Raspberry Pi health** |
 | ![Remote access](docs/screenshots/en/remote_setup.png) **Remote access: setup** | ![Remote access ready](docs/screenshots/en/remote_ready.png) **Remote access: ready** |
+| ![Recording](docs/screenshots/en/pilot_recording.png) **Recording (REC) with photo and record buttons** | ![Gallery](docs/screenshots/en/gallery.png) **The robot's gallery: save to the phone** |
 | ![My robots](docs/screenshots/en/robots.png) **My robots** | ![Controller](docs/screenshots/en/controller.png) **PS5 controller** |
 | ![Pairing](docs/screenshots/en/pairing.png) **Pairing by code** | ![On a real phone](docs/screenshots/phone_bench_pt.png) **On a real phone, bench robot (Portuguese)** |
 
@@ -240,7 +242,7 @@ Real time is not Go's job here (its garbage collector can pause briefly), and th
 
 Real time and safety stay on the ESP32; these add "brain" features, most of them made possible by a Raspberry Pi 4 (8 GB):
 
-1. **Camera:** photos and recordings stored on the robot, a gallery in the app and download to the phone's gallery; 720p or 1080p. *(in progress)*
+1. **Camera:** photos and recordings stored on the robot, a gallery in the app and download to the phone's gallery; 720p or 1080p. *(done)*
 2. **Follow me:** follow an ArUco marker, then a person (optionally with a Coral USB accelerator).
 3. **Offline voice commands** in English and Portuguese ("sit", "stand up", "wave"), with a wake word.
 4. **GPS navigation:** go to a point on the map, return home on low battery or lost signal, virtual fence.

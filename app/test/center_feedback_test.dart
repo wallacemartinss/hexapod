@@ -34,6 +34,7 @@ Future<void> _pump(WidgetTester tester, ControlState control, pb.State state) as
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        piStatusProvider.overrideWith((ref) => const Stream.empty()),
         videoViewProvider.overrideWith(
           (ref) =>
               (_) => const VideoPlaceholder(),

@@ -57,6 +57,7 @@ Future<void> _pump(
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        piStatusProvider.overrideWith((ref) => const Stream.empty()),
         videoViewProvider.overrideWith(
           (ref) =>
               (_) => const VideoPlaceholder(),

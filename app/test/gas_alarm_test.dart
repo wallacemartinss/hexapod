@@ -19,6 +19,7 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry t) async {
     ProviderScope(
       overrides: [
         commandLoopProvider.overrideWith((ref) {}),
+        piStatusProvider.overrideWith((ref) => const Stream.empty()),
         gamepadServiceProvider.overrideWith((ref) => GamepadInterpreter(ref.read(controlProvider.notifier))),
         controllerPlatformProvider.overrideWith((ref) => null),
         videoViewProvider.overrideWith(

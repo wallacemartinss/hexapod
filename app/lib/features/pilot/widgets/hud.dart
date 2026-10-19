@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/link/robot_link.dart';
 import '../../../core/proto.dart' as pb;
 import '../state_texts.dart';
+import 'camera_controls.dart';
 import '../../../l10n/l10n.dart';
 import 'controls.dart';
 
@@ -22,6 +23,8 @@ class StatusBar extends StatelessWidget {
     this.onGamepad,
     this.audio = false,
     this.onAudio,
+    this.onGallery,
+    this.recordingS,
   });
 
   final LinkStatus link;
@@ -42,6 +45,12 @@ class StatusBar extends StatelessWidget {
   final VoidCallback? onGamepad;
   final bool audio;
   final VoidCallback? onAudio;
+
+  /// Opens the robot's gallery (photos and recordings).
+  final VoidCallback? onGallery;
+
+  /// Seconds recorded so far while the robot records (null: not recording).
+  final int? recordingS;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +100,7 @@ class StatusBar extends StatelessWidget {
             ],
           ),
         ),
+        if (recordingS != null) ...[const SizedBox(width: 8), RecBadge(recordingS!)],
         const Spacer(),
         if (faults.isNotEmpty) ...[
           GestureDetector(
@@ -153,6 +163,19 @@ class StatusBar extends StatelessWidget {
                 audio ? Icons.volume_up_rounded : Icons.volume_off_rounded,
                 color: audio ? Colors.white : Colors.white54,
                 size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (onGallery != null) ...[
+          GestureDetector(
+            onTap: onGallery,
+            child: Tooltip(
+              message: l.pilotGallery,
+              child: const Glass(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.photo_library_rounded, color: Colors.white, size: 20),
               ),
             ),
           ),

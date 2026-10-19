@@ -17,6 +17,8 @@ import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
+import 'widgets/camera_controls.dart';
+import '../gallery/gallery_screen.dart';
 import '../../l10n/l10n.dart';
 import 'widgets/center_feedback.dart';
 import 'widgets/controls.dart';
@@ -127,6 +129,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final telemetry = ref.watch(telemetryProvider).value;
     final age = _lastTelemetry == null ? null : DateTime.now().difference(_lastTelemetry!);
     final fresh = link == LinkStatus.connected && age != null && age < const Duration(seconds: 1);
+    final pi = ref.watch(piStatusProvider).value?.status;
     final lost = link != LinkStatus.connected || age == null || age > const Duration(seconds: 3);
     if (lost && !_wasLost && settings.haptics) HapticFeedback.vibrate(); // signal just dropped
     if (lost && robots.active != null) {
@@ -228,6 +231,8 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                           .update(settings.copyWith(robotAudio: !settings.robotAudio)),
                       onSettings: () => showSettingsSheet(context),
                       onFaults: () => _showFaults(context, telemetry),
+                      onGallery: () => showGalleryScreen(context),
+                      recordingS: (pi?.recording ?? false) ? pi!.recordingS : null,
                     ),
                     // Obstacles at the top, out of the camera's center.
                     if (fresh && telemetry != null)
@@ -264,6 +269,15 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                         onPressed: controller.stop,
                       ),
                     ),
+                    // Photo and record, under STOP (the robot keeps them on its card).
+                    if (link == LinkStatus.connected)
+                      Align(
+                        alignment: const Alignment(1, 0.42),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 22),
+                          child: CameraControls(haptics: settings.haptics),
+                        ),
+                      ),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: _AutoHide(

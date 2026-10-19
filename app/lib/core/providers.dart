@@ -10,6 +10,7 @@ import 'control/control_state.dart';
 import 'link/discovery.dart';
 import 'link/host_resolver.dart';
 import 'link/robot_wifi.dart';
+import 'link/robot_api.dart';
 import 'link/robot_link.dart';
 import 'proto.dart';
 import 'robots.dart';
@@ -92,6 +93,15 @@ final robotAddressProvider = FutureProvider<String>((ref) async {
     }
   }
   return last ?? resolveHost(host);
+});
+
+/// The active robot's setup API (gallery, camera...), at the address the
+/// link uses; null without a paired robot or before it is found.
+final robotApiProvider = Provider<RobotApi?>((ref) {
+  final robot = ref.watch(robotsProvider).active;
+  final address = ref.watch(robotAddressProvider).value;
+  if (robot == null || address == null) return null;
+  return RobotApi(address, robot.token, port: ref.watch(settingsProvider.select((s) => s.port)));
 });
 
 String _address(Ref ref) =>

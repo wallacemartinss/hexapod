@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:http/http.dart' as http;
@@ -139,6 +141,110 @@ class RobotApi {
       TailscaleStatus.fromJson(await _post('/api/tailscale/login', {}, timeout: const Duration(seconds: 25)));
 
   Future<void> tailscaleLogout() => _post('/api/tailscale/logout', {}, timeout: const Duration(seconds: 15));
+
+  /// The robot's gallery (photos and recordings on its SD card).
+  Future<MediaStatus> media() async => MediaStatus.fromJson(await _get('/api/media'));
+
+  /// Takes a photo now (the robot decodes one frame: a second or two).
+  Future<MediaItem> photo() async =>
+      MediaItem.fromJson(await _post('/api/media/photo', {}, timeout: const Duration(seconds: 25)));
+
+  /// Starts or stops recording; stopping answers with the saved video.
+  Future<MediaItem?> record(bool on) async {
+    final j = await _post('/api/media/record', {'on': on}, timeout: const Duration(seconds: 20));
+    final item = j['item'];
+    return item is Map ? MediaItem.fromJson(item.cast()) : null;
+  }
+
+  Uri mediaUri(String name, {bool thumb = false}) =>
+      _uri('/api/media/files/$name').replace(queryParameters: thumb ? {'thumb': '1'} : null);
+
+  /// A thumbnail (small JPEG) for the gallery grid.
+  Future<Uint8List> thumbnail(String name) async {
+    final r = await _client
+        .get(mediaUri(name, thumb: true), headers: _headers)
+        .timeout(const Duration(seconds: 10));
+    if (r.statusCode != 200) throw RobotApiError(r.statusCode);
+    return r.bodyBytes;
+  }
+
+  /// Downloads a photo or video into [to], reporting progress (0 to 1).
+  Future<void> download(String name, File to, {void Function(double)? progress}) async {
+    final req = http.Request('GET', mediaUri(name))..headers.addAll(_headers);
+    final r = await _client.send(req).timeout(const Duration(seconds: 10));
+    if (r.statusCode != 200) throw RobotApiError(r.statusCode);
+    final total = r.contentLength ?? 0;
+    final sink = to.openWrite();
+    var got = 0;
+    try {
+      await for (final chunk in r.stream) {
+        sink.add(chunk);
+        got += chunk.length;
+        if (total > 0) progress?.call(got / total);
+      }
+    } finally {
+      await sink.close();
+    }
+  }
+
+  Future<void> deleteMedia(String name) async {
+    final r = await _client.delete(mediaUri(name), headers: _headers).timeout(const Duration(seconds: 10));
+    _decode(r);
+  }
+
+  /// Camera quality: the current preset ("720p" or "1080p").
+  Future<String> cameraQuality() async => (await _get('/api/camera'))['quality'] as String? ?? '720p';
+  Future<void> setCameraQuality(String quality) =>
+      _post('/api/camera', {'quality': quality}, timeout: const Duration(seconds: 15));
+}
+
+/// A photo or video on the robot.
+class MediaItem {
+  const MediaItem({
+    required this.name,
+    required this.kind,
+    required this.size,
+    required this.created,
+    this.durationS = 0,
+  });
+
+  final String name;
+  final String kind; // "photo" or "video"
+  final int size; // bytes
+  final DateTime created;
+  final int durationS;
+
+  bool get isVideo => kind == 'video';
+
+  static MediaItem fromJson(Map<String, Object?> j) => MediaItem(
+    name: j['name'] as String,
+    kind: j['kind'] as String? ?? 'photo',
+    size: (j['size'] as num?)?.toInt() ?? 0,
+    created: DateTime.tryParse(j['created'] as String? ?? '')?.toLocal() ?? DateTime.now(),
+    durationS: (j['duration_s'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// GET /api/media: the gallery and the recorder.
+class MediaStatus {
+  const MediaStatus({
+    required this.recording,
+    required this.recordingS,
+    required this.freeMb,
+    required this.items,
+  });
+
+  final bool recording;
+  final int recordingS;
+  final int freeMb;
+  final List<MediaItem> items;
+
+  static MediaStatus fromJson(Map<String, Object?> j) => MediaStatus(
+    recording: j['recording'] == true,
+    recordingS: (j['recording_s'] as num?)?.toInt() ?? 0,
+    freeMb: (j['free_mb'] as num?)?.toInt() ?? 0,
+    items: [for (final i in (j['items'] as List?) ?? const []) MediaItem.fromJson((i as Map).cast())],
+  );
 }
 
 /// The robot on the owner's tailnet (GET /api/tailscale).

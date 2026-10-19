@@ -1244,5 +1244,76 @@
   "remoteDisconnectViaTailnet": "You are connected through Tailscale right now: you will lose access, and connecting it again needs the phone on the same network as the robot.",
   "networkBand24": "2.4 GHz",
   "networkBand5": "5 GHz",
-  "dataPiModel": "Board"
+  "dataPiModel": "Board",
+  "galleryTitle": "Robot's gallery",
+  "galleryQuality": "Video",
+  "@galleryQuality": {
+    "description": "Label before the 720p/1080p choice"
+  },
+  "galleryQualityFailed": "The camera did not take the new quality.",
+  "galleryCount": "{count, plural, =0{Nothing yet} =1{1 item} other{{count} items}}",
+  "@galleryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryFree": "{gb} GB free on the robot",
+  "@galleryFree": {
+    "placeholders": {
+      "gb": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryEmpty": "No photos or videos yet. Take them from the driving screen with the camera and record buttons.",
+  "galleryOffline": "Can't reach the robot. The gallery comes from the robot, over its Wi-Fi or Tailscale.",
+  "galleryDownload": "Save to phone",
+  "galleryDownloadAll": "Save all",
+  "gallerySelected": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@gallerySelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gallerySaved": "{count, plural, =1{Saved to the phone's gallery (album Hexapod)} other{{count} saved to the phone's gallery (album Hexapod)}}",
+  "@gallerySaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryDownloadFailed": "Could not save {name}",
+  "@galleryDownloadFailed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryDeleteTitle": "{count, plural, =1{Delete from the robot?} other{Delete {count} items from the robot?}}",
+  "@galleryDeleteTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryDeleteBody": "Copies already saved on the phone stay there.",
+  "galleryCancel": "Cancel",
+  "galleryDelete": "Delete",
+  "galleryVideoHint": "Save it to the phone to watch it.",
+  "pilotPhoto": "Take a photo",
+  "pilotRecord": "Record",
+  "pilotStopRecording": "Stop recording",
+  "pilotGallery": "Robot's gallery",
+  "pilotPhotoSaved": "Photo saved on the robot",
+  "pilotRecordSaved": "Video saved on the robot",
+  "pilotSeeGallery": "See",
+  "pilotCameraFailed": "The camera did not answer",
+  "pilotNoSpace": "The robot's SD card is almost full"
 }

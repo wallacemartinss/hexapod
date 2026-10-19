@@ -27,6 +27,7 @@ import 'package:hexapod_app/core/robots.dart';
 import 'package:hexapod_app/core/settings.dart';
 import 'package:hexapod_app/features/brand/brand.dart';
 import 'package:hexapod_app/features/data/data_screen.dart';
+import 'package:hexapod_app/features/gallery/gallery_screen.dart';
 import 'package:hexapod_app/features/pilot/pilot_screen.dart';
 import 'package:hexapod_app/features/robots/pair_screen.dart';
 import 'package:hexapod_app/features/robots/remote_access_screen.dart';
@@ -132,6 +133,8 @@ Future<void> _pump(
   bool onboarded = true,
   Widget home = const PilotScreen(),
   bool settle = true,
+  bool recording = false,
+  RobotApi? api,
 }) async {
   tester.view.physicalSize = const Size(2400, 1080); // 20:9 phone, landscape
   tester.view.devicePixelRatio = 2.625;
@@ -163,8 +166,16 @@ Future<void> _pump(
           (ref) => Stream.periodic(const Duration(seconds: 1), (_) => GpsReading(_position)),
         ),
         piStatusProvider.overrideWith(
-          (ref) => Stream.periodic(const Duration(seconds: 2), (n) => PiReading(_pi(n))),
+          (ref) => Stream.periodic(
+            const Duration(seconds: 2),
+            (n) => PiReading(
+              _pi(n)
+                ..recording = recording
+                ..recordingS = recording ? 83 + n * 2 : 0,
+            ),
+          ),
         ),
+        if (api != null) robotApiProvider.overrideWithValue(api),
         controlProvider.overrideWith(() => _FixedControl(control)),
         settingsProvider.overrideWith(() => SettingsNotifier(Settings(onboarded: onboarded, language: lang))),
         robotsProvider.overrideWith(() => RobotsNotifier(_robots)),
@@ -212,6 +223,33 @@ RobotApi _tailscaleApi(Map<String, Object?> status) => RobotApi(
     return http.Response(jsonEncode(status), 200);
   }),
 );
+
+/// The robot's gallery for the screenshots: sample thumbnails
+/// (test/fixtures/gallery, ffmpeg test patterns).
+RobotApi _galleryApi() {
+  final items = [
+    for (var i = 1; i <= 6; i++)
+      {
+        'name': i.isOdd ? 'video-20261019-09${10 + i}00.mp4' : 'photo-20261019-09${10 + i}00.jpg',
+        'kind': i.isOdd ? 'video' : 'photo',
+        'size': i.isOdd ? 9800000 + i * 731000 : 410000 + i * 12000,
+        'created': '2026-10-19T09:${10 + i}:00',
+        'duration_s': i.isOdd ? 20 + i * 17 : 0,
+      },
+  ];
+  return RobotApi(
+    '10.42.0.1',
+    'demo',
+    client: MockClient((r) async {
+      if (r.url.queryParameters['thumb'] == '1') {
+        final i = items.indexWhere((it) => r.url.path.endsWith(it['name']! as String)) + 1;
+        return http.Response.bytes(File('test/fixtures/gallery/$i.jpg').readAsBytesSync(), 200);
+      }
+      if (r.url.path == '/api/camera') return http.Response(jsonEncode({'quality': '1080p'}), 200);
+      return http.Response(jsonEncode({'recording': false, 'free_mb': 104857, 'items': items}), 200);
+    }),
+  );
+}
 
 void main() {
   setUpAll(_loadFonts);
@@ -331,6 +369,21 @@ void main() {
           'account': 'maker@example.com',
         }, phoneIn: true);
         await tester.pumpWidget(const SizedBox()); // stop the screen's poll
+      });
+
+      testWidgets('pilot: recording', (tester) async {
+        await _pump(tester, lang, recording: true);
+        await _shot(tester, lang, 'pilot_recording');
+      });
+
+      testWidgets('gallery', (tester) async {
+        await _pump(tester, lang, home: const GalleryScreen(), api: _galleryApi());
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300))); // decode thumbs
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+        await tester.pump(const Duration(milliseconds: 100));
+        await _shot(tester, lang, 'gallery');
+        await tester.pumpWidget(const SizedBox()); // stop the poll
       });
 
       testWidgets('pairing', (tester) async {
