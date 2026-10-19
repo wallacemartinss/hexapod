@@ -50,3 +50,7 @@ __pycache__/
 # --- CAD: designer files (MakerWorld Standard Digital File License: no redistribution) ---
 cad/stl/
 cad/.venv/
+
+# MediaMTX makes these where it runs (dev-video.sh): never commit
+auto.crt
+auto.key

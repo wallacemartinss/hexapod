@@ -64,7 +64,7 @@ jobs:
 
       - name: deploy.sh end-to-end test
         run: |
-          shellcheck -S warning deploy/*.sh
+          shellcheck -S warning deploy/*.sh image/*.sh
           deploy/test_deploy.sh
 
       - name: Cross-compile for the Pi (linux/arm64)
