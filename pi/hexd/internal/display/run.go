@@ -23,7 +23,7 @@ type Opener func(bus string, addr int) (*Panel, error)
 func Run(ctx context.Context, opt Options, open Opener, status func() Status, log *slog.Logger) {
 	var panel *Panel
 	failing := false
-	var retryAt time.Time
+	var retryAt, wokeAt time.Time
 	start := time.Now()
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
@@ -51,6 +51,11 @@ func Run(ctx context.Context, opt Options, open Opener, status func() Status, lo
 				log.Info("status screen back")
 			}
 			panel, failing = p, false
+		}
+		if now.Sub(wokeAt) >= 5*time.Second {
+			if err := panel.Wake(); err == nil {
+				wokeAt = now
+			}
 		}
 		list := Pages(s)
 		page := list[int(now.Sub(start)/opt.PageTime)%len(list)]

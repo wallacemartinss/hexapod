@@ -40,8 +40,18 @@ func (p *Panel) cmd(b ...byte) error {
 // Init configures the panel and turns it on (charge pump on, horizontal
 // addressing, normal orientation).
 func (p *Panel) Init() error {
+	if err := p.cmd(0xAE); err != nil { // display off while configuring
+		return err
+	}
+	return p.Wake()
+}
+
+// Wake re-sends the whole configuration without turning the display off
+// first, so it does not flicker. A brown-out resets the controller to
+// "display off, page addressing" while the bus keeps answering: re-sent
+// often, the screen comes back by itself.
+func (p *Panel) Wake() error {
 	return p.cmd(
-		0xAE,       // display off
 		0xD5, 0x80, // clock
 		0xA8, 0x3F, // 64 rows
 		0xD3, 0x00, // no offset
