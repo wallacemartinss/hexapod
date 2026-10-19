@@ -29,6 +29,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/sysinfo"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 )
 
@@ -111,6 +112,10 @@ func main() {
 		position = func() (*pb.Position, bool) { return reader.Latest(3 * time.Second) }
 	}
 
+	// The Pi's own health (CPU, memory, SD card, power), for the app and /metrics.
+	pi := &sysinfo.Sampler{DataPath: "/opt/hexapod", WifiInterface: cfg.Metrics.WifiInterface}
+	go pi.Run(ctx, 2*time.Second)
+
 	// The identity's name and "paired" flag change at run time (rename,
 	// first pairing): idMu guards them and every save of the file.
 	var idMu sync.Mutex
@@ -182,6 +187,7 @@ func main() {
 		WirelessPath:       cfg.Metrics.WirelessPath,
 		WifiInterface:      cfg.Metrics.WifiInterface,
 		Position:           position,
+		PiStatus:           pi.Latest,
 		Identity:           identity,
 		WiFi:               wifiAPI(wifiMgr),
 		Rename:             rename,

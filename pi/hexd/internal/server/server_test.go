@@ -298,6 +298,33 @@ func TestAppGetsThePosition(t *testing.T) {
 	}
 }
 
+func TestAppGetsThePiStatus(t *testing.T) {
+	r := newRig(t, Config{PiStatus: func() *pb.PiStatus {
+		return &pb.PiStatus{CpuPercent: 12, UnderVoltageSeen: true}
+	}})
+	_, metrics := get(t, r.http.URL+"/metrics")
+	for _, want := range []string{"hexapod_pi_cpu_percent 12", "hexapod_pi_under_voltage_seen 1"} {
+		if !strings.Contains(metrics, want) {
+			t.Errorf("/metrics missing %q", want)
+		}
+	}
+	a := connectApp(t, r)
+	deadline := time.After(4 * time.Second)
+	for {
+		select {
+		case env := <-a.in:
+			if p := env.GetPiStatus(); p != nil {
+				if p.CpuPercent != 12 || !p.UnderVoltageSeen {
+					t.Fatalf("pi status: %v", p)
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("no PiStatus over the websocket")
+		}
+	}
+}
+
 func TestNoPositionWithoutGPS(t *testing.T) {
 	r := newRig(t, Config{Position: func() (*pb.Position, bool) { return &pb.Position{}, false }})
 	a := connectApp(t, r)

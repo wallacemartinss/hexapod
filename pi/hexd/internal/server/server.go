@@ -44,6 +44,9 @@ type Config struct {
 	// Position is the latest GPS reading and whether the GPS is talking
 	// (nil: no GPS). Sent to every app once a second.
 	Position func() (*pb.Position, bool)
+	// PiStatus is the Pi's own health (nil: not sampled). Sent to every app
+	// every 2 s and exported in /metrics.
+	PiStatus func() *pb.PiStatus
 	// Identity of the robot; when set, /ws and /api require its key (pairing).
 	Identity *pairing.Identity
 	// WiFi runs the robot's Wi-Fi for the setup API (nil: not managed).
@@ -246,12 +249,24 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer t.Stop()
 		gpsTick = t.C
 	}
+	var piTick <-chan time.Time
+	if s.cfg.PiStatus != nil {
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		piTick = t.C
+	}
 	go func() {
 		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-piTick:
+				if p := s.cfg.PiStatus(); p != nil {
+					if write(&pb.Envelope{Payload: &pb.Envelope_PiStatus{PiStatus: p}}) != nil {
+						return
+					}
+				}
 			case <-gpsTick:
 				if p, ok := s.cfg.Position(); ok {
 					if write(&pb.Envelope{Payload: &pb.Envelope_Position{Position: p}}) != nil {

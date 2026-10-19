@@ -87,6 +87,22 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 			m.gauge("hexapod_gps_satellites_in_view", "satellites the GPS sees", float64(p.SatellitesInView))
 		}
 	}
+	if s.cfg.PiStatus != nil {
+		if p := s.cfg.PiStatus(); p != nil {
+			m.gauge("hexapod_pi_cpu_percent", "Pi CPU use, all cores", float64(p.CpuPercent))
+			m.gauge("hexapod_pi_load1", "Pi 1-minute load average", float64(p.Load_1M))
+			m.gauge("hexapod_pi_cpu_frequency_hertz", "Pi core 0 clock", float64(p.CpuFreqMhz)*1e6)
+			m.gauge("hexapod_pi_memory_used_bytes", "Pi memory in use (total - available)", float64(p.MemUsedMb)*(1<<20))
+			m.gauge("hexapod_pi_memory_total_bytes", "Pi memory", float64(p.MemTotalMb)*(1<<20))
+			m.gauge("hexapod_pi_disk_used_bytes", "SD card space used (/opt/hexapod)", float64(p.DiskUsedMb)*(1<<20))
+			m.gauge("hexapod_pi_disk_total_bytes", "SD card size (/opt/hexapod)", float64(p.DiskTotalMb)*(1<<20))
+			m.gauge("hexapod_pi_under_voltage", "1 while the Pi supply is too low", boolGauge(p.UnderVoltage))
+			m.gauge("hexapod_pi_under_voltage_seen", "1 if the supply was too low since hexd started",
+				boolGauge(p.UnderVoltageSeen))
+			m.gauge("hexapod_pi_uptime_seconds", "time since the Pi booted", float64(p.UptimeS))
+			m.gauge("hexapod_pi_read_only", "1 while the root filesystem is the read-only overlay", boolGauge(p.ReadOnly))
+		}
+	}
 	if v, ok := readPiTemperature(s.cfg.PiTemperaturePath); ok {
 		m.gauge("hexapod_pi_temperature_celsius", "Raspberry Pi SoC temperature", v)
 	}

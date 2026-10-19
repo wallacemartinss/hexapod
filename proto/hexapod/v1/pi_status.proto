@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+// Health of the Raspberry Pi itself (CPU, memory, SD card, power). hexd
+// sends it to the app every 2 s; it never crosses the ESP32 serial link (the
+// Envelope field is ignored by nanopb, see envelope.options).
+message PiStatus {
+  float cpu_percent = 1; // all cores, since the previous sample
+  float load_1m = 2; // run queue average over 1 min (4 cores: 4 = fully busy)
+  uint32 cpu_freq_mhz = 3; // current clock of core 0
+  uint32 cpu_max_freq_mhz = 4; // clock it may reach; lower now = throttled
+  float temperature_c = 5; // SoC; the Pi throttles at 80 and more at 85
+  uint32 mem_used_mb = 6; // total minus available
+  uint32 mem_total_mb = 7;
+  uint32 disk_used_mb = 8; // the SD card filesystem holding /opt/hexapod
+  uint32 disk_total_mb = 9;
+  bool under_voltage = 10; // the supply is below ~4.63 V right now
+  bool under_voltage_seen = 11; // it was at some point since hexd started
+  uint64 uptime_s = 12; // since the Pi booted
+  int32 wifi_rssi_dbm = 13; // 0: not on Wi-Fi
+  bool read_only = 14; // root filesystem protected by the overlay
+}

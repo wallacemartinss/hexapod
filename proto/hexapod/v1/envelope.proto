@@ -6,6 +6,7 @@ import "hexapod/v1/calibration.proto";
 import "hexapod/v1/command.proto";
 import "hexapod/v1/event.proto";
 import "hexapod/v1/hello.proto";
+import "hexapod/v1/pi_status.proto";
 import "hexapod/v1/position.proto";
 import "hexapod/v1/telemetry.proto";
 
@@ -21,5 +22,6 @@ message Envelope {
     Event event = 6;
     LinkConfig link_config = 7;
     Position position = 8; // hexd -> app only
+    PiStatus pi_status = 9; // hexd -> app only
   }
 }
