@@ -17,7 +17,7 @@ There are two ways in, on purpose:
 
 - [Features](#features)
 - [Screens](#screens)
-- [Parts list](#parts-list)
+- [Parts list](#parts-list) · [Wiring (pinout)](firmware/PINOUT.md)
 - [Install: simple path](#install-simple-path)
 - [Install: maker path](#install-maker-path)
 - [Architecture](#architecture)
@@ -115,7 +115,7 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 | 1 | Step-down 20 A, set to 6.0 V | Servo power (PCA9685 V+) |
 | 1 | Mini560 Pro 5 V / 5 A | Logic: Pi (GPIO 5 V), ESP32, sensors |
 
-Wiring and pins: [`firmware/PINOUT.md`](firmware/PINOUT.md).
+**Wiring:** every pin of both ESP32 boards, the Pi's GPS and screen, the MQ-2 divider, servo channels, I2C addresses and power rails are in **[the pinout (`firmware/PINOUT.md`)](firmware/PINOUT.md)**.
 
 ### Raspberry Pi 3 or Pi 4
 

@@ -18,7 +18,6 @@ import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
 import 'widgets/camera_controls.dart';
-import '../gallery/gallery_screen.dart';
 import '../../l10n/l10n.dart';
 import 'widgets/center_feedback.dart';
 import 'widgets/controls.dart';
@@ -55,6 +54,12 @@ class PilotScreen extends ConsumerStatefulWidget {
 }
 
 class _PilotScreenState extends ConsumerState<PilotScreen> {
+  /// Where the idle sticks sit, from the screen's edges (dp): just past the
+  /// height slider on the left and the STOP / camera column on the right,
+  /// clear of the mode bar in the middle, on any phone width.
+  static const _leftStickX = 184.0;
+  static const _rightStickX = 150.0;
+
   DateTime? _lastTelemetry;
   late final Timer _clock;
   bool _wasLost = true;
@@ -164,6 +169,9 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     // A connected gamepad drives: the screen sticks step aside (STOP stays),
     // and come back the moment the pad disconnects.
     final padDriving = gamepad != null && settings.hideSticksWithPad;
+    final half = MediaQuery.sizeOf(context).width / 2;
+    final leftRest = Alignment((2 * _leftStickX / half - 1).clamp(-0.6, 0), -0.05);
+    final rightRest = Alignment((1 - 2 * _rightStickX / half).clamp(0, 0.6), -0.05);
 
     final (leftText, rightText) = _stickTexts(context.l10n, control.scheme);
     void onLeft(Stick s) =>
@@ -190,7 +198,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                 bottom: 0,
                 width: MediaQuery.sizeOf(context).width / 2,
                 child: FloatingJoystick(
-                  restAlignment: const Alignment(-0.3, 0.05),
+                  restAlignment: leftRest,
                   label: settings.swapSticks ? rightText.$1 : leftText.$1,
                   hint: settings.swapSticks ? rightText.$2 : leftText.$2,
                   enabled: sticksLive,
@@ -204,7 +212,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                 bottom: 0,
                 width: MediaQuery.sizeOf(context).width / 2,
                 child: FloatingJoystick(
-                  restAlignment: const Alignment(0.3, 0.05),
+                  restAlignment: rightRest,
                   label: settings.swapSticks ? leftText.$1 : rightText.$1,
                   hint: settings.swapSticks ? leftText.$2 : rightText.$2,
                   enabled: sticksLive,
@@ -231,18 +239,15 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                           .update(settings.copyWith(robotAudio: !settings.robotAudio)),
                       onSettings: () => showSettingsSheet(context),
                       onFaults: () => _showFaults(context, telemetry),
-                      onGallery: () => showGalleryScreen(context),
                       recordingS: (pi?.recording ?? false) ? pi!.recordingS : null,
+                      // Obstacles at the top, out of the camera's center.
+                      center: fresh && telemetry != null
+                          ? ProximityRadar(
+                              distancesMm: telemetry.distancesMm,
+                              blockedMask: telemetry.blockedMask,
+                            )
+                          : null,
                     ),
-                    // Obstacles at the top, out of the camera's center.
-                    if (fresh && telemetry != null)
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: ProximityRadar(
-                          distancesMm: telemetry.distancesMm,
-                          blockedMask: telemetry.blockedMask,
-                        ),
-                      ),
                     if (!lost)
                       Positioned(
                         top: 84,
@@ -261,23 +266,29 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                           ],
                         ),
                       ),
+                    // STOP, then photo / record / gallery under it: one column,
+                    // so they never overlap on short screens.
                     Align(
-                      alignment: const Alignment(1, -0.35),
-                      child: StopButton(
-                        latched: control.estop || robotState == pb.State.STATE_ESTOP,
-                        haptics: settings.haptics,
-                        onPressed: controller.stop,
+                      alignment: const Alignment(1, 0.1),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          StopButton(
+                            latched: control.estop || robotState == pb.State.STATE_ESTOP,
+                            haptics: settings.haptics,
+                            onPressed: controller.stop,
+                          ),
+                          if (link == LinkStatus.connected) ...[
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 20),
+                              child: CameraControls(haptics: settings.haptics),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    // Photo and record, under STOP (the robot keeps them on its card).
-                    if (link == LinkStatus.connected)
-                      Align(
-                        alignment: const Alignment(1, 0.42),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 22),
-                          child: CameraControls(haptics: settings.haptics),
-                        ),
-                      ),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: _AutoHide(

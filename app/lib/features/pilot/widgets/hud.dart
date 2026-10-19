@@ -23,8 +23,8 @@ class StatusBar extends StatelessWidget {
     this.onGamepad,
     this.audio = false,
     this.onAudio,
-    this.onGallery,
     this.recordingS,
+    this.center,
   });
 
   final LinkStatus link;
@@ -46,8 +46,8 @@ class StatusBar extends StatelessWidget {
   final bool audio;
   final VoidCallback? onAudio;
 
-  /// Opens the robot's gallery (photos and recordings).
-  final VoidCallback? onGallery;
+  /// Shown in the middle (the obstacle radar), with room kept on both sides.
+  final Widget? center;
 
   /// Seconds recorded so far while the robot records (null: not recording).
   final int? recordingS;
@@ -68,40 +68,77 @@ class StatusBar extends StatelessWidget {
     final faults = t == null ? const <String>[] : describeFaults(l, t.faultFlags);
     final volts = t?.batteryVoltageV ?? 0;
 
+    return _row(context, l, linkText, linkColor, state, faults, volts);
+  }
+
+  Widget _row(
+    BuildContext context,
+    AppLocalizations l,
+    String linkText,
+    Color linkColor,
+    StateText? state,
+    List<String> faults,
+    double volts,
+  ) {
+    // The buttons on the right keep their size; of the room left, the
+    // status (and REC) gets two thirds and only shrinks when it does not
+    // fit, and the radar one third, shown only when it fits.
     return Row(
       children: [
-        Glass(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Dot(linkColor),
-              const SizedBox(width: 8),
-              Text(
-                linkText,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-              if (state != null) ...[
-                Container(
-                  width: 1,
-                  height: 16,
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  color: Colors.white24,
-                ),
-                Text(
-                  state.label,
-                  style: TextStyle(
-                    color: severityColor(state.severity),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+        Expanded(
+          flex: 2,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Glass(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Dot(linkColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        linkText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (state != null) ...[
+                        Container(
+                          width: 1,
+                          height: 16,
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          color: Colors.white24,
+                        ),
+                        Text(
+                          state.label,
+                          style: TextStyle(
+                            color: severityColor(state.severity),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                if (recordingS != null) ...[const SizedBox(width: 8), RecBadge(recordingS!)],
               ],
-            ],
+            ),
           ),
         ),
-        if (recordingS != null) ...[const SizedBox(width: 8), RecBadge(recordingS!)],
-        const Spacer(),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (_, box) => center != null && box.maxWidth >= 124
+                ? Center(heightFactor: 1, child: center)
+                : const SizedBox.shrink(),
+          ),
+        ),
         if (faults.isNotEmpty) ...[
           GestureDetector(
             onTap: onFaults,
@@ -163,19 +200,6 @@ class StatusBar extends StatelessWidget {
                 audio ? Icons.volume_up_rounded : Icons.volume_off_rounded,
                 color: audio ? Colors.white : Colors.white54,
                 size: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-        if (onGallery != null) ...[
-          GestureDetector(
-            onTap: onGallery,
-            child: Tooltip(
-              message: l.pilotGallery,
-              child: const Glass(
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.photo_library_rounded, color: Colors.white, size: 20),
               ),
             ),
           ),

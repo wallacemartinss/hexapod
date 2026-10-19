@@ -105,7 +105,7 @@ class _CameraControlsState extends ConsumerState<CameraControls> {
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 22),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _Round(
           tooltip: recording ? l.pilotStopRecording : l.pilotRecord,
           onTap: _record,
@@ -116,6 +116,12 @@ class _CameraControlsState extends ConsumerState<CameraControls> {
             height: recording ? 16 : 20,
             decoration: BoxDecoration(color: _rec, borderRadius: BorderRadius.circular(recording ? 3 : 10)),
           ),
+        ),
+        const SizedBox(height: 8),
+        _Round(
+          tooltip: l.pilotGallery,
+          onTap: () => showGalleryScreen(context),
+          child: const Icon(Icons.photo_library_rounded, color: Colors.white, size: 20),
         ),
       ],
     );
@@ -140,10 +146,10 @@ class _Round extends StatelessWidget {
         onTap: onTap,
         child: Glass(
           padding: EdgeInsets.zero,
-          radius: 24,
+          radius: 22,
           child: Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             alignment: Alignment.center,
             decoration: border == null
                 ? null

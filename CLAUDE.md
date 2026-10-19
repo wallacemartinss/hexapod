@@ -41,7 +41,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 - **USB:** ESP32 ↔ Pi (protocolo + gravação do firmware).
 - **ADC do ESP32:** saída analógica do MQ-2 (pelo divisor).
 - **GPIO do ESP32:** 4x XSHUT, OE das PCA9685 (ligado ao das duas placas: corte de emergência), dados dos WS2812, interrupção do BNO085 (opcional) e UART para o ESP32 dos olhos (futuro).
-- **Mapa de pinos: definido (v1)** em `firmware/include/pins.h` e documentado em `firmware/PINOUT.md`, para o S3 e para a placa de bancada. Pads do SuperMini ainda a conferir quando a placa chegar.
+- **Mapa de pinos: definido (v1)** em `firmware/include/pins.h` e documentado em `firmware/PINOUT.md` (inglês) e `firmware/PINOUT.pt-BR.md` (português, manter os dois iguais), para o S3 e para a placa de bancada. Pads do SuperMini ainda a conferir quando a placa chegar.
 
 ## 2. Regras de segurança (obrigatórias)
 

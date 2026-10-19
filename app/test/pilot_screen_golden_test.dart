@@ -49,9 +49,10 @@ Future<void> _pump(
   ControlState control,
   pb.Telemetry telemetry, {
   bool onboarded = true,
+  double pixelRatio = 2.625,
 }) async {
   tester.view.physicalSize = const Size(2400, 1080); // 20:9 phone, landscape
-  tester.view.devicePixelRatio = 2.625;
+  tester.view.devicePixelRatio = pixelRatio;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
@@ -114,6 +115,18 @@ void main() {
   testWidgets('first run tips', (tester) async {
     await _pump(tester, const ControlState(), _telemetry(pb.State.STATE_RELAXED), onboarded: false);
     await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/onboarding.png'));
+  });
+
+  // The densest phone we drive with (Redmi Note 14: 450 dpi, 853 x 384 dp):
+  // the top bar, the sticks and the side controls must not overlap.
+  testWidgets('dense phone, relaxed with warnings', (tester) async {
+    await _pump(
+      tester,
+      const ControlState(),
+      _telemetry(pb.State.STATE_RELAXED, faults: 4 | 8 | 16 | 32 | 2048)..batteryVoltageV = 0,
+      pixelRatio: 450 / 160,
+    );
+    await expectLater(find.byType(PilotScreen), matchesGoldenFile('goldens/dense_phone.png'));
   });
 
   testWidgets('front legs mode with gestures', (tester) async {

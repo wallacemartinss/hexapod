@@ -17,7 +17,7 @@ São duas portas de entrada, de propósito:
 
 - [Funcionalidades](#funcionalidades)
 - [Telas](#telas)
-- [Lista de peças](#lista-de-peças)
+- [Lista de peças](#lista-de-peças) · [Ligações (pinagem)](firmware/PINOUT.pt-BR.md)
 - [Instalação: caminho simples](#instalação-caminho-simples)
 - [Instalação: caminho maker](#instalação-caminho-maker)
 - [Arquitetura](#arquitetura)
@@ -115,7 +115,7 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 | 1 | Step-down de 20 A, ajustado em 6,0 V | Energia dos servos (V+ das PCA9685) |
 | 1 | Mini560 Pro 5 V / 5 A | Lógica: Pi (5 V do GPIO), ESP32, sensores |
 
-Ligações e pinos: [`firmware/PINOUT.md`](firmware/PINOUT.md).
+**Ligações:** cada pino das duas placas ESP32, o GPS e a tela no Pi, o divisor do MQ-2, os canais dos servos, os endereços I2C e a alimentação estão na **[pinagem (`firmware/PINOUT.pt-BR.md`)](firmware/PINOUT.pt-BR.md)**.
 
 ### Raspberry Pi 3 ou Pi 4
 
