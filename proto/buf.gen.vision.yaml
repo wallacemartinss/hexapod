@@ -1,0 +1,5 @@
+# Python only: hexvision (pi/hexvision). Uses protoc's built-in generator.
+version: v2
+plugins:
+  - protoc_builtin: python
+    out: ../pi/hexvision/gen

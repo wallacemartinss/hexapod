@@ -8,3 +8,5 @@ export '../gen/hexapod/v1/pi_status.pb.dart';
 export '../gen/hexapod/v1/position.pb.dart';
 export '../gen/hexapod/v1/telemetry.pb.dart';
 export '../gen/hexapod/v1/telemetry.pbenum.dart';
+export '../gen/hexapod/v1/vision.pb.dart';
+export '../gen/hexapod/v1/vision.pbenum.dart';

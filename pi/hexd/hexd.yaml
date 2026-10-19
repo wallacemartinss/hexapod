@@ -73,6 +73,10 @@ eye:                           # the cyclops eye: ST7789 1.54" on SPI0 (firmware
   bgr: false                   # red and blue swapped on screen? set true
   fps: 15                      # still frames are skipped (a calm eye costs little)
 
+vision:                        # follow me: targets from hexvision (pi/hexvision, ADR-0017)
+  enabled: true                # without hexvision the app just sees no targets
+  listen: 127.0.0.1:47300      # UDP, local only
+
 shutdown:
   enabled: true                # power off on LOW_BATTERY (robot already seated)
   delay: 10s                   # condition must hold this long

@@ -58,3 +58,7 @@ auto.key
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# --- Python (hexvision) ---
+pi/hexvision/gen/
+pi/hexvision/.venv/

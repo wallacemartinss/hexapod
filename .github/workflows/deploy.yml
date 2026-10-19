@@ -57,6 +57,7 @@ jobs:
           pip install platformio==6.2.0 nanopb==0.4.9.1
           go install github.com/bufbuild/buf/cmd/buf@v1.74.0
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          sudo apt-get install -y --no-install-recommends protobuf-compiler  # hexvision's Python code
 
       - name: Package
         id: package

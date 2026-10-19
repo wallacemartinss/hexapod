@@ -72,6 +72,10 @@ type Config struct {
 		BGR       bool   `yaml:"bgr"`       // colors red/blue swapped: set true
 		FPS       int    `yaml:"fps"`       // frames per second (still frames are skipped)
 	} `yaml:"eye"`
+	Vision struct {
+		Enabled bool   `yaml:"enabled"` // follow-me targets from hexvision (docs: ADR-0017)
+		Listen  string `yaml:"listen"`  // UDP address hexvision sends to (local only)
+	} `yaml:"vision"`
 	Media struct {
 		Enabled   bool          `yaml:"enabled"`     // photos and recordings for the app's gallery
 		Dir       string        `yaml:"dir"`         // on the data partition
@@ -129,6 +133,8 @@ func Default() Config {
 	c.Eye.GPIOChip = "/dev/gpiochip0"
 	c.Eye.DC, c.Eye.Reset, c.Eye.Backlight = 25, 24, 18
 	c.Eye.FPS = 15
+	c.Vision.Enabled = true // without hexvision running, the app just sees no targets
+	c.Vision.Listen = "127.0.0.1:47300"
 	c.Media.Enabled = true // without a camera, photo and record answer "camera did not answer"
 	c.Media.Dir = "/opt/hexapod/shared/media"
 	c.Media.Source = "rtsp://127.0.0.1:8554/cam"

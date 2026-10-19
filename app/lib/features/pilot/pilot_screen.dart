@@ -17,6 +17,7 @@ import '../settings/controller_sheet.dart';
 import '../settings/settings_sheet.dart';
 import '../video/robot_audio.dart';
 import 'state_texts.dart';
+import '../follow/target_overlay.dart';
 import 'widgets/camera_controls.dart';
 import '../../l10n/l10n.dart';
 import 'widgets/center_feedback.dart';
@@ -221,6 +222,10 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                 ),
               ),
             ],
+            // Follow me: boxes on the targets the camera sees (over the sticks,
+            // which still get every touch outside a box).
+            if (link == LinkStatus.connected)
+              Positioned.fill(child: TargetOverlay(haptics: settings.haptics)),
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),

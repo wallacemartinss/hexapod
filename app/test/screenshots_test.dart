@@ -165,6 +165,8 @@ Future<void> _pump(
         positionProvider.overrideWith(
           (ref) => Stream.periodic(const Duration(seconds: 1), (_) => GpsReading(_position)),
         ),
+        targetsProvider.overrideWith((ref) => const Stream<pb.Targets>.empty()),
+        followStatusProvider.overrideWith((ref) => const Stream<pb.FollowStatus>.empty()),
         piStatusProvider.overrideWith(
           (ref) => Stream.periodic(
             const Duration(seconds: 2),

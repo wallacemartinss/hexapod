@@ -445,5 +445,12 @@
   "pilotRecordSaved": "Vídeo salvo no robô",
   "pilotSeeGallery": "Ver",
   "pilotCameraFailed": "A câmera não respondeu",
-  "pilotNoSpace": "O cartão do robô está quase cheio"
+  "pilotNoSpace": "O cartão do robô está quase cheio",
+  "followTarget": "Marcador {id}",
+  "followTargetDistance": "Marcador {id} · {meters} m",
+  "followStart": "Seguir",
+  "followCancel": "Cancelar",
+  "followLocked": "Alvo travado: marcador {id}",
+  "followLost": "Alvo fora de vista, aguardando…",
+  "followHint": "Toque num alvo para segui-lo"
 }

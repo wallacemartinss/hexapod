@@ -1315,5 +1315,19 @@
   "pilotRecordSaved": "Video saved on the robot",
   "pilotSeeGallery": "See",
   "pilotCameraFailed": "The camera did not answer",
-  "pilotNoSpace": "The robot's SD card is almost full"
+  "pilotNoSpace": "The robot's SD card is almost full",
+  "followTarget": "Marker {id}",
+  "@followTarget": {"description": "Label on a follow-me target box", "placeholders": {"id": {"type": "int"}}},
+  "followTargetDistance": "Marker {id} · {meters} m",
+  "@followTargetDistance": {"description": "Target box label with its distance", "placeholders": {"id": {"type": "int"}, "meters": {"type": "double", "format": "decimalPatternDigits", "optionalParameters": {"decimalDigits": 1}}}},
+  "followStart": "Follow",
+  "@followStart": {"description": "Button under a tapped target: lock onto it"},
+  "followCancel": "Cancel",
+  "@followCancel": {"description": "Stops following the target"},
+  "followLocked": "Target locked: marker {id}",
+  "@followLocked": {"description": "Banner while a target is locked", "placeholders": {"id": {"type": "int"}}},
+  "followLost": "Target out of view, waiting for it…",
+  "@followLost": {"description": "Banner when the locked target left the camera image"},
+  "followHint": "Tap a target to follow it",
+  "@followHint": {"description": "Shown when the camera sees targets and none is picked"}
 }

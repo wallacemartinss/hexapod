@@ -477,3 +477,54 @@ func TestPairWithTheShortCode(t *testing.T) {
 		t.Fatal("a code works once")
 	}
 }
+
+type fakeVision struct {
+	ch      chan *pb.Envelope
+	follows chan uint32
+}
+
+func (f *fakeVision) Subscribe() (<-chan *pb.Envelope, func()) { return f.ch, func() {} }
+func (f *fakeVision) Follow(id uint32) *pb.FollowStatus {
+	f.follows <- id
+	return &pb.FollowStatus{TrackId: id}
+}
+func (f *fakeVision) Status() *pb.FollowStatus {
+	return &pb.FollowStatus{State: pb.FollowState_FOLLOW_STATE_IDLE}
+}
+
+func TestFollowMeOverTheWebSocket(t *testing.T) {
+	v := &fakeVision{ch: make(chan *pb.Envelope, 4), follows: make(chan uint32, 4)}
+	r := newRig(t, Config{Vision: v})
+	a := connectApp(t, r)
+
+	v.ch <- &pb.Envelope{Payload: &pb.Envelope_Targets{Targets: &pb.Targets{Seq: 42}}}
+	deadline := time.After(3 * time.Second)
+	var status, targets bool
+	for !status || !targets {
+		select {
+		case env := <-a.in:
+			status = status || env.GetFollowStatus() != nil
+			targets = targets || env.GetTargets().GetSeq() == 42
+		case <-deadline:
+			t.Fatalf("app got status %v, targets %v", status, targets)
+		}
+	}
+
+	b, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_FollowRequest{FollowRequest: &pb.FollowRequest{TrackId: 8}}})
+	if err := a.conn.Write(context.Background(), websocket.MessageBinary, b); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-v.follows; got != 8 {
+		t.Fatalf("follow %d, want 8", got)
+	}
+	// The app is the dead man: the last one leaving stops the follow.
+	a.conn.CloseNow()
+	select {
+	case got := <-v.follows:
+		if got != 0 {
+			t.Fatalf("on disconnect follow %d, want 0", got)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("follow not cancelled when the app left")
+	}
+}

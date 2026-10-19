@@ -62,6 +62,13 @@ jobs:
       - name: Unit and integration tests (against hexsim)
         run: go test -race -count=1 ./...
 
+      - name: hexvision tests (follow-me markers)
+        run: |
+          sudo apt-get install -y --no-install-recommends protobuf-compiler
+          (cd ../proto && buf generate --template buf.gen.vision.yaml)
+          python3 -m pip install --quiet opencv-python-headless==4.12.0.88 protobuf==5.29.5
+          cd hexvision && python3 -m unittest discover -s tests -t . -v
+
       - name: deploy.sh end-to-end test
         run: |
           shellcheck -S warning deploy/*.sh image/*.sh

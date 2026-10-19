@@ -34,6 +34,7 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/sysinfo"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/tailscale"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/vision"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 	"google.golang.org/protobuf/proto"
 )
@@ -222,6 +223,19 @@ func main() {
 		return st
 	}
 
+	// Follow me: targets from hexvision; nothing moves from here (F1).
+	var hub *vision.Hub
+	var visionAPI server.Vision // stays a nil interface without vision
+	if cfg.Vision.Enabled {
+		hub = vision.New(log.With("component", "vision"))
+		visionAPI = hub
+		go func() {
+			if err := hub.Run(ctx, cfg.Vision.Listen); err != nil {
+				log.Warn("vision off", "err", err)
+			}
+		}()
+	}
+
 	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
@@ -242,6 +256,7 @@ func main() {
 		Rename:             rename,
 		Codes:              codes,
 		OnPaired:           onPaired,
+		Vision:             visionAPI,
 	}, dev, log.With("component", "server"))
 	if wifiMgr != nil {
 		go wifiMgr.Run(ctx)
@@ -270,7 +285,7 @@ func main() {
 	if cfg.Eye.Enabled {
 		go func() {
 			defer close(eyeDone)
-			runEye(ctx, cfg, dev, srv, gallery, &photos, identity, &idMu, codes, log.With("component", "eye"))
+			runEye(ctx, cfg, dev, srv, gallery, &photos, hub, identity, &idMu, codes, log.With("component", "eye"))
 		}()
 	} else {
 		close(eyeDone)
@@ -299,7 +314,7 @@ func main() {
 
 // runEye animates the cyclops eye from the robot's situation.
 func runEye(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
-	gallery *media.Gallery, photos *atomic.Int64, identity *pairing.Identity, idMu *sync.Mutex,
+	gallery *media.Gallery, photos *atomic.Int64, hub *vision.Hub, identity *pairing.Identity, idMu *sync.Mutex,
 	codes *pairing.Codes, log *slog.Logger) {
 	director := eye.NewDirector(time.Now())
 	var network bool
@@ -319,6 +334,9 @@ func runEye(ctx context.Context, cfg config.Config, dev *device.Device, srv *ser
 		s.Command, s.CommandAt = srv.LastCommand()
 		if gallery != nil {
 			s.Recording, _ = gallery.Recording()
+		}
+		if hub != nil {
+			s.Follow, s.Locks = hub.Status(), hub.Locks()
 		}
 		if identity != nil && codes != nil {
 			code := codes.Current()

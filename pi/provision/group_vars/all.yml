@@ -16,6 +16,8 @@ base_packages:
   - python3-packaging  # required by the Ansible pip module
   - polkitd           # lets hexd power the Pi off (see tasks/layout.yml)
   - i2c-tools         # i2cdetect: checks the OLED (0x3C)
+  - python3-opencv    # hexvision: ArUco markers (follow me, ADR-0017)
+  - python3-protobuf  # hexvision -> hexd messages
 
 # --- Boot config (/boot/firmware/config.txt, cmdline.txt) ---
 # Set true if the OV5647 is not auto-detected (rpicam-hello --list-cameras is empty).

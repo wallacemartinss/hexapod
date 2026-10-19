@@ -65,6 +65,16 @@ type Config struct {
 	// OnPaired runs whenever an app proves it has the key (/pair or an
 	// authorized /ws): the robot's own Wi-Fi then needs a password.
 	OnPaired func()
+	// Vision streams follow-me targets to the apps and takes their choice
+	// (nil: no camera vision).
+	Vision Vision
+}
+
+// Vision is the follow-me side (internal/vision.Hub).
+type Vision interface {
+	Subscribe() (<-chan *pb.Envelope, func())
+	Follow(track uint32) *pb.FollowStatus
+	Status() *pb.FollowStatus
 }
 
 // Server is created once and serves until its context ends.
@@ -238,7 +248,16 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.clients++
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); s.clients--; s.mu.Unlock() }()
+	defer func() {
+		s.mu.Lock()
+		s.clients--
+		last := s.clients == 0
+		s.mu.Unlock()
+		// The app is the dead man of follow me: with none left, nothing is followed.
+		if last && s.cfg.Vision != nil {
+			s.cfg.Vision.Follow(0)
+		}
+	}()
 	s.log.Info("app connected", "remote", r.RemoteAddr, "profile", profile)
 
 	ctx, cancel := context.WithCancel(r.Context())
@@ -281,12 +300,23 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer t.Stop()
 		piTick = t.C
 	}
+	var visionCh <-chan *pb.Envelope
+	if s.cfg.Vision != nil {
+		ch, unsub := s.cfg.Vision.Subscribe()
+		defer unsub()
+		visionCh = ch
+		_ = write(&pb.Envelope{Payload: &pb.Envelope_FollowStatus{FollowStatus: s.cfg.Vision.Status()}})
+	}
 	go func() {
 		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case e := <-visionCh:
+				if write(e) != nil {
+					return
+				}
 			case <-piTick:
 				if p := s.cfg.PiStatus(); p != nil {
 					if write(&pb.Envelope{Payload: &pb.Envelope_PiStatus{PiStatus: p}}) != nil {
@@ -319,6 +349,9 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		var env pb.Envelope
 		if proto.Unmarshal(b, &env) != nil {
 			continue
+		}
+		if f := env.GetFollowRequest(); f != nil && s.cfg.Vision != nil {
+			s.cfg.Vision.Follow(f.TrackId) // the new status reaches every app
 		}
 		if cmd := env.GetCommand(); cmd != nil {
 			if err := s.forward(cmd, profile); err != nil && !errors.Is(err, device.ErrNotReady) {
