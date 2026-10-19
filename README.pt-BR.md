@@ -44,7 +44,7 @@ São duas portas de entrada, de propósito:
 
 **Dados e saúde**
 - Tela de dados em abas: resumo, orientação (horizonte artificial), distância, **posição GPS**, ambiente (temperatura, umidade, pressão, **alarme de gás e fumaça**), ângulos das pernas, saúde do ESP32 e **saúde do próprio Raspberry Pi** (CPU, temperatura, memória, cartão, quedas de energia).
-- **Tela de estado no robô** (OLED 0,96"): progresso do boot, rede, IP, bateria e o código de pareamento.
+- **Um olho de ciclope:** uma tela colorida de 1,54" atrás de uma janela redonda na "cara" do robô, com a câmera como "nariz" e um farol de cada lado. Mostra expressões, o progresso do boot e o código de pareamento. *(O olho está em andamento; até lá, uma OLED de 0,96" dentro do corpo mostra o estado e o código de pareamento.)*
 - Métricas para o Prometheus em `/metrics`, para quem quiser montar painéis.
 
 **Segurança e atualizações**
@@ -103,8 +103,9 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 | 1 | Câmera OV5647 grande-angular 120° | Vídeo (CSI) |
 | 1 | Mini microfone USB | Áudio do robô |
 | 1 | GPS GY-NEO6MV2 (u-blox NEO-6M) | Posição (UART do Pi) |
-| 1 | OLED SSD1306 0,96" I2C | Tela de estado e código de pareamento |
-| — | LEDs WS2812 (opcional) | Luzes de estado (a definir) |
+| 1 | Tela colorida ST7789 1,54", SPI (240×240) | O olho de ciclope, atrás de uma janela redonda de 27 mm; também mostra o código de pareamento |
+| 2 | LEDs WS2812 | Faróis, um de cada lado da câmera |
+| (1) | OLED SSD1306 0,96" I2C | Tela de estado até o olho ficar pronto (depois não precisa) |
 
 **Energia**
 
@@ -193,7 +194,7 @@ O deploy grava o ESP32, reinicia o `hexd`, confere se as duas versões respondem
 ## Arquitetura
 
 ```
-App Android ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, OLED, GPS)
+App Android ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, olho, GPS)
      ▲                                     │ USB (COBS + CRC16 + nanopb)
      └──── vídeo e áudio WebRTC ───────────┤
                                            ▼
@@ -214,7 +215,7 @@ Um robô que anda precisa de duas coisas bem diferentes: **tempo real de verdade
 | Saída dos servos pelas 2× PCA9685, limites e calibração por junta gravados na NVS | Homem-morto: app mudo por 150 ms → comando de velocidade zero | Comandos a 20 Hz, mesmo com os joysticks parados |
 | Corte de emergência (OE das PCA9685) | Pareamento e chaves; Wi-Fi (rede própria, rede de casa); login do Tailscale | Vídeo e áudio ao vivo |
 | **Failsafe** (máquina de estados): parar → sentar com segurança → relaxar quando os comandos param; proteção de inclinação, obstáculo e bateria baixa | Vídeo e áudio: MediaMTX, H.264 pelo codificador de hardware do Pi, WebRTC | Telemetria, telas de dados, avisos em palavras simples |
-| Sensores: IMU, 4 de distância, ambiente, bateria, gás | Tela de estado (OLED), GPS, saúde do Pi, métricas Prometheus | Configuração de pareamento, Wi-Fi e acesso remoto |
+| Sensores: IMU, 4 de distância, ambiente, bateria, gás | O olho (tela de estado), GPS, saúde do Pi, métricas Prometheus | Configuração de pareamento, Wi-Fi e acesso remoto |
 | Watchdog de tarefas: uma tarefa travada reinicia o chip, que liga com os servos desligados | Desligamento seguro com bateria crítica; atualizações com gravação do ESP32 e rollback; cartão somente leitura | Vários robôs, dois idiomas |
 
 **O ESP32 nunca confia no Pi para a segurança:** um comando só vale com o CRC certo e o número de sequência crescente, e o failsafe não pode ser desligado remotamente. A recuperação nunca é automática: o piloto precisa segurar LEVANTAR.
@@ -248,6 +249,7 @@ Tempo real e segurança continuam no ESP32; estas são funções de "cérebro", 
 4. **Navegação por GPS:** ir até um ponto do mapa, voltar para casa com bateria baixa ou sem sinal, cerca virtual.
 5. **Caixa-preta:** telemetria gravada no robô e replay no app; Grafana no robô.
 6. **Ponte ROS 2** para RViz, bags e Nav2.
+7. **O olho de ciclope** (ST7789 no Pi): expressões por estado, olhar para onde você manobra, o QR de pareamento; substitui a OLED.
 
 ## Desenvolvimento
 

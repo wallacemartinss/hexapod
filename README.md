@@ -44,7 +44,7 @@ There are two ways in, on purpose:
 
 **Data and health**
 - Data screen in tabs: summary, orientation (artificial horizon), distance, **GPS position**, environment (temperature, humidity, pressure, **gas/smoke alarm**), leg angles, ESP32 health and the **Raspberry Pi's own health** (CPU, temperature, memory, SD card, power dips).
-- **Status screen on the robot** (0.96" OLED): boot progress, network, IP, battery and the pairing code.
+- **A cyclops eye:** a 1.54" color screen behind a round window on the robot's face, with the camera as its "nose" and a headlight on each side. It shows expressions, boot progress and the pairing code. *(The eye is in progress; until then a 0.96" OLED inside the body shows status and the pairing code.)*
 - Prometheus metrics at `/metrics` for makers who want dashboards.
 
 **Safety and updates**
@@ -103,8 +103,9 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 | 1 | OV5647 camera, 120° wide angle | Video (CSI) |
 | 1 | Mini USB microphone | Robot audio |
 | 1 | GY-NEO6MV2 GPS (u-blox NEO-6M) | Position (Pi UART) |
-| 1 | 0.96" SSD1306 OLED, I2C | Status screen and pairing code |
-| — | WS2812 LEDs (optional) | State lights (to be decided) |
+| 1 | ST7789 1.54" color screen, SPI (240×240) | The cyclops eye, behind a 27 mm round window; also shows the pairing code |
+| 2 | WS2812 LEDs | Headlights, one on each side of the camera |
+| (1) | 0.96" SSD1306 OLED, I2C | Status screen until the eye is ready (then not needed) |
 
 **Power**
 
@@ -193,7 +194,7 @@ The deploy flashes the ESP32, restarts `hexd`, checks both versions answer withi
 ## Architecture
 
 ```
-Android app ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, OLED, GPS)
+Android app ──WebSocket (Protobuf)──► Raspberry Pi (hexd, MediaMTX, eye, GPS)
      ▲                                     │ USB (COBS + CRC16 + nanopb)
      └──── WebRTC video and audio ─────────┤
                                            ▼
@@ -214,7 +215,7 @@ A walking robot needs two very different things: **hard real time** (servo pulse
 | Servo output through 2× PCA9685, per-joint limits and calibration stored in NVS | Dead-man relay: no app for 150 ms → zero-speed command | Commands at 20 Hz, even with the sticks still |
 | Emergency cut (PCA9685 output enable) | Pairing and keys; Wi-Fi (own network, home network); Tailscale login | Live video and audio |
 | **Failsafe** state machine: stop → safe sit → relax when commands stop; tilt, obstacle and low-battery protection | Video and audio: MediaMTX, H.264 by the Pi's hardware encoder, WebRTC | Telemetry, data screens, warnings in plain words |
-| Sensors: IMU, 4 distance, environment, battery, gas | Status screen (OLED), GPS, Pi health, Prometheus metrics | Pairing, Wi-Fi and remote access setup |
+| Sensors: IMU, 4 distance, environment, battery, gas | The eye (status screen), GPS, Pi health, Prometheus metrics | Pairing, Wi-Fi and remote access setup |
 | Task watchdog: a stuck task resets the chip, which boots with the servos off | Safe shutdown on critical battery; updates with ESP32 flashing and rollback; read-only SD card | Several robots, two languages |
 
 **The ESP32 never trusts the Pi for safety:** a command is only valid with a correct CRC and a growing sequence number, and the failsafe cannot be turned off remotely. Recovery is never automatic: the pilot has to hold STAND UP.
@@ -248,6 +249,7 @@ Real time and safety stay on the ESP32; these add "brain" features, most of them
 4. **GPS navigation:** go to a point on the map, return home on low battery or lost signal, virtual fence.
 5. **Black box:** telemetry recorded on the robot and replayed in the app; Grafana on the robot.
 6. **ROS 2 bridge** for RViz, bags and Nav2.
+7. **The cyclops eye** (ST7789 on the Pi): expressions per state, looking where you steer, the pairing QR code; it replaces the OLED.
 
 ## Development
 

@@ -16,18 +16,18 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 | Ponte, vídeo e rede | Raspberry Pi 3 Model B v1.2 (Pi 4 também suportado) | Raspberry Pi OS Lite 64-bit. Pi 3: Wi-Fi só 2,4 GHz; Pi 4: rede própria em 5 GHz (README, "Pi 3 ou Pi 4") |
 | Tempo real | ESP32-S3 SuperMini | USB nativa (VID:PID `303a:1001`) ligada ao Pi |
 | Tempo real (só bancada, temporário) | ESP32 DevKit 38 pinos, ESP-WROOM-32 (ESP32-D0WDQ6, 4 MB) | USB via CP2102 (`10c4:ea60`). PlatformIO `esp32dev`. GPIO6–11 = flash (proibidos); 34–39 só entrada |
-| Olhos (fase futura) | 2nd ESP32-S3 SuperMini + 2x GC9A01 1,28" | Recebe comandos simples do ESP32 principal |
+| Olho "ciclope" | ST7789 1,54" (240×240, SPI) atrás de uma janela redonda de 27 mm, no centro da rampa da frente | No **Pi** (SPI0), desenhado pelo `hexd`. **Substitui a OLED** (mostra o QR e o código de pareamento) e os antigos olhos GC9A01. ADR-0015 |
 | Servos | 2x PCA9685 (HW-170), endereços 0x40 e 0x41 | Nº 1: pernas esquerdas; nº 2: pernas direitas |
 | IMU | BNO085 | Usar *game rotation vector* (sem magnetômetro) por padrão |
 | Distância | 4x VL53L0X (GY-VL53L0XV2) | Todos com 0x29 de fábrica: trocar no boot via XSHUT para 0x30–0x33 |
 | Ambiente | BME280 (0x76) | |
 | GPS | GY-NEO6MV2 (u-blox NEO-6M) | No **Pi**: UART GPIO14/15, 9600. Ver `firmware/PINOUT.md` |
-| Tela de status | OLED 0,96" SSD1306, I2C 0x3C | No **Pi**: I2C GPIO2/3. Mostra rede, IP e o QR de pareamento |
+| Tela de status (até o olho chegar) | OLED 0,96" SSD1306, I2C 0x3C | No **Pi**: I2C GPIO2/3. Sai quando o olho ST7789 estiver funcionando |
 | Gás e fumaça | MQ-2 (módulo com LM393) | Saída analógica pelo divisor 10k/15k (AO vai a 5 V). Leitura relativa, alarme só informativo. Ver `firmware/PINOUT.md` |
 | Bateria | INA226 (0x40) | **Ver o aviso sobre o shunt na seção 9** |
 | Câmera | OV5647, grande-angular 120° | Porta CSI, H.264 por hardware |
 | Áudio | Mini microfone USB | Plugado direto no Pi |
-| LEDs | WS2812 (decisão pendente; antes eram LEDs de 1 W com PT4115) | Um pino de dados |
+| LEDs | WS2812: os **faróis**, um de cada lado da câmera | Um pino de dados (`LED_DATA`) |
 | Energia dos servos | Step-down de 20 A (15 A sugeridos), ajustado em 6,0 V | Alimenta o V+ das duas PCA9685 |
 | Energia da lógica | Mini560 Pro 5 V / 5 A | Pi pelo GPIO (pinos 2/6), ESP32 e sensores |
 | Bateria | LiPo 3S 2200 mAh, XT60 | Fusível de 20 A + chave anti-spark |
@@ -313,7 +313,7 @@ O perfil (Wi-Fi ou 4G) é informado pelo hexd e só pode ser trocado com o robô
 - [ ] Qual lado é a frente do corpo (assumido +x, pernas a ±30°)
 - [ ] Furação real da câmera e da PCA9685
 - [ ] Resistor de shunt do INA226 (ver a seção 9)
-- [ ] LEDs: WS2812 ou 1 W
+- [x] LEDs: WS2812 (faróis ao lado da câmera)
 - [ ] Modelo do modem 4G (fase futura)
 
 ## 8. Primeiro teste com hardware (roteiro para o usuário)
