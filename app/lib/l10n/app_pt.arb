@@ -2,7 +2,6 @@
   "@@locale": "pt",
   "appTitle": "Hexápode",
   "settingsLanguage": "Idioma",
-  "settingsLanguageSystem": "Idioma do celular",
   "stateNormal": "Pronto",
   "stateGas": "Gás ou fumaça",
   "stateGasDetail": "O sensor MQ-2 detectou gás ou fumaça perto do robô.",

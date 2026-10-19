@@ -88,13 +88,14 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
             alignment: Alignment.centerLeft,
             child: SegmentedButton<String>(
               showSelectedIcon: false,
-              segments: [
-                ButtonSegment(value: '', label: Text(l.settingsLanguageSystem)),
-                // Each language is named in itself, whatever the app language.
-                const ButtonSegment(value: 'en', label: Text('English')),
-                const ButtonSegment(value: 'pt', label: Text('Português')),
+              // Each language is named in itself, whatever the app language.
+              // No "phone language" choice: that is the default until one
+              // is picked, and the language in use shows as selected.
+              segments: const [
+                ButtonSegment(value: 'en', label: Text('English')),
+                ButtonSegment(value: 'pt', label: Text('Português')),
               ],
-              selected: {_s.language},
+              selected: {Localizations.localeOf(context).languageCode},
               onSelectionChanged: (v) => _setLanguage(v.first),
             ),
           ),
