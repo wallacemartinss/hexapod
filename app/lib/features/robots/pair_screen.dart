@@ -12,6 +12,7 @@ import 'package:web_socket_channel/io.dart';
 import '../../core/link/discovery.dart';
 import '../../core/link/robot_wifi.dart';
 import '../../core/robots.dart';
+import '../../l10n/l10n.dart';
 
 const _bg = Color(0xFF0C1428);
 const _ok = Color(0xFF3DDC97);
@@ -74,7 +75,7 @@ Future<bool> _checkKey(String address, int port, String token) async {
   }
 }
 
-/// "Novo robô": scan the QR on the robot's screen or type the 5-character
+/// The "New robot" screen: scan the QR on the robot's screen or type the 5-character
 /// code shown next to it; the app finds the robot (on this network, or on
 /// the robot's own Wi-Fi), trades the code for the key and saves it.
 class PairScreen extends ConsumerStatefulWidget {
@@ -179,7 +180,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
   void _submitTyped() {
     final input = parsePairingInput(_typed.text);
     if (input == null) {
-      setState(() => _typedError = 'Digite as 5 letras e números que aparecem na tela do robô');
+      setState(() => _typedError = context.l10n.pairCodeError);
       return;
     }
     setState(() => _typedError = null);
@@ -189,37 +190,36 @@ class _PairScreenState extends ConsumerState<PairScreen> {
   @override
   Widget build(BuildContext context) {
     final id = _input?.id;
+    final l = context.l10n;
     return Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(backgroundColor: _bg, foregroundColor: Colors.white, title: const Text('Novo robô')),
+      appBar: AppBar(backgroundColor: _bg, foregroundColor: Colors.white, title: Text(l.pairTitle)),
       body: SafeArea(
         top: false,
         child: switch (_step) {
           _Step.scan => _scanView(),
           _Step.searching => _message(
             const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
-            id == null ? 'Procurando o robô…' : 'Procurando o robô $id…',
-            'Na mesma rede Wi-Fi do celular.',
+            id == null ? l.pairSearching : l.pairSearchingId(id),
+            l.pairSameWifi,
           ),
           _Step.joiningOwn => _message(
             const SizedBox(width: 40, height: 40, child: CircularProgressIndicator(strokeWidth: 3)),
-            'Conectando na rede do robô…',
-            id == null
-                ? 'Escolha a rede "Hexapode-…" na lista do Android.'
-                : 'Rede Hexapode-$id. Se o Android perguntar, toque em "Conectar".',
+            l.pairJoiningOwn,
+            id == null ? l.pairPickNetwork : l.pairJoinNetwork(id),
           ),
           _Step.notFound => _notFound(),
           _Step.refused => _message(
             const Icon(Icons.key_off_rounded, size: 48, color: _bad),
-            _input?.token != null ? 'O robô recusou a chave' : 'Código errado ou vencido',
-            'O código muda a cada 10 minutos e a cada uso. Use o que aparece agora na tela do robô.',
-            action: ('Tentar de novo', () => setState(() => _step = _Step.scan)),
+            _input?.token != null ? l.pairKeyRefused : l.pairCodeWrong,
+            l.pairCodeHelp,
+            action: (l.pairRetry, () => setState(() => _step = _Step.scan)),
           ),
           _Step.done => _message(
             const Icon(Icons.check_circle_rounded, size: 56, color: _ok),
-            'Pareado!',
-            '$_name está pronto para pilotar.',
-            action: ('Pilotar', () => Navigator.of(context).pop()),
+            l.pairDone,
+            l.pairReady(_name ?? ''),
+            action: (l.pairDrive, () => Navigator.of(context).pop()),
           ),
         },
       ),
@@ -227,30 +227,28 @@ class _PairScreenState extends ConsumerState<PairScreen> {
   }
 
   Widget _scanView() {
+    final l = context.l10n;
     final typed = Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Quando nenhum app está conectado, a tela do robô mostra um QR e um código de 5 letras e números.',
-            style: TextStyle(color: Colors.white70),
-          ),
+          Text(l.pairIntro, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 12),
           TextField(
             controller: _typed,
             style: const TextStyle(color: Colors.white, fontSize: 22, letterSpacing: 6),
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
-              labelText: 'Código da tela do robô',
+              labelText: l.pairCodeLabel,
               hintText: 'K7F2Q',
               errorText: _typedError,
             ),
             onSubmitted: (_) => _submitTyped(),
           ),
           const SizedBox(height: 8),
-          FilledButton(onPressed: _submitTyped, child: const Text('Parear')),
+          FilledButton(onPressed: _submitTyped, child: Text(l.pairButton)),
         ],
       ),
     );
@@ -292,6 +290,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
 
   Widget _notFound() {
     final id = _input?.id;
+    final l = context.l10n;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -300,16 +299,11 @@ class _PairScreenState extends ConsumerState<PairScreen> {
           const Icon(Icons.wifi_find_rounded, size: 48, color: Color(0xFFFFB547)),
           const SizedBox(height: 12),
           Text(
-            id == null ? 'Não achei o robô' : 'Não achei o robô $id',
+            id == null ? l.pairNotFound : l.pairNotFoundId(id),
             style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '• O robô está ligado e a tela mostra o código?\n'
-            '• O celular está no mesmo Wi-Fi que o robô?\n'
-            '• Algumas redes bloqueiam a busca: informe o endereço (IP) que aparece na tela do robô.',
-            style: TextStyle(color: Colors.white70, height: 1.5),
-          ),
+          Text(l.pairNotFoundTips, style: const TextStyle(color: Colors.white70, height: 1.5)),
           const SizedBox(height: 16),
           SizedBox(
             width: 320,
@@ -317,10 +311,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
               controller: _address,
               style: const TextStyle(color: Colors.white),
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
-                labelText: 'Endereço do robô (opcional)',
-                hintText: '10.0.0.86',
-              ),
+              decoration: InputDecoration(labelText: l.pairAddressLabel, hintText: '10.0.0.86'),
             ),
           ),
           const SizedBox(height: 16),
@@ -330,7 +321,7 @@ class _PairScreenState extends ConsumerState<PairScreen> {
               setState(() => _step = _Step.scan);
               _start(_input!, address: address.isEmpty ? null : address);
             },
-            child: const Text('Tentar de novo'),
+            child: Text(l.pairRetry),
           ),
         ],
       ),

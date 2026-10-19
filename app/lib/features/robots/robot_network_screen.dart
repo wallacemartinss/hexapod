@@ -8,6 +8,7 @@ import '../../core/link/robot_api.dart';
 import '../../core/link/robot_wifi.dart';
 import '../../core/providers.dart';
 import '../../core/robots.dart';
+import '../../l10n/l10n.dart';
 
 const _bg = Color(0xFF0C1428);
 const _card = Color(0xFF121C34);
@@ -29,7 +30,7 @@ class RobotNetworkScreen extends ConsumerStatefulWidget {
 
 class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   WifiStatus? _status;
-  String? _error;
+  String? _error; // the robot's reason; empty: out of reach (worded at build time)
   String? _busy; // what is going on, shown instead of the content
   Timer? _poll;
 
@@ -58,7 +59,7 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   Future<void> _refresh() async {
     final api = _api();
     if (api == null) {
-      setState(() => _error = 'Robô fora de alcance');
+      setState(() => _error = '');
       return;
     }
     try {
@@ -70,7 +71,7 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e is RobotApiError ? e.message : 'Robô fora de alcance');
+      if (mounted) setState(() => _error = e is RobotApiError ? e.message : '');
     }
   }
 
@@ -81,7 +82,9 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
       await action(api);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$what: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.networkActionFailed(what, '$e'))));
       }
     }
     await _refresh();
@@ -91,22 +94,20 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
     final robot = _robot;
     if (robot == null) return;
     final controller = TextEditingController(text: robot.name);
+    final l = context.l10n;
     final name = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Nome do robô'),
+        title: Text(l.networkRobotName),
         content: TextField(controller: controller, autofocus: true, maxLength: 32),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, controller.text.trim()),
-            child: const Text('Salvar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(l.networkCancel)),
+          FilledButton(onPressed: () => Navigator.pop(c, controller.text.trim()), child: Text(l.networkSave)),
         ],
       ),
     );
     if (name == null || name.isEmpty || name == robot.name) return;
-    await _run('Renomear', (api) async {
+    await _run(l.networkRename, (api) async {
       await api.rename(name);
       await ref.read(robotsProvider.notifier).rename(robot.id, name);
     });
@@ -116,7 +117,8 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   Future<void> _chooseNetwork() async {
     final api = _api();
     if (api == null) return;
-    setState(() => _busy = 'O robô está procurando redes…');
+    final l = context.l10n;
+    setState(() => _busy = l.networkScanning);
     List<WifiNetwork> list;
     try {
       list = await api.scan();
@@ -134,16 +136,13 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(
-              title: Text('Redes que o robô enxerga', style: TextStyle(color: Colors.white)),
-              subtitle: Text(
-                'Só redes de 2,4 GHz aparecem (o Wi-Fi do Pi 3)',
-                style: TextStyle(color: Colors.white54),
-              ),
+            ListTile(
+              title: Text(l.networkVisible, style: const TextStyle(color: Colors.white)),
+              subtitle: Text(l.networkOnly24, style: const TextStyle(color: Colors.white54)),
             ),
             if (list.isEmpty)
-              const ListTile(
-                title: Text('Nenhuma rede encontrada', style: TextStyle(color: Colors.white70)),
+              ListTile(
+                title: Text(l.networkNoneFound, style: const TextStyle(color: Colors.white70)),
               ),
             for (final n in list)
               ListTile(
@@ -169,17 +168,18 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   Future<String?> _askPassword(String ssid) {
     final controller = TextEditingController();
     var hidden = true;
+    final l = context.l10n;
     return showDialog<String>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setLocal) => AlertDialog(
-          title: Text('Senha de "$ssid"'),
+          title: Text(l.networkPassword(ssid)),
           content: TextField(
             controller: controller,
             autofocus: true,
             obscureText: hidden,
             decoration: InputDecoration(
-              helperText: 'Fica gravada só no robô',
+              helperText: l.networkPasswordHelp,
               suffixIcon: IconButton(
                 icon: Icon(hidden ? Icons.visibility_rounded : Icons.visibility_off_rounded),
                 onPressed: () => setLocal(() => hidden = !hidden),
@@ -187,14 +187,14 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(c), child: Text(l.networkCancel)),
             FilledButton(
               onPressed: () {
                 final p = controller.text;
                 if (p.length < 8 || p.length > 63) return; // WPA: 8-63 characters
                 Navigator.pop(c, p);
               },
-              child: const Text('Conectar'),
+              child: Text(l.networkConnect),
             ),
           ],
         ),
@@ -207,15 +207,14 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   Future<void> _join(RobotApi api, String ssid, String password) async {
     final robot = _robot!;
     final wifi = ref.read(robotWifiProvider);
+    final l = context.l10n;
     try {
       await api.join(ssid, password);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
       return;
     }
-    setState(
-      () => _busy = 'O robô está entrando na rede "$ssid".\nSeu celular deve voltar para ela sozinho.',
-    );
+    setState(() => _busy = l.networkJoining(ssid));
     await wifi?.release(); // leave the robot's network; the phone goes back home
     final deadline = DateTime.now().add(const Duration(seconds: 75));
     FoundRobot? found;
@@ -228,14 +227,14 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
       await ref.read(robotsProvider.notifier).seenAt(robot.id, found.address);
       ref.invalidate(robotAddressProvider);
       setState(() => _busy = null);
-      _snack('Pronto! ${robot.name} está na rede "$ssid".', _ok);
+      _snack(l.networkJoined(robot.name, ssid), _ok);
       await _refresh();
       return;
     }
     // Not at home: it went back to its own network. Read why from there.
-    setState(() => _busy = 'Não achei o robô na rede "$ssid". Voltando para a rede dele…');
+    setState(() => _busy = l.networkNotThere(ssid));
     final own = ownNetwork(robot.id, robot.token);
-    String reason = 'O robô não entrou na rede "$ssid".';
+    String reason = l.networkDidNotJoin(ssid);
     if (wifi != null && await wifi.join(own.ssid, own.password)) {
       ref.invalidate(robotAddressProvider);
       try {
@@ -257,15 +256,16 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   Widget build(BuildContext context) {
     final robot = ref.watch(robotsProvider).active;
     final s = _status;
+    final l = context.l10n;
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _bg,
         foregroundColor: Colors.white,
-        title: Text(robot == null ? 'Rede do robô' : robot.name),
+        title: Text(robot == null ? l.networkTitle : robot.name),
         actions: [
           if (robot != null)
-            IconButton(tooltip: 'Renomear', icon: const Icon(Icons.edit_rounded), onPressed: _rename),
+            IconButton(tooltip: l.networkRename, icon: const Icon(Icons.edit_rounded), onPressed: _rename),
         ],
       ),
       body: SafeArea(
@@ -311,23 +311,19 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   );
 
   Widget _stateCard(WifiStatus? s) {
+    final l = context.l10n;
     final (IconData icon, Color color, String title, String text) = switch (s?.state) {
-      _ when _error != null => (Icons.wifi_off_rounded, _bad, 'Sem contato', _error!),
-      null => (Icons.wifi_find_rounded, Colors.white54, 'Lendo…', ''),
-      'own' => (
-        Icons.wifi_tethering_rounded,
-        _ok,
-        'Rede própria',
-        '${s!.apSsid} · o celular fala direto com o robô',
-      ),
-      'home' => (Icons.wifi_rounded, _ok, 'Rede "${s!.ssid}"', 'IP ${s.ip ?? '—'}'),
-      'connecting' => (Icons.wifi_find_rounded, _warn, 'Conectando…', s!.ssid ?? ''),
-      _ => (
-        Icons.portable_wifi_off_rounded,
+      _ when _error != null => (
+        Icons.wifi_off_rounded,
         _bad,
-        'Wi-Fi do robô indisponível',
-        'O chip de Wi-Fi do Pi não respondeu. Confira a fonte de energia do robô.',
+        l.networkNoContact,
+        _error!.isEmpty ? l.networkOutOfReach : _error!,
       ),
+      null => (Icons.wifi_find_rounded, Colors.white54, l.networkReading, ''),
+      'own' => (Icons.wifi_tethering_rounded, _ok, l.networkOwn, l.networkOwnDetail(s!.apSsid)),
+      'home' => (Icons.wifi_rounded, _ok, l.networkHome(s!.ssid ?? ''), 'IP ${s.ip ?? '—'}'),
+      'connecting' => (Icons.wifi_find_rounded, _warn, l.networkConnecting, s!.ssid ?? ''),
+      _ => (Icons.portable_wifi_off_rounded, _bad, l.networkUnavailable, l.networkUnavailableDetail),
     };
     return _box(
       child: Row(
@@ -345,7 +341,7 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
                 if (text.isNotEmpty) Text(text, style: const TextStyle(color: Colors.white60, fontSize: 13)),
                 if (s?.error != null) ...[
                   const SizedBox(height: 6),
-                  Text('Última tentativa: ${s!.error}', style: const TextStyle(color: _bad, fontSize: 13)),
+                  Text(l.networkLastError(s!.error!), style: const TextStyle(color: _bad, fontSize: 13)),
                 ],
               ],
             ),
@@ -356,28 +352,35 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   }
 
   Widget _modeCard(WifiStatus s) {
+    final l = context.l10n;
     return _box(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Como o robô usa o Wi-Fi',
-            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+          Text(
+            l.networkHowTitle,
+            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'home', icon: Icon(Icons.home_rounded), label: Text('Rede de casa')),
-              ButtonSegment(value: 'direct', icon: Icon(Icons.wifi_tethering_rounded), label: Text('Direto')),
+            segments: [
+              ButtonSegment(
+                value: 'home',
+                icon: const Icon(Icons.home_rounded),
+                label: Text(l.networkModeHome),
+              ),
+              ButtonSegment(
+                value: 'direct',
+                icon: const Icon(Icons.wifi_tethering_rounded),
+                label: Text(l.networkModeDirect),
+              ),
             ],
             selected: {s.mode},
-            onSelectionChanged: (v) => _run('Modo', (api) => api.setMode(v.first)),
+            onSelectionChanged: (v) => _run(l.networkMode, (api) => api.setMode(v.first)),
           ),
           const SizedBox(height: 8),
           Text(
-            s.mode == 'direct'
-                ? 'O robô cria a rede ${s.apSsid} e o celular conecta nela. Funciona em qualquer lugar, sem roteador.'
-                : 'O robô entra na sua rede. Se nenhuma funcionar, ele abre a rede ${s.apSsid} sozinho.',
+            s.mode == 'direct' ? l.networkDirectHelp(s.apSsid) : l.networkHomeHelp(s.apSsid),
             style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
           if (s.mode == 'home') ...[
@@ -385,7 +388,7 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
             FilledButton.icon(
               onPressed: _chooseNetwork,
               icon: const Icon(Icons.wifi_rounded),
-              label: const Text('Conectar a uma rede'),
+              label: Text(l.networkJoinButton),
             ),
           ],
         ],
@@ -394,18 +397,19 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
   }
 
   Widget _savedCard(WifiStatus s) {
+    final l = context.l10n;
     return _box(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Redes salvas no robô',
-            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+          Text(
+            l.networkSaved,
+            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
           ),
           if (s.saved.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text('Nenhuma', style: TextStyle(color: Colors.white54)),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(l.networkSavedNone, style: const TextStyle(color: Colors.white54)),
             ),
           for (final ssid in s.saved)
             ListTile(
@@ -413,9 +417,9 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
               leading: const Icon(Icons.wifi_rounded, color: Colors.white54),
               title: Text(ssid, style: const TextStyle(color: Colors.white)),
               trailing: IconButton(
-                tooltip: 'Esquecer',
+                tooltip: l.networkForget,
                 icon: const Icon(Icons.delete_outline_rounded, color: Colors.white54),
-                onPressed: () => _run('Esquecer', (api) => api.forget(ssid)),
+                onPressed: () => _run(l.networkForget, (api) => api.forget(ssid)),
               ),
             ),
         ],

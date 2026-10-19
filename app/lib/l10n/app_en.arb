@@ -89,5 +89,364 @@
   "faultBatteryCritical": "Battery critical: shutting down",
   "faultLoopOverrun": "Control loop running late",
   "faultCalibration": "Calibration not loaded",
-  "faultGas": "Gas sensor missing"
+  "faultGas": "Gas sensor missing",
+  "pairTitle": "New robot",
+  "@pairTitle": {
+    "description": "Title of the pairing screen"
+  },
+  "pairCodeError": "Type the 5 letters and numbers shown on the robot's screen",
+  "pairSearching": "Looking for the robot…",
+  "pairSearchingId": "Looking for robot {id}…",
+  "@pairSearchingId": {
+    "description": "id: the robot's short ID",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "pairSameWifi": "On the same Wi-Fi network as the phone.",
+  "pairJoiningOwn": "Connecting to the robot's network…",
+  "pairPickNetwork": "Pick the \"Hexapode-…\" network in the Android list.",
+  "@pairPickNetwork": {
+    "description": "Hexapode- is the robot's Wi-Fi name prefix: do not translate"
+  },
+  "pairJoinNetwork": "Network Hexapode-{id}. If Android asks, tap \"Connect\".",
+  "@pairJoinNetwork": {
+    "description": "Hexapode-{id} is the robot's Wi-Fi name: do not translate",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "pairKeyRefused": "The robot refused the key",
+  "pairCodeWrong": "Wrong or expired code",
+  "pairCodeHelp": "The code changes every 10 minutes and after each use. Use the one on the robot's screen right now.",
+  "pairRetry": "Try again",
+  "pairDone": "Paired!",
+  "pairReady": "{name} is ready to drive.",
+  "@pairReady": {
+    "description": "name: the robot's name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pairDrive": "Drive",
+  "@pairDrive": {
+    "description": "Button that closes the pairing screen and goes to piloting"
+  },
+  "pairIntro": "When no app is connected, the robot's screen shows a QR code and a code of 5 letters and numbers.",
+  "pairCodeLabel": "Code on the robot's screen",
+  "pairButton": "Pair",
+  "pairNotFound": "Couldn't find the robot",
+  "pairNotFoundId": "Couldn't find robot {id}",
+  "@pairNotFoundId": {
+    "description": "id: the robot's short ID",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "pairNotFoundTips": "• Is the robot on, with the code on its screen?\n• Is the phone on the same Wi-Fi as the robot?\n• Some networks block the search: type the address (IP) shown on the robot's screen.",
+  "@pairNotFoundTips": {
+    "description": "Checklist, one bullet per line"
+  },
+  "pairAddressLabel": "Robot's address (optional)",
+  "robotsTitle": "My robots",
+  "robotsNew": "New robot",
+  "@robotsNew": {
+    "description": "Button that opens the pairing screen"
+  },
+  "robotsEmpty": "No robots paired yet. Tap \"New robot\" and scan the QR code on the robot's screen.",
+  "@robotsEmpty": {
+    "description": "Must quote the robotsNew button label"
+  },
+  "robotsNetworkAndName": "Network and name",
+  "@robotsNetworkAndName": {
+    "description": "Tooltip of the robot settings button"
+  },
+  "robotsForget": "Forget",
+  "@robotsForget": {
+    "description": "Remove a paired robot from the phone"
+  },
+  "robotsForgetTitle": "Forget {name}?",
+  "@robotsForgetTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "robotsForgetText": "To drive it again, you'll need to scan the robot's QR code.",
+  "robotsCancel": "Cancel",
+  "networkTitle": "Robot's network",
+  "networkOutOfReach": "Robot out of reach",
+  "networkActionFailed": "{action}: {error}",
+  "@networkActionFailed": {
+    "description": "Snackbar when an action fails; action: what was tried (e.g. Rename)",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "networkRobotName": "Robot's name",
+  "networkCancel": "Cancel",
+  "networkSave": "Save",
+  "networkRename": "Rename",
+  "networkScanning": "The robot is looking for networks…",
+  "networkVisible": "Networks the robot can see",
+  "networkOnly24": "Only 2.4 GHz networks show up (the Pi 3's Wi-Fi)",
+  "networkNoneFound": "No networks found",
+  "networkPassword": "Password for \"{ssid}\"",
+  "@networkPassword": {
+    "description": "ssid: the Wi-Fi network name",
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkPasswordHelp": "Saved only on the robot",
+  "networkConnect": "Connect",
+  "networkJoining": "The robot is joining \"{ssid}\".\nYour phone should go back to it on its own.",
+  "@networkJoining": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkJoined": "Done! {name} is on \"{ssid}\".",
+  "@networkJoined": {
+    "description": "name: the robot's name; ssid: the Wi-Fi network name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkNotThere": "Couldn't find the robot on \"{ssid}\". Going back to its own network…",
+  "@networkNotThere": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkDidNotJoin": "The robot didn't join \"{ssid}\".",
+  "@networkDidNotJoin": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkNoContact": "No contact",
+  "networkReading": "Reading…",
+  "networkOwn": "Its own network",
+  "@networkOwn": {
+    "description": "The robot makes its own Wi-Fi network"
+  },
+  "networkOwnDetail": "{ssid} · the phone talks straight to the robot",
+  "@networkOwnDetail": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkHome": "Network \"{ssid}\"",
+  "@networkHome": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkConnecting": "Connecting…",
+  "networkUnavailable": "Robot's Wi-Fi unavailable",
+  "networkUnavailableDetail": "The Pi's Wi-Fi chip didn't answer. Check the robot's power supply.",
+  "networkLastError": "Last try: {error}",
+  "@networkLastError": {
+    "description": "error: the reason sent by the robot",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "networkHowTitle": "How the robot uses Wi-Fi",
+  "networkModeHome": "Home network",
+  "networkModeDirect": "Direct",
+  "@networkModeDirect": {
+    "description": "Mode: the phone connects straight to the robot's own network"
+  },
+  "networkMode": "Mode",
+  "@networkMode": {
+    "description": "Snackbar prefix when changing the mode fails"
+  },
+  "networkDirectHelp": "The robot makes the {ssid} network and the phone connects to it. Works anywhere, no router needed.",
+  "@networkDirectHelp": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkHomeHelp": "The robot joins your network. If none works, it opens the {ssid} network on its own.",
+  "@networkHomeHelp": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      }
+    }
+  },
+  "networkJoinButton": "Connect to a network",
+  "networkSaved": "Networks saved on the robot",
+  "networkSavedNone": "None",
+  "@networkSavedNone": {
+    "description": "No saved networks"
+  },
+  "networkForget": "Forget",
+  "@networkForget": {
+    "description": "Remove a saved Wi-Fi network from the robot"
+  },
+  "settingsTitle": "Settings",
+  "settingsSave": "Save",
+  "settingsHost": "Robot's address",
+  "settingsHostHelp": "hexapod.local on your home network, or the Tailscale name/IP",
+  "settingsDeadzone": "Dead zone",
+  "@settingsDeadzone": {
+    "description": "Joystick setting"
+  },
+  "settingsDeadzoneHelp": "Ignores light touches in the center",
+  "settingsExpo": "Smoothness (expo)",
+  "@settingsExpo": {
+    "description": "Joystick curve setting"
+  },
+  "settingsExpoHelp": "Finer control near the center",
+  "settingsMaxSpeed": "Top speed",
+  "settingsMaxSpeedHelp": "A limit for beginners and tight spaces",
+  "settingsLeftHanded": "Left-handed",
+  "settingsLeftHandedHelp": "Swaps the joysticks' sides",
+  "settingsHaptics": "Vibration",
+  "settingsAutoHide": "Hide height and modes",
+  "settingsAutoHideHelp": "They hide while you drive; tap the screen to bring them back",
+  "settingsRobotsHelp": "Pair a new robot or pick which one to drive",
+  "settingsNetwork": "Robot's network (Wi-Fi)",
+  "settingsNetworkHelp": "Home network or straight to the phone; robot's name",
+  "settingsControllerHelp": "Pair the PS5 controller and see the buttons",
+  "settingsAppVersion": "App {version}",
+  "@settingsAppVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRobotOffline": "Robot: not connected",
+  "settingsRobotWaiting": "Robot: connected, waiting for the versions…",
+  "settingsFirmwareWaiting": "waiting for the ESP32",
+  "@settingsFirmwareWaiting": {
+    "description": "Shown in place of the firmware version"
+  },
+  "settingsBridgeVersion": " · bridge (Pi) {version}",
+  "@settingsBridgeVersion": {
+    "description": "Appended to settingsRobotVersions; keep the leading ' · '. The bridge is the hexd service on the Raspberry Pi",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRobotVersions": "Robot: firmware {firmware}{bridge} · protocol {protocol}",
+  "@settingsRobotVersions": {
+    "description": "firmware: version or settingsFirmwareWaiting; bridge: settingsBridgeVersion or empty",
+    "placeholders": {
+      "firmware": {
+        "type": "String"
+      },
+      "bridge": {
+        "type": "String"
+      },
+      "protocol": {
+        "type": "int"
+      }
+    }
+  },
+  "controllerTitle": "External controller",
+  "controllerConnected": "Connected",
+  "controllerNone": "No controller connected",
+  "controllerFollowSteps": "Follow the steps below to pair",
+  "controllerTest": "Test",
+  "@controllerTest": {
+    "description": "Button: the controller buzzes"
+  },
+  "controllerHideSticks": "Hide on-screen joysticks",
+  "controllerHideSticksHelp": "With the controller connected, the video is clear. STOP stays on screen, and the joysticks come back if the controller disconnects.",
+  "@controllerHideSticksHelp": {
+    "description": "PARAR/STOP is the stop button label"
+  },
+  "controllerHowToPair": "How to pair the PS5 controller",
+  "controllerStep1": "With the controller off, hold PS + Create",
+  "@controllerStep1": {
+    "description": "PS and Create are button names on the controller"
+  },
+  "controllerStep1Detail": "Create is the small button left of the touchpad. Let go when the light blinks fast, in blue.",
+  "controllerStep2": "Open the phone's Bluetooth",
+  "controllerStep2Detail": "Tap \"Bluetooth\" up here, then \"Pair new device\".",
+  "@controllerStep2Detail": {
+    "description": "\"Pair new device\" is the Android menu item"
+  },
+  "controllerStep3": "Choose \"DualSense Wireless Controller\"",
+  "@controllerStep3": {
+    "description": "The device name: do not translate it"
+  },
+  "controllerStep3Detail": "It may show up as just \"Wireless Controller\".",
+  "controllerStep4": "Come back to the app",
+  "controllerStep4Detail": "The controller buzzes twice and the icon turns green. Next time, just press PS.",
+  "controllerButtons": "Buttons",
+  "controllerCircle": "Circle",
+  "@controllerCircle": {
+    "description": "PS5 button"
+  },
+  "controllerStop": "STOP",
+  "@controllerStop": {
+    "description": "Emergency stop, as on the on-screen button"
+  },
+  "controllerDpadUpHeld": "D-pad up, held",
+  "controllerStandUp": "Stand up",
+  "controllerDpadDown": "D-pad down",
+  "controllerSit": "Sit",
+  "controllerFaceButtons": "Cross / Square / Triangle",
+  "@controllerFaceButtons": {
+    "description": "PS5 buttons"
+  },
+  "controllerModes": "Walk / Pose / Legs",
+  "@controllerModes": {
+    "description": "The three mode names, in the order of controllerFaceButtons"
+  },
+  "controllerSticks": "Same as the on-screen joysticks",
+  "controllerBody": "Lower / raise the body",
+  "controllerL1Pose": "L1 held (Pose)",
+  "controllerTilt": "Tilt the controller to tilt the robot",
+  "controllerLegButtons": "L1 / R1 / R3 (Legs)",
+  "@controllerLegButtons": {
+    "description": "Patas/Legs is the mode name"
+  },
+  "controllerLegMoves": "Guard / Wave / Strike",
+  "@controllerLegMoves": {
+    "description": "Moves of the front legs, in the order of controllerLegButtons"
+  }
 }
