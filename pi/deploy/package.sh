@@ -39,6 +39,9 @@ echo "== firmware ($BOARD)"
 cp "$REPO/firmware/.pio/build/$BOARD/firmware-merged.bin" "$PKG/firmware/firmware.bin"
 
 echo "== hexd (linux/arm64)"
+# The Go protocol code is generated, not committed: make it here, so the
+# package builds on a fresh checkout (CI image and deploy workflows).
+(cd "$REPO/proto" && buf generate --template buf.gen.pi.yaml)
 (cd "$REPO/pi" && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath \
   -ldflags "-s -w -X main.version=$VERSION -X main.gitHash=$GIT_HASH" \
   -o "$PKG/bin/hexd" ./hexd/cmd/hexd)
