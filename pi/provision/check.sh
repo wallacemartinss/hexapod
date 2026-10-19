@@ -10,11 +10,15 @@ warn() { printf '  \e[33mWARN\e[0m  %s\n' "$*"; }
 fail() { printf '  \e[31mFAIL\e[0m  %s\n' "$*"; fails=$((fails + 1)); }
 
 echo "== Power"
+model=$(tr -d '\0' </proc/device-tree/model 2>/dev/null || echo unknown)
+supply="5.1 V / 2.5 A"
+[[ $model == *"Pi 4"* || $model == *"Pi 5"* ]] && supply="5.1 V / 3 A"
+ok "board: $model (supply: $supply or more)"
 throttled=$(vcgencmd get_throttled | cut -d= -f2)
 if [[ $throttled == 0x0 ]]; then
   ok "get_throttled = 0x0"
 elif (( throttled & 0x1 )); then
-  fail "get_throttled = $throttled: UNDERVOLTAGE NOW (check cable/supply)"
+  fail "get_throttled = $throttled: UNDERVOLTAGE NOW (needs $supply: check cable/supply)"
 else
   warn "get_throttled = $throttled: undervoltage/throttling happened since boot"
 fi

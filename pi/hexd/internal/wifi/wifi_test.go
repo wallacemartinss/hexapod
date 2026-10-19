@@ -20,6 +20,8 @@ type fakeNM struct {
 	profiles map[string]map[string]string // name -> settings (ssid, psk, mode)
 	inRange  map[string]string            // ssid -> right password ("" = open)
 	calls    []string
+	has5GHz  bool // the chip can do 5 GHz (Pi 4)
+	no5GHzAP bool // ...but an access point on 5 GHz fails (regulatory, driver)
 }
 
 func newFake() *fakeNM {
@@ -73,6 +75,7 @@ func (f *fakeNM) run(_ context.Context, args ...string) (string, error) {
 		}
 		f.profiles[name] = map[string]string{
 			"ssid": arg(args, "ssid"), "psk": arg(args, "wifi-sec.psk"), "mode": arg(args, "802-11-wireless.mode"),
+			"band": arg(args, "802-11-wireless.band"),
 		}
 		return "", nil
 	case strings.Contains(j, "connection up "):
@@ -82,6 +85,9 @@ func (f *fakeNM) run(_ context.Context, args ...string) (string, error) {
 			return "", errors.New("unknown connection")
 		}
 		if p["mode"] == "ap" {
+			if p["band"] == "a" && f.no5GHzAP {
+				return "", errors.New("Connection activation failed")
+			}
 			f.active = name
 			return "", nil
 		}
@@ -102,14 +108,23 @@ func (f *fakeNM) run(_ context.Context, args ...string) (string, error) {
 	case strings.HasPrefix(j, "connection delete "):
 		delete(f.profiles, args[len(args)-1])
 		return "", nil
-	case strings.HasPrefix(j, "-t -f SSID,SIGNAL,SECURITY device wifi list"):
+	case strings.HasPrefix(j, "-t -g WIFI-PROPERTIES.5GHZ device show"):
+		if f.has5GHz {
+			return "yes\n", nil
+		}
+		return "no\n", nil
+	case strings.HasPrefix(j, "-t -f SSID,SIGNAL,SECURITY,FREQ device wifi list"):
 		var b strings.Builder
 		for ssid, pw := range f.inRange {
 			sec := "WPA2"
 			if pw == "" {
 				sec = ""
 			}
-			b.WriteString(strings.ReplaceAll(ssid, ":", `\:`) + ":70:" + sec + "\n")
+			freq := "2437 MHz"
+			if strings.HasSuffix(ssid, "5G") {
+				freq = "5180 MHz"
+			}
+			b.WriteString(strings.ReplaceAll(ssid, ":", `\:`) + ":70:" + sec + ":" + freq + "\n")
 		}
 		return b.String(), nil
 	}
@@ -328,5 +343,47 @@ func TestOwnNetworkOpenThenProtectedWhenNobodyIsOn(t *testing.T) {
 	m.step(ctx, time.Now())
 	if f.profiles[apName]["psk"] != "SECRETPASS12" || f.active != apName {
 		t.Fatalf("after pairing, with nobody on: WPA2 own network expected, %v", f.profiles[apName])
+	}
+}
+
+func TestOwnNetworkBand(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name              string
+		has5, fails5      bool
+		ownBand, wantBand string
+	}{
+		{"Pi 3: 2.4 GHz only", false, false, "auto", "2.4"},
+		{"Pi 4: 5 GHz", true, false, "auto", "5"},
+		{"5 GHz refused: back to 2.4", true, true, "auto", "2.4"},
+		{"forced 2.4 on a Pi 4", true, false, "2.4", "2.4"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFake()
+			f.has5GHz, f.no5GHzAP = tc.has5, tc.fails5
+			m := manager(t, f, 0)
+			m.opt.OwnBand = tc.ownBand
+			m.startOwn(ctx)
+			if s := m.Status(); s.State != StateOwn || s.APBand != tc.wantBand {
+				t.Errorf("state %s band %q, want own %q", s.State, s.APBand, tc.wantBand)
+			}
+		})
+	}
+}
+
+func TestScanTellsTheBand(t *testing.T) {
+	f := newFake()
+	f.inRange["Casa"] = "x"
+	f.inRange["Casa-5G"] = "x"
+	list, err := manager(t, f, 0).Scan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	bands := map[string]string{}
+	for _, n := range list {
+		bands[n.SSID] = n.Band
+	}
+	if bands["Casa"] != "2.4" || bands["Casa-5G"] != "5" {
+		t.Errorf("bands: %v", bands)
 	}
 }

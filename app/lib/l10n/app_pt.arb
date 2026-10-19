@@ -77,7 +77,7 @@
   "networkRename": "Renomear",
   "networkScanning": "O robô está procurando redes…",
   "networkVisible": "Redes que o robô enxerga",
-  "networkOnly24": "Só redes de 2,4 GHz aparecem (o Wi-Fi do Pi 3)",
+  "networkOnly24": "Redes de 5 GHz só aparecem em placas que têm (Pi 4 em diante)",
   "networkNoneFound": "Nenhuma rede encontrada",
   "networkPassword": "Senha de \"{ssid}\"",
   "networkPasswordHelp": "Fica gravada só no robô",
@@ -416,5 +416,8 @@
   "remoteInstallApp": "Instalar o Tailscale",
   "remotePhoneIn": "Este celular está no Tailscale.",
   "remoteReady": "Pronto: fora de casa, o app encontra o robô pelo Tailscale sozinho.",
-  "remoteDisconnectViaTailnet": "Você está conectado pelo Tailscale agora: vai perder o acesso, e para conectar de novo o celular precisa estar na mesma rede do robô."
+  "remoteDisconnectViaTailnet": "Você está conectado pelo Tailscale agora: vai perder o acesso, e para conectar de novo o celular precisa estar na mesma rede do robô.",
+  "networkBand24": "2,4 GHz",
+  "networkBand5": "5 GHz",
+  "dataPiModel": "Placa"
 }

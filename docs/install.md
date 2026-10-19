@@ -6,22 +6,22 @@ This guide is for people who **don't use a terminal**: you flash a card on the P
 
 ## What you need
 
-- The assembled robot, with the **Raspberry Pi 3** and the **ESP32-S3** connected.
+- The assembled robot, with the **Raspberry Pi** (3 or 4) and the **ESP32-S3** connected.
 - A **microSD card** of 16 GB or more.
 - A **PC** with a card reader.
 - An **Android 10 or newer phone**.
-- **Proper power.** With a weak supply, the Raspberry Pi turns its Wi-Fi off and the screen goes dark. On the robot, power comes from the battery through the regulator. On the bench, use the official Raspberry Pi supply (5.1 V / 2.5 A). A phone charger won't do.
+- **Proper power.** With a weak supply, the Raspberry Pi turns its Wi-Fi off and the screen goes dark. On the robot, power comes from the battery through the regulator. On the bench, use the official Raspberry Pi supply (5.1 V / 2.5 A for a Pi 3, 5.1 V / 3 A for a Pi 4). A phone charger won't do.
 
 ## 1. Flash the card (on the PC, once)
 
 1. On the project's **Releases** page, download the file `hexapod-…-esp32s3.img.xz`. No need to unzip it.
 2. Install **Raspberry Pi Imager**: [raspberrypi.com/software](https://www.raspberrypi.com/software/).
 3. In the Imager:
-   - **Device:** Raspberry Pi 3.
+   - **Device:** your Raspberry Pi (3 or 4). The same image runs on both.
    - **Operating system:** scroll to the end → **Use custom** → pick the downloaded file.
    - **Storage:** your card. Check the size, so you don't erase another disk.
 4. When the Imager asks whether you want to **customize**, you can answer **No**. The robot sets itself up.
-   - Optional: if you already want the robot on your home network, enter the **Wi-Fi** there. Only **2.4 GHz** networks: the Raspberry Pi 3's Wi-Fi can't see 5 GHz.
+   - Optional: if you already want the robot on your home network, enter the **Wi-Fi** there. A Pi 3 only sees **2.4 GHz** networks; a Pi 4 sees 5 GHz too.
 5. **Write.** Wait until it finishes writing and verifying.
 
 ## 2. Switch the robot on

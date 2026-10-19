@@ -90,7 +90,7 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 
 | Qtd | Peça | Função |
 |---|---|---|
-| 1 | Raspberry Pi 3 Model B (ou Pi 4) + microSD de 16 GB ou mais | Ponte, vídeo, Wi-Fi, tela de estado, GPS |
+| 1 | Raspberry Pi 3 Model B ou Pi 4 (ver [Pi 3 ou Pi 4](#raspberry-pi-3-ou-pi-4)) + microSD de 16 GB ou mais | Ponte, vídeo, Wi-Fi, tela de estado, GPS |
 | 1 | ESP32-S3 SuperMini | Controle em tempo real e failsafe (USB até o Pi) |
 | 2 | Placa PWM PCA9685 de 16 canais (HW-170) | Servos: uma por lado (0x40 e 0x41) |
 | 1 | IMU BNO085 | Orientação e detecção de queda |
@@ -115,21 +115,36 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 
 Ligações e pinos: [`firmware/PINOUT.md`](firmware/PINOUT.md).
 
+### Raspberry Pi 3 ou Pi 4
+
+A mesma imagem do cartão e o mesmo código rodam nos dois, sem configurar nada: o robô descobre sozinho em qual placa está.
+
+| | Pi 3 Model B | Pi 4 Model B |
+|---|---|---|
+| Fonte (bancada) | 5,1 V / 2,5 A | 5,1 V / **3 A** (USB-C) |
+| Rede própria do robô | 2,4 GHz | **5 GHz** (canal 36), vídeo mais estável; volta sozinha para 2,4 GHz se precisar |
+| Redes de casa que ele alcança | 2,4 GHz | 2,4 e 5 GHz (o app mostra a faixa de cada uma) |
+| Memória | 1 GB | 1 a 8 GB: espaço para funções futuras (ex.: visão) |
+| Calor | Baixo | Maior: use dissipador (o app mostra a temperatura, Dados → Raspberry Pi) |
+| Câmera, codificador de vídeo, GPS, tela, ligações | Iguais | Iguais |
+
+O Pi 5 ainda não é suportado: ele não tem codificador H.264 por hardware e usa outro conector de câmera.
+
 > **Shunt do INA226:** a maioria dos módulos vem com shunt de 0,1 Ω, que só mede até ~0,8 A. O robô puxa vários ampères: use um shunt de 2 mΩ (até ~40 A) ou um externo de 50–75 mV, e ajuste o valor em `firmware/include/config.h`.
 
 ## Instalação: caminho simples
 
 Você precisa de: o robô montado, um cartão microSD (16 GB ou mais), um PC com leitor de cartão e um celular Android 10 ou mais novo.
 
-1. **Grave o cartão.** Baixe o `hexapod-<versão>-esp32s3.img.xz` na página de **Releases** do projeto. No **Raspberry Pi Imager**: dispositivo *Raspberry Pi 3* → *Escolher SO* → *Usar personalizado* → o arquivo baixado → o seu cartão → *Gravar*. Não precisa descompactar nem personalizar nada.
+1. **Grave o cartão.** Baixe o `hexapod-<versão>-esp32s3.img.xz` na página de **Releases** do projeto. No **Raspberry Pi Imager**: dispositivo *Raspberry Pi 3* ou *4* (a mesma imagem roda nos dois) → *Escolher SO* → *Usar personalizado* → o arquivo baixado → o seu cartão → *Gravar*. Não precisa descompactar nem personalizar nada.
 2. **Ligue o robô.** A telinha mostra *HEXAPOD · INICIANDO* e vai marcando sistema, rede, ESP32 e ponte. **O primeiro boot leva uns 2 minutos**: o robô ajusta o cartão e grava o ESP32 sozinho. Não desligue nessa hora.
 3. **Instale o app** (em breve na Google Play; por enquanto o APK da página de Releases).
 4. **Pareie.** Abra o app → **Parear um robô** → aponte a câmera para o QR da tela do robô, ou digite o código de 5 que aparece ao lado. Se o Android perguntar se quer entrar na rede **Hexapode-…**, toque em **Conectar**. Pronto: **Pareado!**
-5. **Wi-Fi de casa (opcional).** *Ajustes → Rede do robô (Wi-Fi) → Conectar a uma rede*, escolha a sua e digite a senha (redes 2,4 GHz no Pi 3). Ela fica gravada só no robô. Sem isso, o robô continua na rede própria, que funciona em qualquer lugar, até no quintal sem roteador.
+5. **Wi-Fi de casa (opcional).** *Ajustes → Rede do robô (Wi-Fi) → Conectar a uma rede*, escolha a sua e digite a senha (o Pi 3 só enxerga redes 2,4 GHz; o Pi 4 também 5 GHz). Ela fica gravada só no robô. Sem isso, o robô continua na rede própria, que funciona em qualquer lugar, até no quintal sem roteador.
 
 | Problema | O que fazer |
 |---|---|
-| A telinha fica apagada ou pisca | Quase sempre é energia: na bancada, use a fonte oficial do Pi (5,1 V / 2,5 A); carregador de celular não serve |
+| A telinha fica apagada ou pisca | Quase sempre é energia: na bancada, use a fonte oficial do Pi (5,1 V / 2,5 A no Pi 3, 5,1 V / 3 A no Pi 4); carregador de celular não serve |
 | O app não acha o robô | Celular e robô precisam estar na mesma rede, ou digite o IP que aparece na tela do robô |
 | "Código errado ou vencido" | Use o código que está na tela **agora**: ele muda a cada 10 minutos e a cada uso |
 | A rede **Hexapode-…** não aparece | O Wi-Fi do Pi não ligou: confira a energia e espere um minuto depois de ligar |

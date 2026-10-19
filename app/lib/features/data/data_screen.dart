@@ -777,6 +777,7 @@ class _PiTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (p.model.isNotEmpty) _Row(l.dataPiModel, p.model.replaceFirst('Raspberry Pi ', 'Pi ')),
             _Row(l.dataWifiSignal, describeSignal(l, p.wifiRssiDbm)),
             _Row(l.dataPiUptime, formatUptime(p.uptimeS.toInt() * 1000)),
           ],

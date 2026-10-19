@@ -93,6 +93,9 @@ func (s *Sampler) Sample() *pb.PiStatus {
 	}
 	st.WifiRssiDbm = s.rssi()
 	st.ReadOnly = s.rootIsOverlay()
+	if b, err := os.ReadFile(s.path("/proc/device-tree/model")); err == nil {
+		st.Model = strings.TrimRight(string(b), "\x00\n")
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

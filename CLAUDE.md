@@ -13,7 +13,7 @@ Robô hexápode impresso em 3D (base: "Hexapod Spider Robot with Servo & Arduino
 
 | Função | Componente | Observação |
 |---|---|---|
-| Ponte, vídeo e rede | Raspberry Pi 3 Model B v1.2 | Raspberry Pi OS Lite 64-bit. Wi-Fi só 2,4 GHz (802.11n) |
+| Ponte, vídeo e rede | Raspberry Pi 3 Model B v1.2 (Pi 4 também suportado) | Raspberry Pi OS Lite 64-bit. Pi 3: Wi-Fi só 2,4 GHz; Pi 4: rede própria em 5 GHz (README, "Pi 3 ou Pi 4") |
 | Tempo real | ESP32-S3 SuperMini | USB nativa (VID:PID `303a:1001`) ligada ao Pi |
 | Tempo real (só bancada, temporário) | ESP32 DevKit 38 pinos, ESP-WROOM-32 (ESP32-D0WDQ6, 4 MB) | USB via CP2102 (`10c4:ea60`). PlatformIO `esp32dev`. GPIO6–11 = flash (proibidos); 34–39 só entrada |
 | Olhos (fase futura) | 2nd ESP32-S3 SuperMini + 2x GC9A01 1,28" | Recebe comandos simples do ESP32 principal |

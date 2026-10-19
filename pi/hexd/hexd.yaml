@@ -30,6 +30,7 @@ wifi:                          # own network "Hexapode-<id>" + home networks set
   interface: wlan0
   settings: /opt/hexapod/shared/config/network.json   # mode: home or direct
   fallback_after: 45s          # no home network this long: open the own network
+  own_band: auto               # own network: auto = 5 GHz when the chip has it (Pi 4), else 2.4; or 5 / 2.4
 
 tailscale:                     # remote access: the app logs the robot in (marco 3)
   enabled: true                # needs auth.required; hexd is the tailscale operator

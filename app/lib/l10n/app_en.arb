@@ -202,7 +202,7 @@
   "networkRename": "Rename",
   "networkScanning": "The robot is looking for networks…",
   "networkVisible": "Networks the robot can see",
-  "networkOnly24": "Only 2.4 GHz networks show up (the Pi 3's Wi-Fi)",
+  "networkOnly24": "5 GHz networks only show up on boards that have it (Pi 4 and later)",
   "networkNoneFound": "No networks found",
   "networkPassword": "Password for \"{ssid}\"",
   "@networkPassword": {
@@ -1241,5 +1241,8 @@
   "remoteInstallApp": "Install Tailscale",
   "remotePhoneIn": "This phone is on Tailscale.",
   "remoteReady": "All set: away from home, the app finds the robot through Tailscale by itself.",
-  "remoteDisconnectViaTailnet": "You are connected through Tailscale right now: you will lose access, and connecting it again needs the phone on the same network as the robot."
+  "remoteDisconnectViaTailnet": "You are connected through Tailscale right now: you will lose access, and connecting it again needs the phone on the same network as the robot.",
+  "networkBand24": "2.4 GHz",
+  "networkBand5": "5 GHz",
+  "dataPiModel": "Board"
 }

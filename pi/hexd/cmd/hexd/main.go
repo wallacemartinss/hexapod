@@ -162,6 +162,7 @@ func main() {
 			},
 			SettingsPath:   cfg.WiFi.Settings,
 			FallbackAfter:  cfg.WiFi.FallbackAfter,
+			OwnBand:        cfg.WiFi.OwnBand,
 			RetryHomeEvery: 2 * time.Minute,
 			JoinWait:       30,
 			Tick:           5 * time.Second,

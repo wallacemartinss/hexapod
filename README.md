@@ -90,7 +90,7 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 
 | Qty | Part | Role |
 |---|---|---|
-| 1 | Raspberry Pi 3 Model B (or Pi 4) + microSD 16 GB or more | Bridge, video, Wi-Fi, status screen, GPS |
+| 1 | Raspberry Pi 3 Model B or Pi 4 (see [Pi 3 or Pi 4](#raspberry-pi-3-or-pi-4)) + microSD 16 GB or more | Bridge, video, Wi-Fi, status screen, GPS |
 | 1 | ESP32-S3 SuperMini | Real-time control and failsafe (USB to the Pi) |
 | 2 | PCA9685 16-channel PWM board (HW-170) | Servos: one per side (0x40 and 0x41) |
 | 1 | BNO085 IMU | Orientation and fall detection |
@@ -115,21 +115,36 @@ Rendered from the app with a simulated robot (`cd app && make screenshots`), so 
 
 Wiring and pins: [`firmware/PINOUT.md`](firmware/PINOUT.md).
 
+### Raspberry Pi 3 or Pi 4
+
+The same SD card image and the same code run on both, with nothing to set: the robot finds out which board it is on.
+
+| | Pi 3 Model B | Pi 4 Model B |
+|---|---|---|
+| Power supply (bench) | 5.1 V / 2.5 A | 5.1 V / **3 A** (USB-C) |
+| The robot's own Wi-Fi network | 2.4 GHz | **5 GHz** (channel 36), steadier video; falls back to 2.4 GHz by itself |
+| Home networks it can join | 2.4 GHz | 2.4 and 5 GHz (the app shows the band of each) |
+| RAM | 1 GB | 1 to 8 GB: room for future features (e.g. vision) |
+| Heat | Low | Higher: use a heatsink (the app shows the temperature, Data → Raspberry Pi) |
+| Camera, video encoder, GPS, screen, wiring | Same | Same |
+
+A Pi 5 is not supported yet: it has no hardware H.264 encoder and uses another camera connector.
+
 > **INA226 shunt:** most modules ship with a 0.1 Ω shunt that only measures up to ~0.8 A. The robot draws several amps: use a 2 mΩ shunt (up to ~40 A) or an external 50–75 mV shunt, and set its value in `firmware/include/config.h`.
 
 ## Install: simple path
 
 What you need: the assembled robot, a microSD card (16 GB or more), a PC with a card reader, and an Android 10+ phone.
 
-1. **Flash the card.** Download `hexapod-<version>-esp32s3.img.xz` from the project's **Releases** page. In **Raspberry Pi Imager**: device *Raspberry Pi 3* → *Choose OS* → *Use custom* → the downloaded file → your card → *Write*. No need to unzip it or to customize anything.
+1. **Flash the card.** Download `hexapod-<version>-esp32s3.img.xz` from the project's **Releases** page. In **Raspberry Pi Imager**: device *Raspberry Pi 3* or *4* (the same image runs on both) → *Choose OS* → *Use custom* → the downloaded file → your card → *Write*. No need to unzip it or to customize anything.
 2. **Switch the robot on.** The small screen shows *HEXAPOD · INICIANDO* and ticks off the system, the network, the ESP32 and the bridge (the robot's screen is in Portuguese for now). **The first boot takes about 2 minutes**: the robot fits the card and programs the ESP32 by itself. Don't switch it off meanwhile.
 3. **Install the app** (Google Play soon; for now the APK from Releases).
 4. **Pair.** Open the app → **Pair a robot** → point the camera at the QR code on the robot's screen, or type the 5-character code shown next to it. If Android asks to join the network **Hexapode-…**, tap **Connect**. Done: **Paired!**
-5. **Home Wi-Fi (optional).** *Settings → Robot's network (Wi-Fi) → Connect to a network*, choose yours and type the password (2.4 GHz networks on a Pi 3). It is stored only on the robot. Without it, the robot keeps its own network, which works anywhere, even in a backyard with no router.
+5. **Home Wi-Fi (optional).** *Settings → Robot's network (Wi-Fi) → Connect to a network*, choose yours and type the password (a Pi 3 sees only 2.4 GHz networks; a Pi 4 also 5 GHz). It is stored only on the robot. Without it, the robot keeps its own network, which works anywhere, even in a backyard with no router.
 
 | Problem | What to do |
 |---|---|
-| The small screen stays dark or blinks | Almost always power: use the official Pi supply (5.1 V / 2.5 A) on the bench; a phone charger is not enough |
+| The small screen stays dark or blinks | Almost always power: use the official Pi supply on the bench (5.1 V / 2.5 A for a Pi 3, 5.1 V / 3 A for a Pi 4); a phone charger is not enough |
 | The app doesn't find the robot | Phone and robot must be on the same network, or type the IP shown on the robot's screen |
 | "Wrong or expired code" | Use the code on the screen **now**: it changes every 10 minutes and after each use |
 | The **Hexapode-…** network doesn't show up | The Pi's Wi-Fi didn't start: check the power, wait a minute after switching on |

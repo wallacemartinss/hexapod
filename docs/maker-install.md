@@ -34,7 +34,7 @@ In Raspberry Pi Imager: **Raspberry Pi OS Lite (64-bit)**, then *Edit settings*:
 - hostname `hexapod`;
 - your user and password;
 - **SSH with your public key** (*Services → Allow public-key authentication only*);
-- your Wi-Fi (2.4 GHz on a Pi 3) and country.
+- your Wi-Fi (a Pi 3 only sees 2.4 GHz) and country.
 
 Boot the Pi and check you can get in: `ssh <you>@hexapod.local`. No mDNS on your network? Use its IP everywhere below.
 
@@ -111,7 +111,7 @@ A read-only root means pulling the power never corrupts the card; `/opt/hexapod`
 
 | What happens | Likely cause | What to do |
 |---|---|---|
-| `check.sh` warns about throttling | Weak supply | 5.1 V / 2.5 A supply on the bench; Mini560 set to 5.1 V on the robot |
+| `check.sh` warns about throttling | Weak supply | 5.1 V / 2.5 A supply on the bench (3 A for a Pi 4); Mini560 set to 5.1 V on the robot |
 | `/dev/hexapod-esp32` missing | Charge-only cable, or another ESP32 | A data cable; `lsusb` must show `303a:1001` (S3) or `10c4:ea60` (bench board) |
 | Deploy: `robot is NORMAL: sit it down first` | Robot standing | Sit it from the app and run again |
 | Deploy: `verification failed ... rolling back` | The new version did not come up in 10 s | It already rolled back; read `journalctl -u hexd -b` |

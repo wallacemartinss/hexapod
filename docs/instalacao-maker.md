@@ -34,7 +34,7 @@ No Raspberry Pi Imager: **Raspberry Pi OS Lite (64-bit)** e depois *Editar confi
 - hostname `hexapod`;
 - seu usuário e senha;
 - **SSH com a sua chave pública** (*Serviços → Permitir apenas autenticação por chave pública*);
-- seu Wi-Fi (2,4 GHz no Pi 3) e o país.
+- seu Wi-Fi (o Pi 3 só enxerga 2,4 GHz) e o país.
 
 Ligue o Pi e confira o acesso: `ssh <você>@hexapod.local`. Sua rede não tem mDNS? Use o IP no lugar do nome em tudo abaixo.
 
@@ -111,7 +111,7 @@ Com a raiz somente leitura, tirar a energia nunca corrompe o cartão; o `/opt/he
 
 | O que acontece | Causa provável | O que fazer |
 |---|---|---|
-| O `check.sh` avisa de throttling | Fonte fraca | Fonte de 5,1 V / 2,5 A na bancada; Mini560 em 5,1 V no robô |
+| O `check.sh` avisa de throttling | Fonte fraca | Fonte de 5,1 V / 2,5 A na bancada (3 A no Pi 4); Mini560 em 5,1 V no robô |
 | Não existe `/dev/hexapod-esp32` | Cabo só de carga, ou outro ESP32 | Cabo de dados; o `lsusb` tem que mostrar `303a:1001` (S3) ou `10c4:ea60` (placa de bancada) |
 | Deploy: `robot is NORMAL: sit it down first` | Robô em pé | Sente pelo app e rode de novo |
 | Deploy: `verification failed ... rolling back` | A versão nova não subiu em 10 s | Ele já voltou a anterior; leia `journalctl -u hexd -b` |

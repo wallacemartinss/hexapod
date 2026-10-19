@@ -11,6 +11,7 @@ class WifiStatus {
     required this.mode,
     required this.state,
     required this.apSsid,
+    this.apBand,
     this.ssid,
     this.ip,
     this.saved = const [],
@@ -23,6 +24,9 @@ class WifiStatus {
   /// "own", "home", "connecting" or "no-wifi".
   final String state;
   final String apSsid;
+
+  /// Band of the own network while it is up: "2.4" or "5" (GHz).
+  final String? apBand;
   final String? ssid;
   final String? ip;
   final List<String> saved;
@@ -34,6 +38,7 @@ class WifiStatus {
     mode: j['mode'] as String? ?? 'home',
     state: j['state'] as String? ?? 'no-wifi',
     apSsid: j['ap_ssid'] as String? ?? '',
+    apBand: j['ap_band'] as String?,
     ssid: j['ssid'] as String?,
     ip: j['ip'] as String?,
     saved: [for (final s in (j['saved'] as List?) ?? const []) s as String],
@@ -42,7 +47,7 @@ class WifiStatus {
 }
 
 /// A network the robot sees.
-typedef WifiNetwork = ({String ssid, int signal, bool secure});
+typedef WifiNetwork = ({String ssid, int signal, bool secure, String band});
 
 /// Error from the robot's setup API.
 class RobotApiError implements Exception {
@@ -110,7 +115,12 @@ class RobotApi {
     final j = await _get('/api/wifi/scan', timeout: const Duration(seconds: 25));
     return [
       for (final n in (j['networks'] as List?) ?? const [])
-        (ssid: n['ssid'] as String, signal: (n['signal'] as num?)?.toInt() ?? 0, secure: n['secure'] == true),
+        (
+          ssid: n['ssid'] as String,
+          signal: (n['signal'] as num?)?.toInt() ?? 0,
+          secure: n['secure'] == true,
+          band: n['band'] as String? ?? '2.4',
+        ),
     ];
   }
 

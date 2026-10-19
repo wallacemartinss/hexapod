@@ -6,22 +6,22 @@ Este guia é para quem **não usa terminal**: você grava um cartão no PC, liga
 
 ## Do que você precisa
 
-- O robô montado, com o **Raspberry Pi 3** e o **ESP32-S3** ligados.
+- O robô montado, com o **Raspberry Pi** (3 ou 4) e o **ESP32-S3** ligados.
 - Um **cartão microSD** de 16 GB ou mais.
 - Um **PC** com leitor de cartão.
 - Um **celular Android 10 ou mais novo**.
-- **Energia de verdade.** Com fonte fraca, o Raspberry desliga o Wi-Fi e a tela apaga. No robô, a energia vem da bateria pelo regulador. Na bancada, use a fonte oficial do Raspberry (5,1 V / 2,5 A). Carregador de celular não serve.
+- **Energia de verdade.** Com fonte fraca, o Raspberry desliga o Wi-Fi e a tela apaga. No robô, a energia vem da bateria pelo regulador. Na bancada, use a fonte oficial do Raspberry (5,1 V / 2,5 A no Pi 3, 5,1 V / 3 A no Pi 4). Carregador de celular não serve.
 
 ## 1. Gravar o cartão (no PC, uma vez)
 
 1. Na página de **Releases** do projeto, baixe o arquivo `hexapod-…-esp32s3.img.xz`. Não precisa descompactar.
 2. Instale o **Raspberry Pi Imager**: [raspberrypi.com/software](https://www.raspberrypi.com/software/).
 3. No Imager:
-   - **Dispositivo:** Raspberry Pi 3.
+   - **Dispositivo:** o seu Raspberry Pi (3 ou 4). A mesma imagem roda nos dois.
    - **Sistema operacional:** role até o fim → **Usar personalizado** → escolha o arquivo baixado.
    - **Armazenamento:** o seu cartão. Confira o tamanho, para não apagar outro disco.
 4. Quando o Imager perguntar se quer **personalizar**, pode responder **Não**. O robô se configura sozinho.
-   - Opcional: se você já quer o robô na rede de casa, informe o **Wi-Fi** ali. Só redes **2,4 GHz**, porque o Wi-Fi do Raspberry Pi 3 não enxerga 5 GHz.
+   - Opcional: se você já quer o robô na rede de casa, informe o **Wi-Fi** ali. O Pi 3 só enxerga redes **2,4 GHz**; o Pi 4 enxerga também as de 5 GHz.
 5. **Gravar.** Espere terminar e verificar.
 
 ## 2. Ligar o robô

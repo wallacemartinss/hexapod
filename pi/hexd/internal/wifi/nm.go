@@ -50,6 +50,7 @@ type Network struct {
 	SSID   string `json:"ssid"`
 	Signal int    `json:"signal"` // 0-100
 	Secure bool   `json:"secure"`
+	Band   string `json:"band"` // "2.4" or "5" (GHz), of the strongest access point
 }
 
 // Device is the Wi-Fi interface right now.
@@ -152,7 +153,7 @@ func (n NM) Saved(ctx context.Context) (map[string]string, error) {
 
 // Scan lists the networks in range, strongest first, one entry per SSID.
 func (n NM) Scan(ctx context.Context) ([]Network, error) {
-	out, err := n.Run(ctx, "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "yes", "ifname", n.Iface)
+	out, err := n.Run(ctx, "-t", "-f", "SSID,SIGNAL,SECURITY,FREQ", "device", "wifi", "list", "--rescan", "yes", "ifname", n.Iface)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +165,12 @@ func (n NM) Scan(ctx context.Context) ([]Network, error) {
 			continue // hidden network
 		}
 		signal, _ := strconv.Atoi(f[1])
-		nw := Network{SSID: f[0], Signal: signal, Secure: f[2] != "" && f[2] != "--"}
+		nw := Network{SSID: f[0], Signal: signal, Secure: f[2] != "" && f[2] != "--", Band: "2.4"}
+		if len(f) > 3 {
+			if mhz, _ := strconv.Atoi(strings.Fields(f[3] + " 0")[0]); mhz >= 4900 { // "5180 MHz"
+				nw.Band = "5"
+			}
+		}
 		if old, ok := best[nw.SSID]; !ok || nw.Signal > old.Signal {
 			if !ok {
 				order = append(order, nw.SSID)
@@ -188,20 +194,34 @@ func (n NM) Scan(ctx context.Context) ([]Network, error) {
 // NetworkManager, robot at 10.42.0.1): WPA2 with password, open without.
 // Rewritten from scratch, since open <-> WPA2 does not modify cleanly. It
 // does not start it.
-func (n NM) EnsureAP(ctx context.Context, ssid, password string) error {
+func (n NM) EnsureAP(ctx context.Context, ssid, password string, fiveGHz bool) error {
 	_, _ = n.Run(ctx, "connection", "delete", apName)
+	band := []string{"802-11-wireless.band", "bg"}
+	if fiveGHz {
+		// Channel 36: 5 GHz without radar detection (DFS), allowed in BR,
+		// so the network comes up at once.
+		band = []string{"802-11-wireless.band", "a", "802-11-wireless.channel", "36"}
+	}
 	args := []string{
 		"connection", "add", "type", "wifi", "con-name", apName,
-		"ifname", n.Iface, "ssid", ssid,
-		"802-11-wireless.mode", "ap", "802-11-wireless.band", "bg",
+		"ifname", n.Iface, "ssid", ssid, "802-11-wireless.mode", "ap",
+	}
+	args = append(args, band...)
+	args = append(args,
 		"ipv4.method", "shared", "ipv6.method", "disabled",
 		"connection.autoconnect", "no",
-	}
+	)
 	if password != "" {
 		args = append(args, "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", password)
 	}
 	_, err := n.Run(ctx, args...)
 	return err
+}
+
+// Supports5GHz: the Wi-Fi chip can use 5 GHz (Pi 4 and later; not the Pi 3).
+func (n NM) Supports5GHz(ctx context.Context) bool {
+	out, err := n.Run(ctx, "-t", "-g", "WIFI-PROPERTIES.5GHZ", "device", "show", n.Iface)
+	return err == nil && strings.TrimSpace(out) == "yes"
 }
 
 // Up activates a profile, waiting up to wait seconds.

@@ -41,6 +41,7 @@ type Config struct {
 		Interface     string        `yaml:"interface"`      // wlan0
 		Settings      string        `yaml:"settings"`       // mode (home/direct), on the data partition
 		FallbackAfter time.Duration `yaml:"fallback_after"` // no home network this long: own network
+		OwnBand       string        `yaml:"own_band"`       // own network: auto (5 GHz if the chip has it), 5 or 2.4
 	} `yaml:"wifi"`
 	GPS struct {
 		Enabled  bool    `yaml:"enabled"`
@@ -88,6 +89,7 @@ func Default() Config {
 	c.WiFi.Interface = "wlan0"
 	c.WiFi.Settings = "/opt/hexapod/shared/config/network.json"
 	c.WiFi.FallbackAfter = 45 * time.Second
+	c.WiFi.OwnBand = "auto"
 	c.GPS.Enabled = true // a missing GPS is only logged
 	c.GPS.Device = "/dev/serial0"
 	c.GPS.Baud = 9600

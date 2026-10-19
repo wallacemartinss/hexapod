@@ -148,6 +148,10 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
               ListTile(
                 leading: Icon(_signalIcon(n.signal), color: Colors.white70),
                 title: Text(n.ssid, style: const TextStyle(color: Colors.white)),
+                subtitle: Text(
+                  n.band == '5' ? l.networkBand5 : l.networkBand24,
+                  style: const TextStyle(color: Colors.white54),
+                ),
                 trailing: n.secure ? const Icon(Icons.lock_rounded, size: 16, color: Colors.white38) : null,
                 onTap: () => Navigator.pop(c, n),
               ),
@@ -320,7 +324,14 @@ class _RobotNetworkScreenState extends ConsumerState<RobotNetworkScreen> {
         _error!.isEmpty ? l.networkOutOfReach : _error!,
       ),
       null => (Icons.wifi_find_rounded, Colors.white54, l.networkReading, ''),
-      'own' => (Icons.wifi_tethering_rounded, _ok, l.networkOwn, l.networkOwnDetail(s!.apSsid)),
+      'own' => (
+        Icons.wifi_tethering_rounded,
+        _ok,
+        l.networkOwn,
+        s!.apBand == null
+            ? l.networkOwnDetail(s.apSsid)
+            : '${l.networkOwnDetail(s.apSsid)} · ${s.apBand == '5' ? l.networkBand5 : l.networkBand24}',
+      ),
       'home' => (Icons.wifi_rounded, _ok, l.networkHome(s!.ssid ?? ''), 'IP ${s.ip ?? '—'}'),
       'connecting' => (Icons.wifi_find_rounded, _warn, l.networkConnecting, s!.ssid ?? ''),
       _ => (Icons.portable_wifi_off_rounded, _bad, l.networkUnavailable, l.networkUnavailableDetail),

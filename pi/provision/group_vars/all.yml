@@ -24,7 +24,7 @@ camera_force_ov5647: false
 # Power savings (each documented in README.md). All need a reboot.
 disable_bluetooth: true      # dtoverlay=disable-bt: BT is unused
 disable_onboard_audio: true  # dtparam=audio=off: the mic is USB, no speaker on the Pi
-disable_hdmi: true           # video=HDMI-A-1:d: headless robot
+disable_hdmi: true           # video=HDMI-A-1:d (and A-2 on a Pi 4): headless robot
 
 # Wi-Fi regulatory country (channels, power). Raspberry Pi OS keeps Wi-Fi
 # off until it is set; the robot's own network needs it.

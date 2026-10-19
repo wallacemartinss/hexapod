@@ -41,8 +41,9 @@ type Status struct {
 	State  string   `json:"state"`
 	SSID   string   `json:"ssid,omitempty"` // network in use (own or home)
 	IP     string   `json:"ip,omitempty"`
-	APSSID string   `json:"ap_ssid"` // the robot's own network
-	Saved  []string `json:"saved"`   // home networks it knows
+	APSSID string   `json:"ap_ssid"`           // the robot's own network
+	APBand string   `json:"ap_band,omitempty"` // its band while up: "2.4" or "5" (GHz)
+	Saved  []string `json:"saved"`             // home networks it knows
 	Error  string   `json:"error,omitempty"`
 }
 
@@ -56,7 +57,10 @@ type Options struct {
 	FallbackAfter  time.Duration // without a home network this long: own network
 	RetryHomeEvery time.Duration // while on its own network, look for saved ones
 	JoinWait       int           // seconds nmcli waits for a network
-	Tick           time.Duration
+	// OwnBand: band of the own network, "auto" (5 GHz when the chip has it,
+	// else 2.4), "5" or "2.4". 5 GHz is less crowded: steadier video.
+	OwnBand string
+	Tick    time.Duration
 	// Apps is how many apps are connected: the robot never leaves its own
 	// network to look for home ones while someone is using it.
 	Apps func() int
@@ -197,24 +201,37 @@ func (m *Manager) refreshSaved(ctx context.Context) {
 // on a development PC never adds one to that PC.
 func (m *Manager) startOwn(ctx context.Context) {
 	ssid, pass := m.opt.Own()
-	if err := m.opt.NM.EnsureAP(ctx, ssid, pass); err != nil {
-		m.opt.Log.Warn("own network profile", "err", err)
-		return
+	five := m.opt.OwnBand == "5" || (m.opt.OwnBand != "2.4" && m.opt.NM.Supports5GHz(ctx))
+	for {
+		if err := m.opt.NM.EnsureAP(ctx, ssid, pass, five); err != nil {
+			m.opt.Log.Warn("own network profile", "err", err)
+			return
+		}
+		err := m.opt.NM.Up(ctx, apName, 15)
+		if err == nil {
+			break
+		}
+		if !five {
+			m.opt.Log.Warn("own network did not start", "err", err)
+			return
+		}
+		m.opt.Log.Warn("own network did not start on 5 GHz, trying 2.4 GHz", "err", err)
+		five = false
 	}
-	if err := m.opt.NM.Up(ctx, apName, 15); err != nil {
-		m.opt.Log.Warn("own network did not start", "err", err)
-		return
+	band := "2.4"
+	if five {
+		band = "5"
 	}
 	m.apPass = &pass
-	m.opt.Log.Info("own network up", "ssid", ssid, "open", pass == "")
-	m.set(func(s *Status) { s.State, s.SSID, s.IP, s.APSSID = StateOwn, ssid, APAddress, ssid })
+	m.opt.Log.Info("own network up", "ssid", ssid, "open", pass == "", "ghz", band)
+	m.set(func(s *Status) { s.State, s.SSID, s.IP, s.APSSID, s.APBand = StateOwn, ssid, APAddress, ssid, band })
 }
 
 // step brings the Wi-Fi to what the mode asks for.
 func (m *Manager) step(ctx context.Context, now time.Time) {
 	dev, err := m.opt.NM.Device(ctx)
 	if err != nil || !dev.Present {
-		m.set(func(s *Status) { s.State, s.SSID, s.IP = StateNoWiFi, "", "" })
+		m.set(func(s *Status) { s.State, s.SSID, s.IP, s.APBand = StateNoWiFi, "", "", "" })
 		return
 	}
 	own := dev.Connection == apName
@@ -232,7 +249,7 @@ func (m *Manager) step(ctx context.Context, now time.Time) {
 	case onHome:
 		m.home = now
 		m.set(func(s *Status) {
-			s.State, s.SSID, s.IP = StateHome, m.saved[dev.Connection], dev.IP
+			s.State, s.SSID, s.IP, s.APBand = StateHome, m.saved[dev.Connection], dev.IP, ""
 			if s.SSID == "" {
 				s.SSID = dev.Connection
 			}

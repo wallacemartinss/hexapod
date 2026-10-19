@@ -26,6 +26,7 @@ func fakePi(t *testing.T) string {
 	write(t, root, "/proc/uptime", "30843.52 120000.10\n")
 	write(t, root, "/proc/net/wireless", "Inter-| sta-|   Quality\n face | tus | link level noise\n  wlan0: 0000   55.  -55.  -256        0      0      0      0     12        0\n")
 	write(t, root, "/proc/mounts", "/dev/mmcblk0p2 / ext4 rw 0 0\nproc /proc proc rw 0 0\n")
+	write(t, root, "/proc/device-tree/model", "Raspberry Pi 4 Model B Rev 1.5\x00")
 	write(t, root, "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "600000\n")
 	write(t, root, "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq", "1200000\n")
 	write(t, root, "/sys/class/thermal/thermal_zone0/temp", "53692\n")
@@ -50,6 +51,9 @@ func TestSampleReadsThePi(t *testing.T) {
 	}
 	if st.MemTotalMb != 905 || st.MemUsedMb != 255 {
 		t.Errorf("memory %v of %v MB", st.MemUsedMb, st.MemTotalMb)
+	}
+	if st.Model != "Raspberry Pi 4 Model B Rev 1.5" {
+		t.Errorf("model %q", st.Model)
 	}
 	if st.DiskTotalMb == 0 {
 		t.Error("disk: no size for the data path")
