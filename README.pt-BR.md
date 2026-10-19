@@ -252,7 +252,7 @@ Tempo real e segurança continuam no ESP32; estas são funções de "cérebro", 
 1. **Câmera:** fotos e gravações guardadas no robô, galeria no app e download para a galeria do celular; 720p ou 1080p. *(pronto)*
 2. **Siga-me:** seguir um marcador ArUco, depois uma pessoa (com um acelerador Coral USB opcional).
 3. **Comandos de voz offline** em português e inglês ("senta", "levanta", "acena"), com palavra de ativação.
-4. **Navegação por GPS:** ir até um ponto do mapa, voltar para casa com bateria baixa ou sem sinal, cerca virtual.
+4. **Navegação por GPS:** ir até um ponto do mapa, voltar para casa, patrulha e cerca virtual. *(pronto no simulador: [navegação por GPS](docs/navegacao-gps.md))*
 5. **Caixa-preta:** telemetria gravada no robô e replay no app; Grafana no robô.
 6. **Ponte ROS 2** para RViz, bags e Nav2.
 7. **O olho de ciclope** (ST7789 no Pi): expressões por estado, olhar para onde você manobra, o QR de pareamento; substitui a OLED.

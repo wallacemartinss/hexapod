@@ -252,7 +252,7 @@ Real time and safety stay on the ESP32; these add "brain" features, most of them
 1. **Camera:** photos and recordings stored on the robot, a gallery in the app and download to the phone's gallery; 720p or 1080p. *(done)*
 2. **Follow me:** follow an ArUco marker, then a person (optionally with a Coral USB accelerator).
 3. **Offline voice commands** in English and Portuguese ("sit", "stand up", "wave"), with a wake word.
-4. **GPS navigation:** go to a point on the map, return home on low battery or lost signal, virtual fence.
+4. **GPS navigation:** go to a point on the map, go home, patrol and a virtual fence. *(ready in the simulator: [GPS navigation](docs/gps-navigation.md))*
 5. **Black box:** telemetry recorded on the robot and replayed in the app; Grafana on the robot.
 6. **ROS 2 bridge** for RViz, bags and Nav2.
 7. **The cyclops eye** (ST7789 on the Pi): expressions per state, looking where you steer, the pairing QR code; it replaces the OLED.
