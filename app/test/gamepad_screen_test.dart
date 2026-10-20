@@ -25,6 +25,9 @@ class _StartAs extends ControlNotifier {
 
 List<Override> _overrides(Settings settings) => [
   commandLoopProvider.overrideWith((ref) {}),
+  targetsProvider.overrideWith((ref) => const Stream<pb.Targets>.empty()),
+  followStatusProvider.overrideWith((ref) => const Stream<pb.FollowStatus>.empty()),
+  navStatusProvider.overrideWith((ref) => const Stream<pb.NavStatus>.empty()),
   piStatusProvider.overrideWith((ref) => const Stream.empty()),
   // No gamepads plugin under test: the pad is whatever gamepadNameProvider says.
   gamepadServiceProvider.overrideWith((ref) => GamepadInterpreter(ref.read(controlProvider.notifier))),

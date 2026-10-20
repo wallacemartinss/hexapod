@@ -141,3 +141,35 @@ func TestDirectorPairing(t *testing.T) {
 		t.Errorf("QR shown %d of 50 s, want part of the time", shown)
 	}
 }
+
+func TestDirectorFollowsTheLockedTarget(t *testing.T) {
+	c := newClock()
+	c.s.Telemetry = telem(pb.State_STATE_NORMAL)
+	c.s.Apps = 1
+	c.at(0)
+	c.at(3 * time.Second)
+
+	c.s.Follow = &pb.FollowStatus{State: pb.FollowState_FOLLOW_STATE_LOCKED, BearingDeg: 30}
+	c.s.Locks = 1
+	in := c.at(100 * time.Millisecond)
+	if in.Mood != Hunter {
+		t.Errorf("new lock: %v, want the hunter's lock-on", in.Mood)
+	}
+	if in.LookX < 0.6 || in.LookX > 0.7 {
+		t.Errorf("target 30 deg to the left: look %.2f, want ~0.67", in.LookX)
+	}
+	in = c.at(5 * time.Second)
+	if in.Mood != Ready || in.LookX <= 0 {
+		t.Errorf("after the lock-on: %v look %.2f, want ready and still looking", in.Mood, in.LookX)
+	}
+	c.s.Follow = &pb.FollowStatus{State: pb.FollowState_FOLLOW_STATE_LOST, BearingDeg: -50}
+	if in := c.at(100 * time.Millisecond); in.Mood != Searching || in.LookX != -1 {
+		t.Errorf("lost: %v look %.2f, want searching where it went", in.Mood, in.LookX)
+	}
+	// The sticks win over the target.
+	c.s.Follow.State = pb.FollowState_FOLLOW_STATE_LOCKED
+	c.s.Command, c.s.CommandAt = &pb.Command{YawRate: 0.5}, c.now.Add(100*time.Millisecond)
+	if in := c.at(100 * time.Millisecond); in.LookX != 0.5 {
+		t.Errorf("steering while locked: look %.2f, want the stick's 0.5", in.LookX)
+	}
+}

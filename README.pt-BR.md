@@ -75,9 +75,12 @@ Geradas a partir do app com um robô simulado (`cd app && make screenshots`), po
 | ![Ambiente](docs/screenshots/pt/data_environment.png) **Dados: ambiente e gás** | ![Pernas](docs/screenshots/pt/data_legs.png) **Dados: ângulos das pernas** |
 | ![Sistema](docs/screenshots/pt/data_system.png) **Dados: ESP32** | ![Raspberry Pi](docs/screenshots/pt/data_pi.png) **Dados: saúde do Raspberry Pi** |
 | ![Acesso remoto](docs/screenshots/pt/remote_setup.png) **Acesso remoto: configurar** | ![Acesso remoto pronto](docs/screenshots/pt/remote_ready.png) **Acesso remoto: pronto** |
+| ![Siga-me](docs/screenshots/pt/pilot_follow.png) **Siga-me: toque no alvo (pessoa, animal ou marcador) e Seguir** | ![Mapa](docs/screenshots/pt/map.png) **Navegação por GPS: patrulha dentro da cerca** |
 | ![Gravando](docs/screenshots/pt/pilot_recording.png) **Gravando (REC), com os botões de foto e gravar** | ![Galeria](docs/screenshots/pt/gallery.png) **Galeria do robô: salvar no celular** |
 | ![Meus robôs](docs/screenshots/pt/robots.png) **Meus robôs** | ![Controle](docs/screenshots/pt/controller.png) **Controle PS5** |
 | ![Pareamento](docs/screenshots/pt/pairing.png) **Pareamento pelo código** | ![No celular](docs/screenshots/phone_bench_pt.png) **No celular de verdade, robô de bancada** |
+
+<sub>Foto dos cães: "Walking Dogs", Matt Nelson (Unsplash), CC0. Mapa: © colaboradores do OpenStreetMap.</sub>
 
 ## Lista de peças
 
@@ -252,7 +255,7 @@ Tempo real e segurança continuam no ESP32; estas são funções de "cérebro", 
 1. **Câmera:** fotos e gravações guardadas no robô, galeria no app e download para a galeria do celular; 720p ou 1080p. *(pronto)*
 2. **Siga-me:** seguir um marcador ArUco, depois uma pessoa (com um acelerador Coral USB opcional).
 3. **Comandos de voz offline** em português e inglês ("senta", "levanta", "acena"), com palavra de ativação.
-4. **Navegação por GPS:** ir até um ponto do mapa, voltar para casa com bateria baixa ou sem sinal, cerca virtual.
+4. **Navegação por GPS:** ir até um ponto do mapa, voltar para casa, patrulha e cerca virtual. *(pronto no simulador: [navegação por GPS](docs/navegacao-gps.md))*
 5. **Caixa-preta:** telemetria gravada no robô e replay no app; Grafana no robô.
 6. **Ponte ROS 2** para RViz, bags e Nav2.
 7. **O olho de ciclope** (ST7789 no Pi): expressões por estado, olhar para onde você manobra, o QR de pareamento; substitui a OLED.

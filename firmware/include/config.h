@@ -142,6 +142,43 @@ constexpr float kGasAlarmHysteresisPct = 5.0f;  // percentage points
 // AO swings up to 5 V: a 10k/15k divider brings it to ~3.0 V at the ADC.
 constexpr float kGasAdcFullScale = 4095.0f;  // counts (12-bit)
 
+// --- I2C sensors (sensor bus, I2C1) ---
+// Each chip is detected at boot by its ID and retried while missing; an
+// absent one is reported in fault_flags and never fakes a reading.
+constexpr uint32_t kSensorBusHz = 400000;  // Hz
+constexpr uint32_t kSensorPeriodMs = 50;   // ms (20 Hz sensors task)
+constexpr uint32_t kSensorRetryMs =
+    5000;  // ms between probes of a missing chip
+constexpr uint32_t kSensorStaleMs =
+    500;  // ms without a fresh reading -> invalid
+constexpr uint32_t kEnvPeriodMs = 1000;  // ms between BME280 readings
+
+// VL53L0X: continuous ranging; past this the reading means "nothing near".
+constexpr uint16_t kDistanceMaxMm = 2000;    // mm
+constexpr uint16_t kDistanceTimeoutMs = 60;  // ms waiting for one reading
+
+// INA226 shunt. TODO(hardware): the module's stock 0.1 ohm (R100) only
+// measures up to ~0.8 A; swap it for 2 mohm (CLAUDE.md section 9), then set
+// kShuntConfirmed. Until then the current goes to telemetry but the
+// failsafe's overcurrent check ignores it. The voltage is right either way.
+constexpr float kShuntOhm = 0.002f;  // ohm
+constexpr bool kShuntConfirmed = false;
+
+// BNO085 mounting: roll and pitch read when the body is level.
+// TODO(hardware): measure on the robot standing on a flat floor.
+constexpr float kImuRollOffsetDeg = 0.0f;   // deg
+constexpr float kImuPitchOffsetDeg = 0.0f;  // deg
+constexpr uint32_t kImuReportUs = 20000;  // us between rotation vectors (50 Hz)
+// Compass: the BNO085 rotation vector (with the magnetometer), for GPS
+// navigation only; the body angles stay on the game rotation vector.
+constexpr uint32_t kCompassReportUs = 100000;  // us between reports (10 Hz)
+constexpr uint32_t kCompassPeriodMs = 200;  // ms between Compass frames (5 Hz)
+// Yaw (deg, + = left) the rotation vector reads with the body's front
+// pointing at magnetic north. The BNO085's world frame is east-north-up,
+// so 90. TODO(hardware): check against a phone compass, away from the
+// servos' cables.
+constexpr float kImuNorthYawDeg = 90.0f;  // deg
+
 // --- FreeRTOS tasks ---
 constexpr uint32_t kMotionPeriodMs = 20;     // ms (50 Hz)
 constexpr uint32_t kMotionTaskStack = 4096;  // bytes
@@ -150,7 +187,10 @@ constexpr int kMotionTaskCore = 1;
 constexpr uint32_t kLinkTaskStack = 6144;  // bytes
 constexpr uint32_t kLinkTaskPriority = 3;
 constexpr int kLinkTaskCore = 0;
-constexpr uint32_t kLinkQueueLength = 8;  // pending commands/configs
+constexpr uint32_t kLinkQueueLength = 8;     // pending commands/configs
+constexpr uint32_t kSensorTaskStack = 4096;  // bytes
+constexpr uint32_t kSensorTaskPriority = 2;
+constexpr int kSensorTaskCore = 0;
 // Task watchdog: a stuck task resets the chip (OE pull-up keeps servos off).
 constexpr uint32_t kTaskWatchdogS = 1;  // s (IDF 4.4 takes whole seconds)
 

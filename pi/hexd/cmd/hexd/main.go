@@ -29,11 +29,13 @@ import (
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/eye"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/gps"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/media"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/nav"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/server"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/shutdown"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/sysinfo"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/tailscale"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/vision"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 	"google.golang.org/protobuf/proto"
 )
@@ -222,6 +224,70 @@ func main() {
 		return st
 	}
 
+	// Follow me: targets from hexvision; the robot walks after the locked
+	// one only with vision.follow on.
+	var hub *vision.Hub
+	var visionAPI server.Vision // stays a nil interface without vision
+	if cfg.Vision.Enabled {
+		hub = vision.New(log.With("component", "vision"))
+		visionAPI = hub
+		if cfg.Vision.Follow {
+			d := vision.DefaultDrive()
+			d.Distance, d.MaxSpeed, d.MaxTurn = cfg.Vision.Distance, cfg.Vision.MaxSpeed, cfg.Vision.MaxTurn
+			d.TurnGain = d.MaxTurn / 30 // full turn at 30 deg off
+			hub.EnableFollow(d)
+			log.Warn("follow me drives the robot", "distance_m", d.Distance, "max_speed", d.MaxSpeed)
+		}
+		go func() {
+			if err := hub.Run(ctx, cfg.Vision.Listen); err != nil {
+				log.Warn("vision off", "err", err)
+			}
+		}()
+		// The front VL53L0X (distances_mm[0]) measures the target straight ahead.
+		tel, unsubscribe := dev.Subscribe()
+		defer unsubscribe()
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case t := <-tel:
+					if d := t.GetDistancesMm(); len(d) > 0 {
+						hub.FrontRange(d[0])
+					}
+				}
+			}
+		}()
+	}
+
+	// GPS navigation: missions walk the robot only with nav.drive on; the
+	// fence holds the pilot's own Commands either way.
+	var navAPI server.Nav // stays a nil interface without navigation
+	if cfg.Nav.Enabled && position != nil {
+		nc := nav.DefaultConfig()
+		nc.Drive, nc.ArriveM, nc.MaxHdop, nc.Declination = cfg.Nav.Drive, cfg.Nav.ArriveM, cfg.Nav.MaxHdop, cfg.Nav.Declination
+		nc.MaxSpeed, nc.MaxTurn, nc.Store = cfg.Nav.MaxSpeed, cfg.Nav.MaxTurn, cfg.Nav.Store
+		navigator := nav.New(nc, nav.Inputs{
+			Position: position,
+			Telemetry: func() *pb.Telemetry {
+				if snap := dev.Snapshot(); snap.Connected && time.Since(snap.LastRx) < cfg.HealthMaxAge {
+					return snap.Telemetry
+				}
+				return nil
+			},
+			Compass: func() (*pb.Compass, time.Time) {
+				snap := dev.Snapshot()
+				return snap.Compass, snap.CompassAt
+			},
+			Following: func() bool { return hub != nil && hub.Status().State != pb.FollowState_FOLLOW_STATE_IDLE },
+		}, log.With("component", "nav"))
+		go navigator.Run(ctx)
+		navAPI = navigator
+		if nc.Drive {
+			log.Warn("GPS missions drive the robot", "max_speed", nc.MaxSpeed)
+		}
+	}
+
 	srv = server.New(server.Config{
 		DeadmanWifi:        cfg.Deadman.Wifi,
 		DeadmanCellular:    cfg.Deadman.Cellular,
@@ -242,6 +308,8 @@ func main() {
 		Rename:             rename,
 		Codes:              codes,
 		OnPaired:           onPaired,
+		Vision:             visionAPI,
+		Nav:                navAPI,
 	}, dev, log.With("component", "server"))
 	if wifiMgr != nil {
 		go wifiMgr.Run(ctx)
@@ -270,7 +338,7 @@ func main() {
 	if cfg.Eye.Enabled {
 		go func() {
 			defer close(eyeDone)
-			runEye(ctx, cfg, dev, srv, gallery, &photos, identity, &idMu, codes, log.With("component", "eye"))
+			runEye(ctx, cfg, dev, srv, gallery, &photos, hub, identity, &idMu, codes, log.With("component", "eye"))
 		}()
 	} else {
 		close(eyeDone)
@@ -299,7 +367,7 @@ func main() {
 
 // runEye animates the cyclops eye from the robot's situation.
 func runEye(ctx context.Context, cfg config.Config, dev *device.Device, srv *server.Server,
-	gallery *media.Gallery, photos *atomic.Int64, identity *pairing.Identity, idMu *sync.Mutex,
+	gallery *media.Gallery, photos *atomic.Int64, hub *vision.Hub, identity *pairing.Identity, idMu *sync.Mutex,
 	codes *pairing.Codes, log *slog.Logger) {
 	director := eye.NewDirector(time.Now())
 	var network bool
@@ -319,6 +387,9 @@ func runEye(ctx context.Context, cfg config.Config, dev *device.Device, srv *ser
 		s.Command, s.CommandAt = srv.LastCommand()
 		if gallery != nil {
 			s.Recording, _ = gallery.Recording()
+		}
+		if hub != nil {
+			s.Follow, s.Locks = hub.Status(), hub.Locks()
 		}
 		if identity != nil && codes != nil {
 			code := codes.Current()

@@ -65,6 +65,32 @@ type Config struct {
 	// OnPaired runs whenever an app proves it has the key (/pair or an
 	// authorized /ws): the robot's own Wi-Fi then needs a password.
 	OnPaired func()
+	// Vision streams follow-me targets to the apps and takes their choice
+	// (nil: no camera vision).
+	Vision Vision
+	// Nav walks the robot by GPS and holds the fence (nil: no navigation).
+	Nav Nav
+}
+
+// Vision is the follow-me side (internal/vision.Hub).
+type Vision interface {
+	Subscribe() (<-chan *pb.Envelope, func())
+	Follow(track uint32) *pb.FollowStatus
+	Status() *pb.FollowStatus
+	// Steer may replace a walk Command's speeds to follow the locked target.
+	Steer(cmd *pb.Command) *pb.Command
+}
+
+// Nav is the GPS navigation side (internal/nav.Navigator).
+type Nav interface {
+	Subscribe() (<-chan *pb.NavStatus, func())
+	Request(r *pb.NavRequest) *pb.NavStatus
+	Status() *pb.NavStatus
+	// Steer may replace a walk Command's speeds during a mission, and holds
+	// the pilot's own Commands at the fence.
+	Steer(cmd *pb.Command) *pb.Command
+	// Suspend: no app left; the mission stops, resumable.
+	Suspend()
 }
 
 // Server is created once and serves until its context ends.
@@ -238,7 +264,20 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.clients++
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); s.clients--; s.mu.Unlock() }()
+	defer func() {
+		s.mu.Lock()
+		s.clients--
+		last := s.clients == 0
+		s.mu.Unlock()
+		// The app is the dead man of follow me and of the GPS missions: with
+		// none left, nothing is followed and the mission waits to be resumed.
+		if last && s.cfg.Vision != nil {
+			s.cfg.Vision.Follow(0)
+		}
+		if last && s.cfg.Nav != nil {
+			s.cfg.Nav.Suspend()
+		}
+	}()
 	s.log.Info("app connected", "remote", r.RemoteAddr, "profile", profile)
 
 	ctx, cancel := context.WithCancel(r.Context())
@@ -281,12 +320,34 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer t.Stop()
 		piTick = t.C
 	}
+	var visionCh <-chan *pb.Envelope
+	if s.cfg.Vision != nil {
+		ch, unsub := s.cfg.Vision.Subscribe()
+		defer unsub()
+		visionCh = ch
+		_ = write(&pb.Envelope{Payload: &pb.Envelope_FollowStatus{FollowStatus: s.cfg.Vision.Status()}})
+	}
+	var navCh <-chan *pb.NavStatus
+	if s.cfg.Nav != nil {
+		ch, unsub := s.cfg.Nav.Subscribe()
+		defer unsub()
+		navCh = ch
+		_ = write(&pb.Envelope{Payload: &pb.Envelope_NavStatus{NavStatus: s.cfg.Nav.Status()}})
+	}
 	go func() {
 		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case e := <-visionCh:
+				if write(e) != nil {
+					return
+				}
+			case st := <-navCh:
+				if write(&pb.Envelope{Payload: &pb.Envelope_NavStatus{NavStatus: st}}) != nil {
+					return
+				}
 			case <-piTick:
 				if p := s.cfg.PiStatus(); p != nil {
 					if write(&pb.Envelope{Payload: &pb.Envelope_PiStatus{PiStatus: p}}) != nil {
@@ -320,7 +381,22 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		if proto.Unmarshal(b, &env) != nil {
 			continue
 		}
+		if f := env.GetFollowRequest(); f != nil && s.cfg.Vision != nil {
+			if f.TrackId != 0 && s.cfg.Nav != nil { // following replaces a GPS mission
+				s.cfg.Nav.Request(&pb.NavRequest{Action: pb.NavAction_NAV_ACTION_STOP})
+			}
+			s.cfg.Vision.Follow(f.TrackId) // the new status reaches every app
+		}
+		if r := env.GetNavRequest(); r != nil && s.cfg.Nav != nil {
+			s.cfg.Nav.Request(r) // the answer reaches every app
+		}
 		if cmd := env.GetCommand(); cmd != nil {
+			if s.cfg.Vision != nil {
+				cmd = s.cfg.Vision.Steer(cmd)
+			}
+			if s.cfg.Nav != nil {
+				cmd = s.cfg.Nav.Steer(cmd)
+			}
 			if err := s.forward(cmd, profile); err != nil && !errors.Is(err, device.ErrNotReady) {
 				s.log.Warn("command not forwarded", "err", err)
 			}

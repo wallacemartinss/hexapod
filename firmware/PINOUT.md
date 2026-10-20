@@ -150,6 +150,17 @@ Free channels: 3, 7, 11–15 on each board. Each servo's direction, offset and l
 | I2C 1 | BME280 | 0x76 |
 | I2C 1 | INA226 | 0x40 (no clash with the PCA: another bus) |
 
+## When a sensor arrives
+
+The firmware finds each I2C sensor by its ID at boot and probes a missing one again every 5 s, so they can be wired one at a time, with nothing to switch on in the code. Until a chip answers, its fault stays in `fault_flags` and the app shows it as not fitted. Check, with the robot sitting and **no servo power**:
+
+| Sensor | It works when | Adjust before trusting it |
+|---|---|---|
+| BME280 | Temperature, humidity and pressure show in the app (~1 s) | Nothing |
+| INA226 | The battery voltage matches the multimeter | **The current:** with the stock 0.1 Ω shunt it saturates at ~0.8 A. Fit 2 mΩ (`kShuntOhm`), compare with a clamp meter, then set `kShuntConfirmed = true`; until then the overcurrent check ignores it |
+| VL53L0X (each) | Its bar in the radar follows a hand (0.03–2 m) | XSHUT wired to the right pin: front, right, rear, left. Swapped wires show the wrong direction blocked |
+| BNO085 | Roll and pitch follow the body; tilting past 35° shows `TIPPED` | With the robot level, roll and pitch must read ~0°: set `kImuRollOffsetDeg`/`kImuPitchOffsetDeg`. Tilt the right side down: roll must go **positive**; nose down: pitch **positive**. Otherwise the board is mounted turned and the axes need remapping |
+
 ## Wiring precautions
 
 ### PCA9685 OE: pull-up required

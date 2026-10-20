@@ -59,6 +59,8 @@ type Snapshot struct {
 	LastRx     time.Time
 	Hello      *pb.Hello     // nil until the firmware introduced itself
 	Telemetry  *pb.Telemetry // nil until the first one
+	Compass    *pb.Compass   // nil until the first one (BNO085 rotation vector)
+	CompassAt  time.Time
 	Stats      link.Stats
 	Reconnects uint64
 }
@@ -191,6 +193,8 @@ func (d *Device) receive(env *pb.Envelope, stats link.Stats) {
 		} else {
 			d.opt.Logger.Info("esp32 hello", "firmware", m.Hello.FirmwareVersion, "git", m.Hello.GitHash)
 		}
+	case *pb.Envelope_Compass:
+		d.snap.Compass, d.snap.CompassAt = m.Compass, d.snap.LastRx
 	case *pb.Envelope_Telemetry:
 		tel = m.Telemetry
 		d.snap.Telemetry = tel

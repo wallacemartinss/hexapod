@@ -130,6 +130,8 @@ switch_to() { # release dir
   ln -sfn "$1" "$ROOT/current.new"
   mv -T "$ROOT/current.new" "$ROOT/current"
   systemctl_ restart hexd
+  # Follow-me vision is not verified: a camera problem must not block an update.
+  systemctl_ restart hexvision 2>/dev/null || true
 }
 switch_to "$RELEASE"
 log "current -> $VERSION, hexd restarted"

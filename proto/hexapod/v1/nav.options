@@ -1,0 +1,4 @@
+# nanopb: the ESP32 only uses Compass; static bounds keep the rest compilable.
+hexapod.v1.NavRequest.points max_count:64
+hexapod.v1.NavStatus.fence   max_count:64
+hexapod.v1.NavStatus.route   max_count:64

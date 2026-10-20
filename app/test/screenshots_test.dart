@@ -12,6 +12,7 @@ import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -28,6 +29,7 @@ import 'package:hexapod_app/core/settings.dart';
 import 'package:hexapod_app/features/brand/brand.dart';
 import 'package:hexapod_app/features/data/data_screen.dart';
 import 'package:hexapod_app/features/gallery/gallery_screen.dart';
+import 'package:hexapod_app/features/nav/map_screen.dart';
 import 'package:hexapod_app/features/pilot/pilot_screen.dart';
 import 'package:hexapod_app/features/robots/pair_screen.dart';
 import 'package:hexapod_app/features/robots/remote_access_screen.dart';
@@ -108,6 +110,67 @@ final _position = pb.Position()
   ..hdop = 1.1
   ..utcMs = Int64(1792364405000);
 
+/// A point [east] and [north] metres from the robot's [_position].
+pb.GeoPoint _at(double east, double north) => pb.GeoPoint()
+  ..latitudeDeg = _position.latitudeDeg + north / 111195
+  ..longitudeDeg = _position.longitudeDeg + east / (111195 * 0.91668); // cos(-23.55°)
+
+/// A patrol around Praça da Sé, inside a fence, on its way to point 2.
+pb.NavStatus _patrol() {
+  final route = [_at(-55, 40), _at(60, 45), _at(70, -35), _at(-45, -40)];
+  return pb.NavStatus()
+    ..state = pb.NavState.NAV_STATE_DRIVING
+    ..mission = pb.NavAction.NAV_ACTION_PATROL
+    ..target = route[1]
+    ..waypoint = 1
+    ..distanceM = 75
+    ..targetBearingDeg = 53
+    ..headingDeg = 50
+    ..headingOk = true
+    ..homeSet = true
+    ..home = _at(-75, -15)
+    ..fence.addAll([_at(-110, -70), _at(105, -75), _at(120, 75), _at(-100, 80)])
+    ..route.addAll(route)
+    ..loop = true
+    ..arriveM = 3
+    ..driveEnabled = true;
+}
+
+/// Map tiles saved in test/fixtures/map (© OpenStreetMap contributors): the
+/// screenshot test has no network.
+class _FixtureTiles extends TileProvider {
+  @override
+  ImageProvider getImage(TileCoordinates c, TileLayer options) {
+    final f = File('test/fixtures/map/${c.z}/${c.x}/${c.y}.png');
+    // Before the robot's position arrives the map asks for the whole world.
+    return MemoryImage(f.existsSync() ? f.readAsBytesSync() : _clear);
+  }
+}
+
+/// A transparent 1x1 PNG.
+final _clear = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);
+
+/// The follow-me frame: the dog the person/animal detector found in
+/// test/fixtures/follow/dogs.jpg, locked and followed.
+final _dogFrame = pb.Targets()
+  ..frameWidth = 1280
+  ..frameHeight = 854
+  ..fps = 14
+  ..targets.add(
+    pb.Target()
+      ..trackId = 1000000
+      ..kind = pb.TargetKind.TARGET_KIND_ANIMAL
+      ..x = 0.649
+      ..y = 0.401
+      ..w = 0.205
+      ..h = 0.51
+      ..bearingDeg = -14
+      ..distanceM = 1.4
+      ..confidence = 0.99,
+  );
+
 class _FixedControl extends ControlNotifier {
   _FixedControl(this.initial);
 
@@ -135,6 +198,10 @@ Future<void> _pump(
   bool settle = true,
   bool recording = false,
   RobotApi? api,
+  Widget? video,
+  Stream<pb.Targets>? targets,
+  Stream<pb.FollowStatus>? follow,
+  Stream<pb.NavStatus>? nav,
 }) async {
   tester.view.physicalSize = const Size(2400, 1080); // 20:9 phone, landscape
   tester.view.devicePixelRatio = 2.625;
@@ -148,7 +215,7 @@ Future<void> _pump(
         controllerPlatformProvider.overrideWith((ref) => null),
         videoViewProvider.overrideWith(
           (ref) =>
-              (_) => const VideoPlaceholder(),
+              (_) => video ?? const VideoPlaceholder(),
         ),
         linkStatusProvider.overrideWith((ref) => Stream.value(LinkStatus.connected)),
         telemetryProvider.overrideWith(
@@ -165,6 +232,9 @@ Future<void> _pump(
         positionProvider.overrideWith(
           (ref) => Stream.periodic(const Duration(seconds: 1), (_) => GpsReading(_position)),
         ),
+        targetsProvider.overrideWith((ref) => targets ?? const Stream<pb.Targets>.empty()),
+        followStatusProvider.overrideWith((ref) => follow ?? const Stream<pb.FollowStatus>.empty()),
+        navStatusProvider.overrideWith((ref) => nav ?? const Stream<pb.NavStatus>.empty()),
         piStatusProvider.overrideWith(
           (ref) => Stream.periodic(
             const Duration(seconds: 2),
@@ -374,6 +444,40 @@ void main() {
       testWidgets('pilot: recording', (tester) async {
         await _pump(tester, lang, recording: true);
         await _shot(tester, lang, 'pilot_recording');
+      });
+
+      testWidgets('pilot: follow me', (tester) async {
+        final photo = MemoryImage(File('test/fixtures/follow/dogs.jpg').readAsBytesSync());
+        await _pump(
+          tester,
+          lang,
+          video: Image(image: photo, fit: BoxFit.cover),
+          targets: Stream.periodic(const Duration(milliseconds: 100), (_) => _dogFrame),
+          follow: Stream.value(
+            pb.FollowStatus()
+              ..state = pb.FollowState.FOLLOW_STATE_FOLLOWING
+              ..trackId = 1000000
+              ..bearingDeg = -14
+              ..distanceM = 1.4,
+          ),
+        );
+        await tester.runAsync(() => precacheImage(photo, tester.element(find.byType(PilotScreen))));
+        await tester.pump(const Duration(milliseconds: 100));
+        await _shot(tester, lang, 'pilot_follow');
+      });
+
+      testWidgets('map: GPS patrol', (tester) async {
+        await _pump(
+          tester,
+          lang,
+          home: MapScreen(tileProvider: _FixtureTiles(), zoom: 18),
+          nav: Stream.periodic(const Duration(milliseconds: 500), (_) => _patrol()),
+        );
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300))); // decode tiles
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        await _shot(tester, lang, 'map');
       });
 
       testWidgets('gallery', (tester) async {

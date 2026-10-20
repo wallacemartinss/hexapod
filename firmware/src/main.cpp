@@ -5,12 +5,15 @@
 //   config::kServoOutputsAllowed is false it is never released, whatever the
 //   failsafe allows.
 // - link task (core 0): decodes frames, answers Hello, queues Command and
-//   LinkConfig, sends Telemetry at 10 Hz. estop also cuts OE right here.
+//   LinkConfig, sends Telemetry at 10 Hz and the Compass at 5 Hz. estop also
+//   cuts OE right here.
 // - motion task (core 1, 50 Hz): failsafe -> gait -> IK -> joint speed limit.
-//   The 18 joint angles go out in Telemetry; no servo is driven yet and
-//   the I2C sensors are not read yet (reported as faults). The MQ-2 is read
-//   by the link task when config::kGasSensorFitted.
-// - Both tasks are under the task watchdog: a hang resets the chip.
+//   The 18 joint angles go out in Telemetry; no servo is driven yet.
+// - sensors task (core 0, 20 Hz): the I2C sensors (hw/sensor_hub). A chip
+//   that is missing or silent reads as invalid, never as zero; the failsafe
+//   reports it. The MQ-2 is read by the link task when
+//   config::kGasSensorFitted.
+// - All three tasks are under the task watchdog: a hang resets the chip.
 #include <Arduino.h>
 #include <driver/gpio.h>
 #include <esp_task_wdt.h>
@@ -18,6 +21,7 @@
 
 #include "config.h"
 #include "hexapod/v1/envelope.pb.h"
+#include "hw/sensor_hub.h"
 #include "link/codec.h"
 #include "link/frame.h"
 #include "motion/controller.h"
@@ -62,6 +66,20 @@ QueueHandle_t g_events;
 
 sensors::GasMonitor g_gas;  // link task only
 
+// sensors -> motion and link, guarded by g_sensors_lock.
+hw::SensorSnapshot g_sensors;
+portMUX_TYPE g_sensors_lock = portMUX_INITIALIZER_UNLOCKED;
+
+hw::SensorSnapshot LatestSensors(uint32_t now_ms) {
+  portENTER_CRITICAL(&g_sensors_lock);
+  hw::SensorSnapshot s = g_sensors;
+  portEXIT_CRITICAL(&g_sensors_lock);
+  if (now_ms - s.updated_ms > config::kSensorStaleMs) {
+    s = hw::SensorSnapshot();  // the sensors task stopped: trust nothing
+  }
+  return s;
+}
+
 // motion -> link (telemetry), guarded by g_status_lock.
 struct Status {
   hexapod_v1_State state = hexapod_v1_State_STATE_RELAXED;
@@ -82,8 +100,7 @@ motion::MotionController g_motion;
 
 void MotionTask(void*) {
   esp_task_wdt_add(nullptr);
-  const safety::SensorInputs sensors;  // TODO(3.4): real sensor readings
-  motion::MotionInput pilot;           // from the last valid Command
+  motion::MotionInput pilot;  // from the last valid Command
   constexpr float kDt = config::kMotionPeriodMs / 1000.0f;
   TickType_t wake = xTaskGetTickCount();
   for (;;) {
@@ -101,6 +118,7 @@ void MotionTask(void*) {
       }
     }
 
+    const safety::SensorInputs sensors = LatestSensors(millis()).inputs;
     const safety::Output& out = g_failsafe.Update(sensors, millis());
     g_motion.Update(pilot, out, kDt);
     pilot.mode = hexapod_v1_Mode_MODE_UNSPECIFIED;  // a mode applies once
@@ -126,6 +144,24 @@ void MotionTask(void*) {
     }
     portEXIT_CRITICAL(&g_status_lock);
 
+    esp_task_wdt_reset();
+  }
+}
+
+// --- sensors task ---
+
+hw::SensorHub g_hub;
+
+void SensorTask(void*) {
+  g_hub.Begin(millis());  // before the watchdog: probing takes a while
+  esp_task_wdt_add(nullptr);
+  TickType_t wake = xTaskGetTickCount();
+  for (;;) {
+    vTaskDelayUntil(&wake, pdMS_TO_TICKS(config::kSensorPeriodMs));
+    g_hub.Poll(millis());
+    portENTER_CRITICAL(&g_sensors_lock);
+    g_sensors = g_hub.snapshot();
+    portEXIT_CRITICAL(&g_sensors_lock);
     esp_task_wdt_reset();
   }
 }
@@ -171,8 +207,7 @@ void SendTelemetry() {
   t.seq = ++g_telemetry_seq;
   t.uptime_ms = millis();
   t.state = status.state;
-  // Milestone 3.4 reads the I2C sensors; until then the BME280 reads as absent.
-  t.fault_flags = status.fault_flags | hexapod_v1_Fault_FAULT_ENV_SENSOR;
+  t.fault_flags = status.fault_flags;
   t.blocked_mask = status.blocked_mask;
   t.last_command_seq = status.last_command_seq;
   t.loop_time_us = status.loop_time_us;
@@ -191,7 +226,27 @@ void SendTelemetry() {
   } else {
     t.fault_flags |= hexapod_v1_Fault_FAULT_GAS_SENSOR;
   }
-  // The other sensor fields are filled in milestone 3.4 (zeros until then).
+  const hw::SensorSnapshot s = LatestSensors(millis());
+  t.battery_voltage_v = s.inputs.battery_voltage_v;
+  t.battery_current_a = s.current_a;
+  if (s.inputs.imu_valid) {
+    t.has_orientation = true;
+    t.orientation.w = s.orientation.q.w;
+    t.orientation.x = s.orientation.q.x;
+    t.orientation.y = s.orientation.q.y;
+    t.orientation.z = s.orientation.q.z;
+    t.roll_deg = s.orientation.roll_deg;
+    t.pitch_deg = s.orientation.pitch_deg;
+    t.yaw_deg = s.orientation.yaw_deg;
+  }
+  for (int i = 0; i < 4; ++i) t.distances_mm[i] = s.inputs.distances_mm[i];
+  if (s.env_valid) {
+    t.temperature_c = s.env.temperature_c;
+    t.humidity_pct = s.env.humidity_pct;
+    t.pressure_hpa = s.env.pressure_hpa;
+  } else {
+    t.fault_flags |= hexapod_v1_Fault_FAULT_ENV_SENSOR;
+  }
   Send(g_tx);
 }
 
@@ -241,10 +296,25 @@ void HandleFrame(const uint8_t* payload, size_t len) {
   }
 }
 
+// The magnetic heading, for GPS navigation in hexd; nothing when the
+// BNO085 has none.
+void SendCompass() {
+  const hw::SensorSnapshot s = LatestSensors(millis());
+  if (!s.heading_valid) return;
+  g_tx = link::kEmptyEnvelope;
+  g_tx.which_payload = hexapod_v1_Envelope_compass_tag;
+  g_tx.payload.compass.heading_deg = s.heading_deg;
+  // 0 means "no heading" on the wire: a perfect estimate still reads as one.
+  g_tx.payload.compass.accuracy_deg =
+      s.heading_accuracy_deg > 0.1f ? s.heading_accuracy_deg : 0.1f;
+  Send(g_tx);
+}
+
 void LinkTask(void*) {
   esp_task_wdt_add(nullptr);
   SendHello();
   uint32_t next_telemetry = millis();
+  uint32_t next_compass = millis();
   for (;;) {
     while (Serial.available() > 0) {
       const int byte = Serial.read();
@@ -257,6 +327,10 @@ void LinkTask(void*) {
     if (static_cast<int32_t>(millis() - next_telemetry) >= 0) {
       next_telemetry += config::kTelemetryPeriodMs;
       SendTelemetry();
+    }
+    if (static_cast<int32_t>(millis() - next_compass) >= 0) {
+      next_compass += config::kCompassPeriodMs;
+      SendCompass();
     }
     esp_task_wdt_reset();
     vTaskDelay(pdMS_TO_TICKS(config::kLinkPollPeriodMs));
@@ -282,6 +356,10 @@ void setup() {
                           hexapod::config::kMotionTaskStack, nullptr,
                           hexapod::config::kMotionTaskPriority, nullptr,
                           hexapod::config::kMotionTaskCore);
+  xTaskCreatePinnedToCore(hexapod::SensorTask, "sensors",
+                          hexapod::config::kSensorTaskStack, nullptr,
+                          hexapod::config::kSensorTaskPriority, nullptr,
+                          hexapod::config::kSensorTaskCore);
   xTaskCreatePinnedToCore(hexapod::LinkTask, "link",
                           hexapod::config::kLinkTaskStack, nullptr,
                           hexapod::config::kLinkTaskPriority, nullptr,

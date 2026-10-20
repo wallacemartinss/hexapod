@@ -8,6 +8,7 @@
 #   manifest.json            version, git hash, firmware chip and version
 #   bin/hexd                 linux/arm64
 #   firmware/firmware.bin    merged image, flashed at 0x0
+#   hexvision/               follow-me targets from the camera (Python, runs from here)
 #   deploy.sh                the deploy script of this same version
 #
 # The version is `git describe --tags --always` and is baked into hexd and the
@@ -45,6 +46,12 @@ echo "== hexd (linux/arm64)"
 (cd "$REPO/pi" && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath \
   -ldflags "-s -w -X main.version=$VERSION -X main.gitHash=$GIT_HASH" \
   -o "$PKG/bin/hexd" ./hexd/cmd/hexd)
+
+echo "== hexvision"
+(cd "$REPO/proto" && buf generate --template buf.gen.vision.yaml)
+mkdir -p "$PKG/hexvision"
+cp -r "$REPO/pi/hexvision/hexvision" "$REPO/pi/hexvision/gen" "$PKG/hexvision/"
+find "$PKG/hexvision" -name __pycache__ -prune -exec rm -rf {} +
 
 cp "$REPO/pi/deploy/deploy.sh" "$PKG/deploy.sh"
 cat > "$PKG/manifest.json" <<EOF

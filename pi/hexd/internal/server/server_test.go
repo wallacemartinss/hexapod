@@ -17,6 +17,7 @@ import (
 	pb "github.com/wallacemartinss/hexapod/pi/hexd/gen/hexapod/v1"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/device"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/pairing"
+	"github.com/wallacemartinss/hexapod/pi/hexd/internal/vision"
 	"github.com/wallacemartinss/hexapod/pi/hexd/internal/wifi"
 	"github.com/wallacemartinss/hexapod/pi/internal/sim"
 	"google.golang.org/protobuf/proto"
@@ -475,5 +476,158 @@ func TestPairWithTheShortCode(t *testing.T) {
 	}
 	if code, _ := post(good); code != http.StatusForbidden {
 		t.Fatal("a code works once")
+	}
+}
+
+type fakeVision struct {
+	ch      chan *pb.Envelope
+	follows chan uint32
+}
+
+func (f *fakeVision) Subscribe() (<-chan *pb.Envelope, func()) { return f.ch, func() {} }
+func (f *fakeVision) Follow(id uint32) *pb.FollowStatus {
+	f.follows <- id
+	return &pb.FollowStatus{TrackId: id}
+}
+func (f *fakeVision) Steer(c *pb.Command) *pb.Command { return c }
+func (f *fakeVision) Status() *pb.FollowStatus {
+	return &pb.FollowStatus{State: pb.FollowState_FOLLOW_STATE_IDLE}
+}
+
+func TestFollowMeOverTheWebSocket(t *testing.T) {
+	v := &fakeVision{ch: make(chan *pb.Envelope, 4), follows: make(chan uint32, 4)}
+	r := newRig(t, Config{Vision: v})
+	a := connectApp(t, r)
+
+	v.ch <- &pb.Envelope{Payload: &pb.Envelope_Targets{Targets: &pb.Targets{Seq: 42}}}
+	deadline := time.After(3 * time.Second)
+	var status, targets bool
+	for !status || !targets {
+		select {
+		case env := <-a.in:
+			status = status || env.GetFollowStatus() != nil
+			targets = targets || env.GetTargets().GetSeq() == 42
+		case <-deadline:
+			t.Fatalf("app got status %v, targets %v", status, targets)
+		}
+	}
+
+	b, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_FollowRequest{FollowRequest: &pb.FollowRequest{TrackId: 8}}})
+	if err := a.conn.Write(context.Background(), websocket.MessageBinary, b); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-v.follows; got != 8 {
+		t.Fatalf("follow %d, want 8", got)
+	}
+	// The app is the dead man: the last one leaving stops the follow.
+	a.conn.CloseNow()
+	select {
+	case got := <-v.follows:
+		if got != 0 {
+			t.Fatalf("on disconnect follow %d, want 0", got)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("follow not cancelled when the app left")
+	}
+}
+
+// The app walks with its sticks at rest and a person locked 40 deg to the
+// left: the simulated ESP32 must get a left turn; a stick takes over.
+func TestFollowSteersTheAppsWalkCommands(t *testing.T) {
+	hub := vision.New(quiet)
+	hub.EnableFollow(vision.DefaultDrive())
+	r := newRig(t, Config{Vision: hub})
+	a := connectApp(t, r)
+	hub.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 1000, BearingDeg: 40, DistanceM: 3}}})
+	hub.Follow(1000)
+
+	seq := uint32(0)
+	send := func(vx, yaw float32) {
+		seq++
+		a.send(&pb.Command{Seq: seq, Mode: pb.Mode_MODE_WALK, Vx: vx, YawRate: yaw})
+	}
+	a.send(&pb.Command{Seq: 1, Mode: pb.Mode_MODE_STAND})
+	seq = 1
+	waitFor(t, "a left turn at the simulated ESP32", func() bool {
+		send(0, 0)
+		_, _, yaw := r.sim.Motion()
+		return yaw > 0.3
+	})
+	if st := hub.Status(); st.State != pb.FollowState_FOLLOW_STATE_FOLLOWING {
+		t.Fatalf("state %v, want following", st.State)
+	}
+	send(0, -0.8) // the pilot turns right
+	waitFor(t, "the pilot's own turn", func() bool {
+		_, _, yaw := r.sim.Motion()
+		return yaw < -0.7
+	})
+	if st := hub.Status(); st.State != pb.FollowState_FOLLOW_STATE_IDLE {
+		t.Fatalf("stick did not cancel following: %v", st.State)
+	}
+}
+
+type fakeNav struct {
+	ch        chan *pb.NavStatus
+	requests  chan *pb.NavRequest
+	suspended chan struct{}
+	steer     func(*pb.Command) *pb.Command
+}
+
+func (f *fakeNav) Subscribe() (<-chan *pb.NavStatus, func()) { return f.ch, func() {} }
+func (f *fakeNav) Request(r *pb.NavRequest) *pb.NavStatus {
+	f.requests <- r
+	return &pb.NavStatus{}
+}
+func (f *fakeNav) Status() *pb.NavStatus { return &pb.NavStatus{State: pb.NavState_NAV_STATE_IDLE} }
+func (f *fakeNav) Steer(c *pb.Command) *pb.Command {
+	if f.steer != nil {
+		return f.steer(c)
+	}
+	return c
+}
+func (f *fakeNav) Suspend() { f.suspended <- struct{}{} }
+
+func TestGPSNavigationOverTheWebSocket(t *testing.T) {
+	n := &fakeNav{ch: make(chan *pb.NavStatus, 4), requests: make(chan *pb.NavRequest, 4), suspended: make(chan struct{}, 1),
+		steer: func(c *pb.Command) *pb.Command {
+			if c.Mode != pb.Mode_MODE_WALK {
+				return c
+			}
+			out := proto.CloneOf(c)
+			out.YawRate = 0.4 // as a mission turning towards its point
+			return out
+		}}
+	r := newRig(t, Config{Nav: n})
+	a := connectApp(t, r)
+	n.ch <- &pb.NavStatus{State: pb.NavState_NAV_STATE_READY, DistanceM: 12}
+	waitFor(t, "the nav status at the app", func() bool {
+		select {
+		case env := <-a.in:
+			return env.GetNavStatus().GetDistanceM() == 12
+		default:
+			return false
+		}
+	})
+	b, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_NavRequest{NavRequest: &pb.NavRequest{Action: pb.NavAction_NAV_ACTION_GO_HOME}}})
+	if err := a.conn.Write(context.Background(), websocket.MessageBinary, b); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-n.requests; got.Action != pb.NavAction_NAV_ACTION_GO_HOME {
+		t.Fatalf("request %v", got.Action)
+	}
+	a.send(&pb.Command{Seq: 1, Mode: pb.Mode_MODE_STAND})
+	seq := uint32(1)
+	waitFor(t, "the mission's turn at the simulated ESP32", func() bool {
+		seq++
+		a.send(&pb.Command{Seq: seq, Mode: pb.Mode_MODE_WALK})
+		_, _, yaw := r.sim.Motion()
+		return yaw > 0.3
+	})
+	// The app is the dead man: the last one leaving suspends the mission.
+	a.conn.CloseNow()
+	select {
+	case <-n.suspended:
+	case <-time.After(3 * time.Second):
+		t.Fatal("mission not suspended when the app left")
 	}
 }

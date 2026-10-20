@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hexapod.v1;
+
+// Follow me: hexvision (on the Pi) finds targets in the camera image, the
+// app draws a box on each over the video, the pilot taps one and asks to
+// follow it. None of these cross the ESP32 serial link (the Envelope fields
+// are ignored by nanopb, see envelope.options): the ESP32 only ever sees
+// Commands, under its usual failsafe.
+
+enum TargetKind {
+  TARGET_KIND_UNSPECIFIED = 0;
+  TARGET_KIND_MARKER = 1; // ArUco marker (DICT_4X4_50), e.g. on the phone's screen
+  TARGET_KIND_PERSON = 2; // person detector (MobileNet-SSD)
+  TARGET_KIND_ANIMAL = 3; // a dog or a cat (same detector)
+}
+
+message Target {
+  uint32 track_id = 1; // stable while the target stays in view; never 0
+  TargetKind kind = 2;
+  uint32 marker_id = 3; // ArUco id (markers only)
+  // Box in the image, normalized to 0..1 (x, y = top-left corner).
+  float x = 4;
+  float y = 5;
+  float w = 6;
+  float h = 7;
+  float bearing_deg = 8; // + = to the robot's left, 0 = straight ahead
+  float elevation_deg = 9; // + = above the camera axis
+  float distance_m = 10; // 0 = unknown
+  float confidence = 11; // 0..1
+}
+
+// hexvision -> hexd -> app, once per processed frame (~10-15 Hz).
+message Targets {
+  uint32 seq = 1;
+  uint64 timestamp_ms = 2; // hexvision's clock when the frame was taken
+  uint32 frame_width = 3; // size of the processed image, px
+  uint32 frame_height = 4;
+  repeated Target targets = 5;
+  float fps = 6; // frames processed per second
+  bool calibrated = 7; // lens calibration loaded: distances and angles are measured, not estimated
+}
+
+// app -> hexd: follow this target (track_id 0 = stop following).
+message FollowRequest {
+  uint32 track_id = 1;
+}
+
+enum FollowState {
+  FOLLOW_STATE_UNSPECIFIED = 0;
+  FOLLOW_STATE_IDLE = 1; // nothing selected
+  FOLLOW_STATE_LOCKED = 2; // target selected and in view
+  FOLLOW_STATE_LOST = 3; // selected target out of view: waiting for it to come back
+  FOLLOW_STATE_FOLLOWING = 4; // locked and hexd is steering the robot towards it (walk mode)
+}
+
+// hexd -> app, on every change and with every Targets.
+message FollowStatus {
+  FollowState state = 1;
+  uint32 track_id = 2;
+  float bearing_deg = 3; // of the locked target
+  float distance_m = 4;
+  uint32 lost_ms = 5; // how long the target has been out of view
+}

@@ -1,0 +1,21 @@
+[Unit]
+Description=hexvision (follow-me targets from the camera -> hexd)
+After=mediamtx.service hexd.service
+# Skipped until a deploy installs it (/opt/hexapod/current/hexvision).
+ConditionPathExists=/opt/hexapod/current/hexvision/hexvision/__main__.py
+StartLimitIntervalSec=0
+
+[Service]
+User=hexapod
+Group=hexapod
+WorkingDirectory=/opt/hexapod/current/hexvision
+ExecStart=/usr/bin/python3 -m hexvision
+# Below hexd, and never more than ~1.5 cores: the link to the ESP32 and the
+# video come first.
+Nice=10
+CPUQuota=150%
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

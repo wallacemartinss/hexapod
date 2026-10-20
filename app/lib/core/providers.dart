@@ -165,6 +165,25 @@ final piStatusProvider = StreamProvider<PiReading>((ref) async* {
   yield* link.piStatus.map(PiReading.new);
 });
 
+/// Follow-me targets seen by the robot's camera (empty when nothing is).
+final targetsProvider = StreamProvider<Targets>((ref) => ref.watch(linkProvider).targets);
+
+/// Which target the robot follows (idle until the pilot picks one).
+final followStatusProvider = StreamProvider<FollowStatus>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastFollow;
+  if (last != null) yield last;
+  yield* link.follow;
+});
+
+/// GPS navigation: the mission, home, fence and route (idle until set).
+final navStatusProvider = StreamProvider<NavStatus>((ref) async* {
+  final link = ref.watch(linkProvider);
+  final last = link.lastNav;
+  if (last != null) yield last;
+  yield* link.nav;
+});
+
 final controlProvider = NotifierProvider<ControlNotifier, ControlState>(ControlNotifier.new);
 
 class ControlNotifier extends Notifier<ControlState> {

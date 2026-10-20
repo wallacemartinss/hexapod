@@ -35,6 +35,9 @@ class RobotLink {
   final _hello = StreamController<Hello>.broadcast();
   final _position = StreamController<Position>.broadcast();
   final _piStatus = StreamController<PiStatus>.broadcast();
+  final _targets = StreamController<Targets>.broadcast();
+  final _follow = StreamController<FollowStatus>.broadcast();
+  final _nav = StreamController<NavStatus>.broadcast();
 
   WebSocketChannel? _channel;
   LinkStatus _current = LinkStatus.disconnected;
@@ -44,6 +47,8 @@ class RobotLink {
   Hello? _lastHello;
   Position? _lastPosition;
   PiStatus? _lastPiStatus;
+  FollowStatus? _lastFollow;
+  NavStatus? _lastNav;
 
   Stream<LinkStatus> get status => _status.stream;
   Stream<Telemetry> get telemetry => _telemetry.stream;
@@ -56,6 +61,19 @@ class RobotLink {
   /// The Raspberry Pi's own health from hexd, every 2 s.
   Stream<PiStatus> get piStatus => _piStatus.stream;
   PiStatus? get lastPiStatus => _lastPiStatus;
+
+  /// Follow-me targets the robot's camera sees, once per processed frame;
+  /// none without camera vision.
+  Stream<Targets> get targets => _targets.stream;
+
+  /// Which target is followed; one on connecting and on every change.
+  Stream<FollowStatus> get follow => _follow.stream;
+  FollowStatus? get lastFollow => _lastFollow;
+
+  /// GPS navigation (missions, home, fence, route); one on connecting and
+  /// on every change. None at all without a GPS.
+  Stream<NavStatus> get nav => _nav.stream;
+  NavStatus? get lastNav => _lastNav;
 
   /// The last Hello received: it arrives once per connection, so whoever
   /// starts listening later (the settings sheet) still gets the versions.
@@ -101,6 +119,9 @@ class RobotLink {
         if (env.hasHello()) _hello.add(_lastHello = env.hello);
         if (env.hasPosition()) _position.add(_lastPosition = env.position);
         if (env.hasPiStatus()) _piStatus.add(_lastPiStatus = env.piStatus);
+        if (env.hasTargets()) _targets.add(env.targets);
+        if (env.hasFollowStatus()) _follow.add(_lastFollow = env.followStatus);
+        if (env.hasNavStatus()) _nav.add(_lastNav = env.navStatus);
       },
       onDone: _scheduleRetry,
       onError: (_) => _scheduleRetry(),
@@ -125,6 +146,20 @@ class RobotLink {
     channel.sink.add((Envelope()..command = command).writeToBuffer());
   }
 
+  /// Asks the robot to follow a target (0: stop following).
+  void followTarget(int trackId) {
+    final channel = _channel;
+    if (_current != LinkStatus.connected || channel == null) return;
+    channel.sink.add((Envelope()..followRequest = (FollowRequest()..trackId = trackId)).writeToBuffer());
+  }
+
+  /// Sends a GPS navigation request; the answer comes in the next NavStatus.
+  void navRequest(NavRequest request) {
+    final channel = _channel;
+    if (_current != LinkStatus.connected || channel == null) return;
+    channel.sink.add((Envelope()..navRequest = request).writeToBuffer());
+  }
+
   Future<void> close() async {
     _closed = true;
     _retry?.cancel();
@@ -135,5 +170,8 @@ class RobotLink {
     await _hello.close();
     await _position.close();
     await _piStatus.close();
+    await _targets.close();
+    await _follow.close();
+    await _nav.close();
   }
 }

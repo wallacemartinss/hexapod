@@ -21,6 +21,10 @@ type Situation struct {
 	PairQR    string
 	PairCode  string
 	Shutdown  bool // hexd is stopping
+	// Follow me: the locked target (nil: none) and how many locks so far
+	// (a new one plays the hunter's lock-on).
+	Follow *pb.FollowStatus
+	Locks  uint64
 }
 
 // Director turns Situations into the eye's Inputs, remembering what it
@@ -45,6 +49,7 @@ type Director struct {
 	reaction  Mood // a short mood a gesture asked for
 	reactTill time.Time
 	moved     time.Time
+	locks     uint64
 }
 
 // NewDirector starts counting from now.
@@ -134,6 +139,24 @@ func (d *Director) Inputs(s Situation) Inputs {
 	}
 	in.Wink = d.winks
 
+	// Follow me: the eye keeps the target in sight (the sticks win).
+	if s.Locks != d.locks {
+		if s.Locks > d.locks {
+			d.reaction, d.reactTill = Hunter, s.Now.Add(4*time.Second) // target locked
+		}
+		d.locks = s.Locks
+	}
+	if f := s.Follow; f != nil && !in.Steering {
+		switch f.State {
+		case pb.FollowState_FOLLOW_STATE_LOCKED:
+			// Bearing + = robot's left = +X on the panel; 45 deg reaches the edge.
+			in.LookX = clampF(float64(f.BearingDeg)/45, -1, 1)
+			d.moved = s.Now
+		case pb.FollowState_FOLLOW_STATE_LOST:
+			in.LookX = clampF(float64(f.BearingDeg)/45, -1, 1) // where it was last seen
+		}
+	}
+
 	in.Mood = d.mood(s, t)
 	// Pairing QR: always until the first pairing; then, with no app, now
 	// and then between looks around.
@@ -197,6 +220,9 @@ func (d *Director) mood(s Situation, t *pb.Telemetry) Mood {
 	}
 	if s.Apps == 0 {
 		return Searching
+	}
+	if f := s.Follow; f != nil && f.State == pb.FollowState_FOLLOW_STATE_LOST {
+		return Searching // the followed target went out of view
 	}
 	if s.Now.Sub(d.moved) > boredAfter {
 		return Bored

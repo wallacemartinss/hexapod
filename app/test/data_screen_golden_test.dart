@@ -100,6 +100,9 @@ Future<void> _pump(WidgetTester tester, pb.Telemetry Function(int) telemetry, {p
               ? const Stream.empty()
               : Stream.periodic(const Duration(seconds: 1), (_) => GpsReading(position)),
         ),
+        targetsProvider.overrideWith((ref) => const Stream<pb.Targets>.empty()),
+        followStatusProvider.overrideWith((ref) => const Stream<pb.FollowStatus>.empty()),
+        navStatusProvider.overrideWith((ref) => const Stream<pb.NavStatus>.empty()),
         piStatusProvider.overrideWith(
           (ref) => Stream.periodic(const Duration(seconds: 2), (n) => PiReading(_pi(n))),
         ),

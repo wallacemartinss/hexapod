@@ -19,6 +19,7 @@ class StatusBar extends StatelessWidget {
     required this.onSettings,
     required this.onFaults,
     this.onData,
+    this.onMap,
     this.gamepad,
     this.onGamepad,
     this.audio = false,
@@ -37,6 +38,9 @@ class StatusBar extends StatelessWidget {
 
   /// Opens the robot data screen (sensors, legs, system).
   final VoidCallback? onData;
+
+  /// Opens the GPS map (null: the robot has no navigation).
+  final VoidCallback? onMap;
 
   /// Name of the connected gamepad, if any.
   final String? gamepad;
@@ -201,6 +205,16 @@ class StatusBar extends StatelessWidget {
                 color: audio ? Colors.white : Colors.white54,
                 size: 20,
               ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (onMap != null) ...[
+          GestureDetector(
+            onTap: onMap,
+            child: const Glass(
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.map_rounded, color: Colors.white, size: 20),
             ),
           ),
           const SizedBox(width: 8),

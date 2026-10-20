@@ -6,6 +6,7 @@
 //	hexctl -url ws://hexapod.local:8080/ws demo       STAND, walk, release, SIT, then go silent
 //	hexctl -url ws://hexapod.local:8080/ws estop      one emergency stop
 //	hexctl -url ws://hexapod.local:8080/ws -for 5s stand   keep it standing
+//	hexctl -url ws://hexapod.local:8080/ws goto LAT LON    GPS mission there, sticks released, until it arrives
 //
 // Commands are sent at 20 Hz, as the app does (dead man's switch). hexd stamps
 // the seq. While the firmware keeps servo outputs locked, nothing moves.
@@ -18,6 +19,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/coder/websocket"
@@ -46,6 +48,10 @@ func main() {
 	elapsed := func() float64 { return time.Since(start).Seconds() }
 	var last pb.State = -1
 	trace := flag.Arg(0) == "trace"
+	var navSeen chan *pb.NavStatus
+	if flag.Arg(0) == "goto" {
+		navSeen = make(chan *pb.NavStatus, 16)
+	}
 	var lastTrace time.Time
 	go func() {
 		for {
@@ -56,6 +62,9 @@ func main() {
 			var env pb.Envelope
 			if proto.Unmarshal(b, &env) != nil {
 				continue
+			}
+			if n := env.GetNavStatus(); n != nil && navSeen != nil {
+				navSeen <- n
 			}
 			if h := env.GetHello(); h != nil {
 				fmt.Printf("%6.2fs  firmware %s (protocol %d)\n", elapsed(), h.FirmwareVersion, h.ProtocolVersion)
@@ -109,8 +118,42 @@ func main() {
 		drive("SIT", &pb.Command{Mode: pb.Mode_MODE_SIT, BodyHeight: 0.5}, 1500*time.Millisecond)
 		fmt.Printf("%6.2fs  >> app goes silent (dead man's switch)\n", elapsed())
 		time.Sleep(2 * time.Second)
+	case "goto":
+		lat, err1 := strconv.ParseFloat(flag.Arg(1), 64)
+		lon, err2 := strconv.ParseFloat(flag.Arg(2), 64)
+		if err1 != nil || err2 != nil {
+			log.Fatal("goto LAT LON (degrees)")
+		}
+		time.Sleep(500 * time.Millisecond)
+		drive("STAND", &pb.Command{Mode: pb.Mode_MODE_STAND, BodyHeight: 0.5}, 1500*time.Millisecond)
+		b, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_NavRequest{NavRequest: &pb.NavRequest{
+			Action: pb.NavAction_NAV_ACTION_GO_TO, Points: []*pb.GeoPoint{{LatitudeDeg: lat, LongitudeDeg: lon}}}}})
+		if err := conn.Write(ctx, websocket.MessageBinary, b); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%6.2fs  >> GO_TO %.6f %.6f, sticks released\n", elapsed(), lat, lon)
+		t := time.NewTicker(50 * time.Millisecond)
+		defer t.Stop()
+		var shown pb.NavState
+		var shownAt time.Time
+		for {
+			select {
+			case n := <-navSeen:
+				if n.State != shown || time.Since(shownAt) > 5*time.Second {
+					shown, shownAt = n.State, time.Now()
+					fmt.Printf("%6.2fs  nav %-26v %6.1f m  heading %5.1f (ok %v) refused %v\n",
+						elapsed(), n.State, n.DistanceM, n.HeadingDeg, n.HeadingOk, n.Refused)
+				}
+				if n.State == pb.NavState_NAV_STATE_ARRIVED || n.Refused != pb.NavRefusal_NAV_REFUSAL_UNSPECIFIED {
+					drive("SIT", &pb.Command{Mode: pb.Mode_MODE_SIT, BodyHeight: 0.5}, 1500*time.Millisecond)
+					return
+				}
+			case <-t.C:
+				send(&pb.Command{Mode: pb.Mode_MODE_WALK, BodyHeight: 0.5})
+			}
+		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: hexctl [-url ws://...] [-for 5s] watch|trace|demo|stand|estop")
+		fmt.Fprintln(os.Stderr, "usage: hexctl [-url ws://...] [-for 5s] watch|trace|demo|stand|estop|goto LAT LON")
 		os.Exit(2)
 	}
 }

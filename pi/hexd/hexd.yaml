@@ -73,6 +73,27 @@ eye:                           # the cyclops eye: ST7789 1.54" on SPI0 (firmware
   bgr: false                   # red and blue swapped on screen? set true
   fps: 15                      # still frames are skipped (a calm eye costs little)
 
+vision:                        # follow me: targets from hexvision (pi/hexvision, ADR-0017)
+  enabled: true                # without hexvision the app just sees no targets
+  listen: 127.0.0.1:47300      # UDP, local only
+  follow: false                # true: the robot walks after the locked target (walk mode,
+                               # sticks at rest; a stick or STOP takes over). Test first!
+  distance: 1.2                # m kept from the target
+  max_speed: 0.5               # 0..1 of the walking speed
+  max_turn: 0.6                # 0..1 of the turning speed
+
+nav:                           # GPS navigation: go to, home, patrol, fence (ADR-0018)
+  enabled: true                # without a fix missions just wait
+  drive: false                 # true: hexd walks the robot during a mission (walk mode,
+                               # sticks at rest; a stick or STOP cancels). Test first!
+  arrive_m: 3                  # a point counts as reached this close (the NEO-6M errs 2-5 m)
+  max_hdop: 3                  # poorer fixes are not used
+  declination: 0               # deg, true = magnetic + this (-21 around São Paulo;
+                               # magnetic-declination.com). The GPS refines it while walking
+  max_speed: 0.6               # 0..1 of the walking speed
+  max_turn: 0.6                # 0..1 of the turning speed
+  store: /opt/hexapod/shared/config/nav.json   # fence and patrol route
+
 shutdown:
   enabled: true                # power off on LOW_BATTERY (robot already seated)
   delay: 10s                   # condition must hold this long
