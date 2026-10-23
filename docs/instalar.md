@@ -22,6 +22,7 @@ Este guia é para quem **não usa terminal**: você grava um cartão no PC, liga
    - **Armazenamento:** o seu cartão. Confira o tamanho, para não apagar outro disco.
 4. Quando o Imager perguntar se quer **personalizar**, pode responder **Não**. O robô se configura sozinho.
    - Opcional: se você já quer o robô na rede de casa, informe o **Wi-Fi** ali. O Pi 3 só enxerga redes **2,4 GHz**; o Pi 4 enxerga também as de 5 GHz.
+   - Se o Imager mostrar **Interfaces** (I2C, SPI, serial), deixe **todas ligadas**. A tela do robô usa a SPI: desligada ali, ela fica apagada.
 5. **Gravar.** Espere terminar e verificar.
 
 ## 2. Ligar o robô
