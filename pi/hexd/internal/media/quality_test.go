@@ -18,9 +18,9 @@ func fakeMediaMTX(t *testing.T, width *int, mu *sync.Mutex) *httptest.Server {
 		defer mu.Unlock()
 		switch {
 		case r.Method == http.MethodPatch && r.URL.Path == "/v3/config/paths/patch/cam":
-			var body map[string]int
+			var body struct{ RpiCameraWidth int }
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			*width = body["rpiCameraWidth"]
+			*width = body.RpiCameraWidth
 		case r.Method == http.MethodGet && r.URL.Path == "/v3/config/paths/get/cam":
 			_ = json.NewEncoder(w).Encode(map[string]int{"rpiCameraWidth": *width})
 		default:
