@@ -20,6 +20,8 @@ class StatusBar extends StatelessWidget {
     required this.onFaults,
     this.onData,
     this.onMap,
+    this.followOn = false,
+    this.onFollow,
     this.gamepad,
     this.onGamepad,
     this.audio = false,
@@ -41,6 +43,10 @@ class StatusBar extends StatelessWidget {
 
   /// Opens the GPS map (null: the robot has no navigation).
   final VoidCallback? onMap;
+
+  /// Follow me on (the camera looks for targets), and its switch (null: no camera link).
+  final bool followOn;
+  final VoidCallback? onFollow;
 
   /// Name of the connected gamepad, if any.
   final String? gamepad;
@@ -204,6 +210,23 @@ class StatusBar extends StatelessWidget {
                 audio ? Icons.volume_up_rounded : Icons.volume_off_rounded,
                 color: audio ? Colors.white : Colors.white54,
                 size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (onFollow != null) ...[
+          GestureDetector(
+            onTap: onFollow,
+            child: Tooltip(
+              message: l.followMode,
+              child: Glass(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.person_search_rounded,
+                  color: followOn ? severityColor(Severity.ok) : Colors.white54,
+                  size: 20,
+                ),
               ),
             ),
           ),

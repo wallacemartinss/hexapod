@@ -64,6 +64,7 @@ jobs:
 
       - name: hexvision tests (follow-me markers)
         run: |
+          sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends protobuf-compiler
           (cd ../proto && buf generate --template buf.gen.vision.yaml)
           python3 -m pip install --quiet opencv-contrib-python-headless==4.12.0.88 protobuf==5.29.5

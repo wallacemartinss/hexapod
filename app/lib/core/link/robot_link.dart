@@ -153,6 +153,13 @@ class RobotLink {
     channel.sink.add((Envelope()..followRequest = (FollowRequest()..trackId = trackId)).writeToBuffer());
   }
 
+  /// Turns follow me on or off (off: the robot stops looking for targets).
+  void followMode(bool on) {
+    final channel = _channel;
+    if (_current != LinkStatus.connected || channel == null) return;
+    channel.sink.add((Envelope()..followMode = (FollowMode()..on = on)).writeToBuffer());
+  }
+
   /// Sends a GPS navigation request; the answer comes in the next NavStatus.
   void navRequest(NavRequest request) {
     final channel = _channel;

@@ -482,6 +482,7 @@ func TestPairWithTheShortCode(t *testing.T) {
 type fakeVision struct {
 	ch      chan *pb.Envelope
 	follows chan uint32
+	ons     chan bool
 }
 
 func (f *fakeVision) Subscribe() (<-chan *pb.Envelope, func()) { return f.ch, func() {} }
@@ -489,15 +490,24 @@ func (f *fakeVision) Follow(id uint32) *pb.FollowStatus {
 	f.follows <- id
 	return &pb.FollowStatus{TrackId: id}
 }
+func (f *fakeVision) SetOn(on bool)                   { f.ons <- on }
 func (f *fakeVision) Steer(c *pb.Command) *pb.Command { return c }
 func (f *fakeVision) Status() *pb.FollowStatus {
 	return &pb.FollowStatus{State: pb.FollowState_FOLLOW_STATE_IDLE}
 }
 
 func TestFollowMeOverTheWebSocket(t *testing.T) {
-	v := &fakeVision{ch: make(chan *pb.Envelope, 4), follows: make(chan uint32, 4)}
+	v := &fakeVision{ch: make(chan *pb.Envelope, 4), follows: make(chan uint32, 4), ons: make(chan bool, 4)}
 	r := newRig(t, Config{Vision: v})
 	a := connectApp(t, r)
+
+	on, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_FollowMode{FollowMode: &pb.FollowMode{On: true}}})
+	if err := a.conn.Write(context.Background(), websocket.MessageBinary, on); err != nil {
+		t.Fatal(err)
+	}
+	if !<-v.ons {
+		t.Fatal("follow me not turned on")
+	}
 
 	v.ch <- &pb.Envelope{Payload: &pb.Envelope_Targets{Targets: &pb.Targets{Seq: 42}}}
 	deadline := time.After(3 * time.Second)
@@ -519,15 +529,15 @@ func TestFollowMeOverTheWebSocket(t *testing.T) {
 	if got := <-v.follows; got != 8 {
 		t.Fatalf("follow %d, want 8", got)
 	}
-	// The app is the dead man: the last one leaving stops the follow.
+	// The app is the dead man: the last one leaving turns follow me off.
 	a.conn.CloseNow()
 	select {
-	case got := <-v.follows:
-		if got != 0 {
-			t.Fatalf("on disconnect follow %d, want 0", got)
+	case on := <-v.ons:
+		if on {
+			t.Fatal("on disconnect follow me turned on")
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("follow not cancelled when the app left")
+		t.Fatal("follow me not turned off when the app left")
 	}
 }
 
@@ -536,6 +546,7 @@ func TestFollowMeOverTheWebSocket(t *testing.T) {
 func TestFollowSteersTheAppsWalkCommands(t *testing.T) {
 	hub := vision.New(quiet)
 	hub.EnableFollow(vision.DefaultDrive())
+	hub.SetOn(true)
 	r := newRig(t, Config{Vision: hub})
 	a := connectApp(t, r)
 	hub.Update(&pb.Targets{Targets: []*pb.Target{{TrackId: 1000, BearingDeg: 40, DistanceM: 3}}})

@@ -1,5 +1,8 @@
 """hexvision: camera -> follow-me targets -> hexd (UDP, one Envelope per frame).
 
+Only while follow me is on (hexd says so every second, hexvision.wake): off,
+the camera is closed and nothing is processed.
+
     python3 -m hexvision                       # on the robot (systemd)
     python3 -m hexvision --source 0 --show --models models   # on a PC, with its webcam
 """
@@ -19,6 +22,7 @@ from hexvision.detect import Found, MarkerFinder
 from hexvision.people import CAMERA_HEIGHT_M, CAMERA_PITCH_DEG, PersonFinder
 from hexvision.pipeline import PeoplePipeline
 from hexvision.tracker import MarkerConfirm, PeopleTracker
+from hexvision.wake import HEARTBEAT_EVERY, Wake
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gen"))
 from hexapod.v1 import envelope_pb2, vision_pb2  # noqa: E402
@@ -29,10 +33,12 @@ log = logging.getLogger("hexvision")
 
 class LatestFrame:
     """Reads the source on its own thread and keeps only the newest frame:
-    processing slower than the camera must not build up a delay."""
+    processing slower than the camera must not build up a delay. The source
+    is open only while `active` is set (decoding the video costs CPU too)."""
 
     def __init__(self, source):
         self.source = source
+        self.active = threading.Event()
         self._cond = threading.Condition()
         self._frame = None
         self._count = 0
@@ -41,6 +47,7 @@ class LatestFrame:
     def _run(self):
         warned = False
         while True:
+            self.active.wait()
             cap = cv2.VideoCapture(self.source)
             if not cap.isOpened():
                 if not warned:
@@ -50,7 +57,7 @@ class LatestFrame:
                 continue
             log.info("camera %s open", self.source)
             warned = False
-            while True:
+            while self.active.is_set():
                 ok, frame = cap.read()
                 if not ok:
                     log.warning("camera %s stopped", self.source)
@@ -60,7 +67,10 @@ class LatestFrame:
                     self._count += 1
                     self._cond.notify_all()
             cap.release()
-            time.sleep(1)
+            if self.active.is_set():
+                time.sleep(1)  # stopped by itself: retry
+            else:
+                log.info("camera %s closed: follow me off", self.source)
 
     def next(self, after, timeout=1.0):
         """The first frame newer than number `after`, or (after, None)."""
@@ -143,6 +153,9 @@ def main():
     frames = LatestFrame(source)
     host, port = args.hexd.rsplit(":", 1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setblocking(False)
+    wake = Wake()
+    heartbeat_at = 0.0
 
     camera = finder = people = None
     confirm = MarkerConfirm()
@@ -150,8 +163,39 @@ def main():
     seq, count, fps = 0, 0, 0.0
     window_start, window_frames = time.monotonic(), 0
     period = 1 / args.fps
+    def send(targets):
+        try:
+            sock.sendto(envelope_pb2.Envelope(targets=targets).SerializeToString(), (host, int(port)))
+        except OSError:
+            pass  # hexd not up: the next one tries again
+
     while True:
         start = time.monotonic()
+        while True:  # hexd's wake-ups
+            try:
+                data = sock.recv(256)
+            except (BlockingIOError, OSError):
+                break
+            env = envelope_pb2.Envelope()
+            try:
+                env.ParseFromString(data)
+            except Exception:  # noqa: BLE001 (a stray datagram)
+                continue
+            if env.HasField("follow_mode") and env.follow_mode.on:
+                wake.heard(start)
+        if not args.show and not wake.awake(start):
+            if frames.active.is_set():
+                frames.active.clear()
+                log.info("follow me off: idle")
+            if start - heartbeat_at >= HEARTBEAT_EVERY:
+                heartbeat_at = start
+                seq += 1
+                send(vision_pb2.Targets(seq=seq, timestamp_ms=int(start * 1000)))
+            time.sleep(0.2)
+            continue
+        if not frames.active.is_set():
+            frames.active.set()
+            log.info("follow me on: looking for targets")
         count, frame = frames.next(count)
         if frame is None:
             continue
@@ -207,11 +251,7 @@ def main():
             fps = window_frames / (time.monotonic() - window_start)
             window_start, window_frames = time.monotonic(), 0
         seq += 1
-        msg = envelope_pb2.Envelope(targets=build_targets(seq, *size, found, fps, camera.calibrated))
-        try:
-            sock.sendto(msg.SerializeToString(), (host, int(port)))
-        except OSError:
-            pass  # hexd not up: the next frame tries again
+        send(build_targets(seq, *size, found, fps, camera.calibrated))
         if args.show:
             draw(small, found, fps)
             cv2.imshow("hexvision", small)

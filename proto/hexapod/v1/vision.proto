@@ -46,6 +46,13 @@ message FollowRequest {
   uint32 track_id = 1;
 }
 
+// app -> hexd: follow me on or off. Off, hexvision closes the camera and
+// idles (no CPU spent looking for people) and nothing is followed.
+// hexd -> hexvision: sent every second while on, to keep it looking.
+message FollowMode {
+  bool on = 1;
+}
+
 enum FollowState {
   FOLLOW_STATE_UNSPECIFIED = 0;
   FOLLOW_STATE_IDLE = 1; // nothing selected
@@ -61,4 +68,5 @@ message FollowStatus {
   float bearing_deg = 3; // of the locked target
   float distance_m = 4;
   uint32 lost_ms = 5; // how long the target has been out of view
+  bool on = 6; // follow me on (FollowMode): hexvision is looking for targets
 }

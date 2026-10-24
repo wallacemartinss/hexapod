@@ -17,6 +17,9 @@ final followRequestProvider = Provider<void Function(int trackId)>(
   (ref) => ref.watch(linkProvider).followTarget,
 );
 
+/// Turns follow me on or off. Tests replace it.
+final followModeProvider = Provider<void Function(bool on)>((ref) => ref.watch(linkProvider).followMode);
+
 /// Follow me over the video, like a drone's active track: a box on each
 /// target the robot's camera sees; tap one, then Follow. The robot follows
 /// only while this app stays connected, and Cancel (or leaving) stops it.

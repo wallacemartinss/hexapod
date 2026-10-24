@@ -76,6 +76,8 @@ type Config struct {
 type Vision interface {
 	Subscribe() (<-chan *pb.Envelope, func())
 	Follow(track uint32) *pb.FollowStatus
+	// SetOn turns follow me on or off (off: hexvision idles).
+	SetOn(on bool)
 	Status() *pb.FollowStatus
 	// Steer may replace a walk Command's speeds to follow the locked target.
 	Steer(cmd *pb.Command) *pb.Command
@@ -272,7 +274,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		// The app is the dead man of follow me and of the GPS missions: with
 		// none left, nothing is followed and the mission waits to be resumed.
 		if last && s.cfg.Vision != nil {
-			s.cfg.Vision.Follow(0)
+			s.cfg.Vision.SetOn(false)
 		}
 		if last && s.cfg.Nav != nil {
 			s.cfg.Nav.Suspend()
@@ -386,6 +388,9 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 				s.cfg.Nav.Request(&pb.NavRequest{Action: pb.NavAction_NAV_ACTION_STOP})
 			}
 			s.cfg.Vision.Follow(f.TrackId) // the new status reaches every app
+		}
+		if m := env.GetFollowMode(); m != nil && s.cfg.Vision != nil {
+			s.cfg.Vision.SetOn(m.On) // the new status reaches every app
 		}
 		if r := env.GetNavRequest(); r != nil && s.cfg.Nav != nil {
 			s.cfg.Nav.Request(r) // the answer reaches every app

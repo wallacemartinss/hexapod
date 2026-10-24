@@ -11,12 +11,17 @@ import (
 	"time"
 )
 
-// Quality presets of the camera: what the app offers.
+// Quality presets of the camera: what the app offers. Mode is the OV5647
+// sensor mode (width:height:bits:packing): 1296x972 is the whole sensor
+// binned 2x2 (the full 120 deg, and less noise in low light); its 1920x1080
+// is a crop of the middle (sharper, ~25% narrower). The whole sensor at
+// full resolution only does 15 fps.
 var Qualities = map[string]struct {
 	Width, Height, Bitrate int // px, px, bit/s
+	Mode                   string
 }{
-	"720p":  {1280, 720, 2_000_000},  // light: good over 4G, any Pi
-	"1080p": {1920, 1080, 4_000_000}, // sharper: home Wi-Fi, best on a Pi 4
+	"720p":  {1280, 720, 2_500_000, "1296:972:10:P"},   // full view: good over 4G, any Pi
+	"1080p": {1920, 1080, 5_000_000, "1920:1080:10:P"}, // sharper, narrower: home Wi-Fi, best on a Pi 4
 }
 
 // DefaultQuality matches pi/mediamtx/mediamtx.yml.
@@ -69,8 +74,9 @@ func (c *Camera) SetQuality(ctx context.Context, q string) error {
 
 func (c *Camera) apply(ctx context.Context, q string) error {
 	p := Qualities[q]
-	body, _ := json.Marshal(map[string]int{
+	body, _ := json.Marshal(map[string]any{
 		"rpiCameraWidth": p.Width, "rpiCameraHeight": p.Height, "rpiCameraBitrate": p.Bitrate,
+		"rpiCameraMode": p.Mode,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPatch,
 		c.API+"/v3/config/paths/patch/"+c.Path, bytes.NewReader(body))

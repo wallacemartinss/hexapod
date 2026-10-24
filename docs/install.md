@@ -22,6 +22,7 @@ This guide is for people who **don't use a terminal**: you flash a card on the P
    - **Storage:** your card. Check the size, so you don't erase another disk.
 4. When the Imager asks whether you want to **customize**, you can answer **No**. The robot sets itself up.
    - Optional: if you already want the robot on your home network, enter the **Wi-Fi** there. A Pi 3 only sees **2.4 GHz** networks; a Pi 4 sees 5 GHz too.
+   - If Imager shows **Interfaces** (I2C, SPI, serial), leave **all of them on**. The robot's screen uses SPI: switched off there, it stays dark.
 5. **Write.** Wait until it finishes writing and verifying.
 
 ## 2. Switch the robot on

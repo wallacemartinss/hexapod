@@ -1581,5 +1581,9 @@
         }
       }
     }
+  },
+  "followMode": "Follow me",
+  "@followMode": {
+    "description": "Follow me switch on the pilot screen: on, the camera looks for people, animals and markers"
   }
 }

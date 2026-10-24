@@ -117,6 +117,11 @@ rm -f "$MNT/usr/sbin/policy-rc.d" "$MNT/etc/resolv.conf"
 cp -a "$resolv_backup" "$MNT/etc/resolv.conf" 2>/dev/null || true
 rm -f "$MNT"/etc/ssh/ssh_host_* # each robot makes its own on first boot
 chroot "$MNT" systemctl enable regenerate_ssh_host_keys.service >/dev/null 2>&1 || true
+# That service runs on the first boot only: a power cut there left the card
+# with no host keys and sshd refusing to start, for good. ssh-keygen -A
+# makes just the missing ones, so it is safe on every start.
+mkdir -p "$MNT/etc/systemd/system/ssh.service.d"
+printf '[Service]\nExecStartPre=/usr/bin/ssh-keygen -A\n' >"$MNT/etc/systemd/system/ssh.service.d/hostkeys.conf"
 : >"$MNT/etc/machine-id"
 rm -f "$MNT/var/lib/dbus/machine-id"
 chroot "$MNT" apt-get clean

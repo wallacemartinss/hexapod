@@ -28,7 +28,69 @@ func newHub() (*Hub, *clock) {
 	c := &clock{t: time.Unix(1000, 0)}
 	h := New(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	h.now = c.now
+	h.SetOn(true)
 	return h, c
+}
+
+func TestOffDropsFramesAndStopsFollowing(t *testing.T) {
+	h, _ := newHub()
+	h.Update(frame(4))
+	h.Follow(4)
+	h.SetOn(false)
+	if st := h.Status(); st.On || st.State != pb.FollowState_FOLLOW_STATE_IDLE || st.TrackId != 0 {
+		t.Fatalf("off still follows: %v", st)
+	}
+	h.Update(frame(4)) // hexvision had not heard yet
+	if st := h.Follow(4); st.State != pb.FollowState_FOLLOW_STATE_IDLE {
+		t.Fatalf("locked with follow me off: %v", st)
+	}
+	h.SetOn(true)
+	h.Update(frame(4))
+	if st := h.Follow(4); !st.On || st.State != pb.FollowState_FOLLOW_STATE_LOCKED {
+		t.Fatalf("on again: %v", st)
+	}
+}
+
+func TestRunWakesHexvisionOnlyWhileOn(t *testing.T) {
+	h, _ := newHub()
+	h.SetOn(false)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := pc.LocalAddr().String()
+	_ = pc.Close()
+	go func() { _ = h.Run(ctx, addr) }()
+	vision, err := net.ListenPacket("udp", "127.0.0.1:0") // hexvision's socket
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = vision.Close() }()
+	to, _ := net.ResolveUDPAddr("udp", addr)
+	heartbeat, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_Targets{Targets: &pb.Targets{}}})
+	woken := func(wait time.Duration) bool {
+		buf := make([]byte, 64)
+		end := time.Now().Add(wait)
+		for time.Now().Before(end) {
+			_, _ = vision.WriteTo(heartbeat, to)
+			_ = vision.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+			n, _, err := vision.ReadFrom(buf)
+			var env pb.Envelope
+			if err == nil && proto.Unmarshal(buf[:n], &env) == nil && env.GetFollowMode().GetOn() {
+				return true
+			}
+		}
+		return false
+	}
+	if woken(WakeEvery + 300*time.Millisecond) {
+		t.Fatal("woke hexvision with follow me off")
+	}
+	h.SetOn(true)
+	if !woken(2*WakeEvery + 500*time.Millisecond) {
+		t.Fatal("hexvision not told follow me is on")
+	}
 }
 
 func TestLockOnlyTargetsInView(t *testing.T) {

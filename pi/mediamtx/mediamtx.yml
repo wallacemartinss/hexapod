@@ -36,14 +36,21 @@ authInternalUsers:
 
 paths:
   # OV5647 120° on CSI, hardware H.264.
+  # Size, bitrate and sensor mode are the 720p preset of hexd
+  # (internal/media/quality.go), which can switch them to 1080p.
   cam:
     source: rpiCamera
+    rpiCameraMode: "1296:972:10:P" # whole sensor binned 2x2: the full 120 deg, less noise
     rpiCameraWidth: 1280
     rpiCameraHeight: 720
     rpiCameraFPS: 30
     rpiCameraCodec: hardwareH264
-    rpiCameraBitrate: 2000000   # bit/s
-    rpiCameraIDRPeriod: 30      # frames (1 s)
+    rpiCameraProfile: high
+    rpiCameraLevel: "4.1"
+    rpiCameraBitrate: 2500000   # bit/s
+    rpiCameraIDRPeriod: 30      # frames (1 s): a lost packet heals fast
+    rpiCameraDenoise: cdn_fast
+    rpiCameraFlickerPeriod: 8333 # us: no banding under 60 Hz lamps (50 Hz countries: 10000)
 
   # USB microphone, published by mic-stream.service (ffmpeg → Opus → RTSP).
   # TODO(hardware): validate; consider muxing audio into "cam" instead.
