@@ -29,6 +29,11 @@ class _VideoViewState extends State<VideoView> {
   bool _disposed = false;
   int _attempt = 0;
 
+  /// Bumped by every restart: an older attempt still in flight (the robot's
+  /// address changed mid-connect) closes its own connection when it lands,
+  /// instead of playing, unseen, next to the current one.
+  int _generation = 0;
+
   @override
   void initState() {
     super.initState();
@@ -43,15 +48,23 @@ class _VideoViewState extends State<VideoView> {
 
   Future<void> _connect() async {
     if (_disposed) return;
+    final gen = _generation;
+    bool stale() => _disposed || gen != _generation;
     _set(VideoStatus.connecting);
+    RTCPeerConnection? pc;
     try {
-      final pc = await createPeerConnection({'iceServers': [], 'sdpSemantics': 'unified-plan'});
+      pc = await createPeerConnection({'iceServers': [], 'sdpSemantics': 'unified-plan'});
+      if (stale()) {
+        await pc.close();
+        return;
+      }
       _pc = pc;
       await pc.addTransceiver(
         kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
         init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
       );
       pc.onTrack = (event) {
+        if (stale()) return;
         if (event.track.kind == 'video' && event.streams.isNotEmpty) {
           _renderer.srcObject = event.streams.first;
           _attempt = 0;
@@ -59,6 +72,7 @@ class _VideoViewState extends State<VideoView> {
         }
       };
       pc.onConnectionState = (state) {
+        if (stale()) return;
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
             state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
             state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
@@ -70,12 +84,17 @@ class _VideoViewState extends State<VideoView> {
       await pc.setLocalDescription(offer);
       await _iceGathered(pc);
       final local = await pc.getLocalDescription();
+      if (stale()) return; // the restart closed this pc
       final whep = WhepClient(widget.uri);
       _whep = whep;
       final answer = await whep.exchange(local!.sdp!);
+      if (stale()) {
+        await whep.close();
+        return;
+      }
       await pc.setRemoteDescription(RTCSessionDescription(answer, 'answer'));
     } catch (_) {
-      _restart();
+      if (!stale()) _restart();
     }
   }
 
@@ -92,6 +111,7 @@ class _VideoViewState extends State<VideoView> {
   void _restart({bool immediately = false}) {
     if (_disposed) return;
     _retry?.cancel();
+    _generation++;
     _teardown();
     _set(_attempt > 1 ? VideoStatus.unavailable : VideoStatus.connecting);
     final delay = immediately ? Duration.zero : Duration(seconds: (_attempt++).clamp(1, 5));
@@ -115,6 +135,7 @@ class _VideoViewState extends State<VideoView> {
   @override
   void dispose() {
     _disposed = true;
+    _generation++;
     _retry?.cancel();
     _teardown();
     _renderer.dispose();
