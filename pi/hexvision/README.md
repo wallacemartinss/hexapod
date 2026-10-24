@@ -32,6 +32,8 @@ Stand in front of the webcam (or show it a `DICT_4X4_50` marker): the window sho
 
 Installed by the deploy (`/opt/hexapod/current/hexvision`) and run by `hexvision.service` (below hexd's priority, at most 1.5 cores). Ansible installs `python3-opencv` and `python3-protobuf`, and downloads the person detector to `/opt/hexapod/shared/models/mobilenet-ssd` (without it, markers only).
 
+**Works only with follow me on** (the switch on the app's bar). Off, it closes the camera and idles, spending no CPU: hexd says so every second while follow me is on, and hexvision stops by itself 3 s after that stops (the last app leaving turns follow me off). With `--show`, on a PC, it always works.
+
 | Option | Default | |
 |---|---|---|
 | `--source` | `rtsp://127.0.0.1:8554/cam` | camera URL or webcam index |

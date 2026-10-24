@@ -31,5 +31,6 @@ message Envelope {
     Compass compass = 13; // ESP32 -> hexd only
     NavRequest nav_request = 14; // app -> hexd only
     NavStatus nav_status = 15; // hexd -> app only
+    FollowMode follow_mode = 16; // app -> hexd -> hexvision only
   }
 }

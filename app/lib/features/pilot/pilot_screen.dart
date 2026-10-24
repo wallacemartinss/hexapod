@@ -139,6 +139,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
     final fresh = link == LinkStatus.connected && age != null && age < const Duration(seconds: 1);
     final pi = ref.watch(piStatusProvider).value?.status;
     final hasNav = ref.watch(navStatusProvider).value != null; // hexd has navigation (and a GPS)
+    final followOn = ref.watch(followStatusProvider).value?.on ?? false;
     final lost = link != LinkStatus.connected || age == null || age > const Duration(seconds: 3);
     if (lost && !_wasLost && settings.haptics) HapticFeedback.vibrate(); // signal just dropped
     if (lost && robots.active != null) {
@@ -227,7 +228,7 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
             ],
             // Follow me: boxes on the targets the camera sees (over the sticks,
             // which still get every touch outside a box).
-            if (link == LinkStatus.connected)
+            if (link == LinkStatus.connected && followOn)
               Positioned.fill(child: TargetOverlay(haptics: settings.haptics)),
             SafeArea(
               child: Padding(
@@ -242,6 +243,13 @@ class _PilotScreenState extends ConsumerState<PilotScreen> {
                       onGamepad: () => showControllerSheet(context),
                       onData: () => showDataScreen(context),
                       onMap: hasNav ? () => showMapScreen(context) : null,
+                      followOn: followOn,
+                      onFollow: link == LinkStatus.connected
+                          ? () {
+                              if (settings.haptics) HapticFeedback.selectionClick();
+                              ref.read(followModeProvider)(!followOn);
+                            }
+                          : null,
                       audio: settings.robotAudio,
                       onAudio: () => ref
                           .read(settingsProvider.notifier)

@@ -455,6 +455,7 @@ void main() {
           targets: Stream.periodic(const Duration(milliseconds: 100), (_) => _dogFrame),
           follow: Stream.value(
             pb.FollowStatus()
+              ..on = true
               ..state = pb.FollowState.FOLLOW_STATE_FOLLOWING
               ..trackId = 1000000
               ..bearingDeg = -14

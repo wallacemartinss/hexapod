@@ -32,6 +32,8 @@ Fique na frente da webcam (ou mostre um marcador `DICT_4X4_50`): a janela mostra
 
 Instalado pelo deploy (`/opt/hexapod/current/hexvision`) e rodado pelo `hexvision.service` (prioridade abaixo do hexd, no máximo 1,5 núcleo). O Ansible instala `python3-opencv` e `python3-protobuf` e baixa o detector de pessoas para `/opt/hexapod/shared/models/mobilenet-ssd` (sem ele, só marcadores).
 
+**Só trabalha com o Siga-me ligado** (botão na barra do app). Desligado, ele fecha a câmera e fica parado, sem gastar CPU: o hexd avisa a cada segundo enquanto o Siga-me está ligado, e o hexvision para sozinho 3 s depois que os avisos param (o último app que sai desliga o Siga-me). Com `--show`, no PC, ele trabalha sempre.
+
 | Opção | Padrão | |
 |---|---|---|
 | `--source` | `rtsp://127.0.0.1:8554/cam` | URL da câmera ou número da webcam |

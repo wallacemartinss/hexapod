@@ -2,6 +2,11 @@
 // Envelope per frame) and keeps the pilot's choice: which target is
 // followed, and whether it is in view.
 //
+// Follow me is off until an app turns it on (SetOn): off, hexvision closes
+// the camera and idles, and nothing is followed. While on, hexd tells
+// hexvision so every WakeEvery (a FollowMode back to where its frames come
+// from); hexvision stops by itself when those stop.
+//
 // With following on (EnableFollow), Steer replaces the speeds of the app's
 // own walk Commands with the ones that follow the locked target: the app
 // stays the dead man (no Commands, nothing moves), any stick or STOP takes
@@ -34,6 +39,8 @@ const (
 	frontFresh = 300 * time.Millisecond
 	// frontMaxMm: the firmware caps readings here, meaning nothing in range.
 	frontMaxMm = 2000
+	// WakeEvery: while follow me is on, hexvision is told so this often.
+	WakeEvery = time.Second
 )
 
 // Hub is safe for concurrent use.
@@ -55,6 +62,8 @@ type Hub struct {
 	steeredAt time.Time
 	frontM    float64 // front VL53L0X, m (0 = no reading)
 	frontAt   time.Time
+	on        bool     // follow me on (SetOn): hexvision looks for targets
+	vision    net.Addr // where hexvision's frames come from (its idle heartbeats too)
 }
 
 // FrontRange takes the front distance sensor's reading from the telemetry
@@ -136,24 +145,31 @@ func (h *Hub) Run(ctx context.Context, addr string) error {
 	go func() { // targets going stale and lost ones released, without frames
 		t := time.NewTicker(100 * time.Millisecond)
 		defer t.Stop()
+		wake := time.NewTicker(WakeEvery)
+		defer wake.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-t.C:
 				h.Tick()
+			case <-wake.C:
+				h.wake(conn)
 			}
 		}
 	}()
 	buf := make([]byte, 2048)
 	for {
-		n, _, err := conn.ReadFrom(buf)
+		n, from, err := conn.ReadFrom(buf)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
 			return err
 		}
+		h.mu.Lock()
+		h.vision = from
+		h.mu.Unlock()
 		var env pb.Envelope
 		if proto.Unmarshal(buf[:n], &env) != nil || env.GetTargets() == nil {
 			continue
@@ -162,9 +178,43 @@ func (h *Hub) Run(ctx context.Context, addr string) error {
 	}
 }
 
-// Update takes a frame's targets and tells the subscribers.
+// wake tells hexvision to keep looking, while follow me is on.
+func (h *Hub) wake(conn net.PacketConn) {
+	h.mu.Lock()
+	on, to := h.on, h.vision
+	h.mu.Unlock()
+	if !on || to == nil {
+		return
+	}
+	msg, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_FollowMode{FollowMode: &pb.FollowMode{On: true}}})
+	_, _ = conn.WriteTo(msg, to)
+}
+
+// SetOn turns follow me on or off (off also stops following).
+func (h *Hub) SetOn(on bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if on == h.on {
+		return
+	}
+	h.on = on
+	h.log.Info("follow me", "on", on)
+	if !on {
+		h.track, h.lastSeen, h.latest = 0, nil, nil
+		h.publishLocked(&pb.Envelope{Payload: &pb.Envelope_Targets{Targets: &pb.Targets{}}})
+	}
+	h.refresh()
+	h.publishLocked(&pb.Envelope{Payload: &pb.Envelope_FollowStatus{FollowStatus: h.statusLocked()}})
+}
+
+// Update takes a frame's targets and tells the subscribers. With follow me
+// off they are dropped (a frame hexvision sent before it heard).
 func (h *Hub) Update(t *pb.Targets) {
 	h.mu.Lock()
+	if !h.on {
+		h.mu.Unlock()
+		return
+	}
 	h.latest, h.latestAt = t, h.now()
 	h.refresh()
 	status := h.statusLocked()
@@ -273,7 +323,7 @@ func (h *Hub) refresh() {
 }
 
 func (h *Hub) statusLocked() *pb.FollowStatus {
-	st := &pb.FollowStatus{State: h.state, TrackId: h.track}
+	st := &pb.FollowStatus{State: h.state, TrackId: h.track, On: h.on}
 	if h.following() {
 		st.State = pb.FollowState_FOLLOW_STATE_FOLLOWING
 	}

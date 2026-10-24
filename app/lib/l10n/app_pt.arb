@@ -496,5 +496,6 @@
   "navRefusedNothingToResume": "Não há missão para continuar",
   "navInterrupted": "Missão interrompida (conexão perdida)",
   "followAnimal": "Animal",
-  "followAnimalDistance": "Animal · {meters} m"
+  "followAnimalDistance": "Animal · {meters} m",
+  "followMode": "Siga-me"
 }
