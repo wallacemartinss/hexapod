@@ -67,7 +67,7 @@ func TestRunWakesHexvisionOnlyWhileOn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer vision.Close()
+	defer func() { _ = vision.Close() }()
 	to, _ := net.ResolveUDPAddr("udp", addr)
 	heartbeat, _ := proto.Marshal(&pb.Envelope{Payload: &pb.Envelope_Targets{Targets: &pb.Targets{}}})
 	woken := func(wait time.Duration) bool {
